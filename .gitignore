@@ -1,0 +1,23 @@
+.DS_Store
+**/.DS_Store
+.idea/
+.vscode/
+*.iml
+*.log
+
+# Frontend
+**/node_modules/
+**/dist/
+
+# Java / Maven
+**/target/
+
+# Local secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Runtime files
+*.pid
+.tmp/
