@@ -43,7 +43,8 @@
 - 容器：Docker + Docker Compose（开发）
 - 编排：Kubernetes + Helm 3（生产）
 - CI/CD：GitHub Actions + ArgoCD
-- 监控：Prometheus + Grafana + ELK
+- 可观测：OpenTelemetry + Grafana Alloy + Prometheus + Loki + Tempo + Grafana（Pyroscope 可选）
+- 日志：Logback 单行 JSON + trace_id/span_id；K8s stdout 为主，本地文件仅短期滚动缓冲
 
 ---
 
