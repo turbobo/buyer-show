@@ -34,27 +34,37 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = extractToken(request);
 
-        if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
-            Long userId = jwtTokenProvider.getUserIdFromToken(token);
-            User user = userMapper.selectById(userId);
-
-            if (user != null && user.getStatus() == 0) { // status=0 means active
-                String role = jwtTokenProvider.getRoleFromToken(token);
-                var authorities = role != null && role.equals("ADMIN")
-                        ? Collections.singletonList(new SimpleGrantedAuthority("ROLE_ADMIN"))
-                        : Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"));
-
-                var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            } else if (user != null && user.getStatus() == 1) { // banned
-                response.setContentType("application/json;charset=UTF-8");
-                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                response.getWriter().write(objectMapper.writeValueAsString(R.fail(ErrorCode.ACCOUNT_BANNED)));
-                return;
-            }
+        if (!StringUtils.hasText(token)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+        if (!jwtTokenProvider.validateToken(token)) {
+            writeError(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.TOKEN_EXPIRED);
+            return;
         }
 
+        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getStatus() == 2) {
+            writeError(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.TOKEN_INVALID);
+            return;
+        }
+        if (user.getStatus() == 1) {
+            writeError(response, HttpServletResponse.SC_FORBIDDEN, ErrorCode.ACCOUNT_BANNED);
+            return;
+        }
+
+        String role = user.getRole() == 1 ? "ADMIN" : "USER";
+        var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
+        var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
         filterChain.doFilter(request, response);
+    }
+
+    private void writeError(HttpServletResponse response, int status, ErrorCode errorCode) throws IOException {
+        response.setContentType("application/json;charset=UTF-8");
+        response.setStatus(status);
+        response.getWriter().write(objectMapper.writeValueAsString(R.fail(errorCode)));
     }
 
     private String extractToken(HttpServletRequest request) {

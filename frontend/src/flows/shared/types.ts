@@ -1,5 +1,4 @@
 // Shared types for Buyer Show Web
-export type {} // placeholder to satisfy verbatimModuleSyntax
 
 export interface User {
   id: string

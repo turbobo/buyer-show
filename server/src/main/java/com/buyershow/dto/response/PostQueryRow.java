@@ -23,6 +23,7 @@ public class PostQueryRow {
     private Integer likeCount;
     private Integer commentCount;
     private Integer favoriteCount;
+    private Integer moderationStatus;
     private Integer liked;
     private Integer favorited;
     private LocalDateTime createdAt;

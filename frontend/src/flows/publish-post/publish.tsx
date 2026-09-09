@@ -1,248 +1,78 @@
-// FLOW: Publish Shopping Share
-// SCREEN 1 of 1: Multi-step Publish Form | PLATFORM: Web (responsive) | ENTRY: /publish | EXIT: Home Feed
-import { useState } from 'react'
-import { ArrowLeft, X, Upload, Star, Tag, Image, Smile, Hash, AtSign, Check } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type { ChangeEvent } from 'react'
+import { ArrowLeft, Check, ImagePlus, Star } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
+import { createPost } from '@/services/posts'
+import { deleteUploadedImage, uploadImage, validateImageFile } from '@/services/uploads'
 import { mockTags } from '../shared/mock-data'
 
-const SOURCES = ['🛒 天猫', '🏬 京东', '🟠 拼多多', '🏪 线下门店', '🌍 海淘', '📦 其他']
-const IMG_GRADIENTS = [
-  'linear-gradient(135deg,#fecdd3,#fda4af)',
-  'linear-gradient(135deg,#fde68a,#fbbf24)',
-  'linear-gradient(135deg,#c7d2fe,#a5b4fc)',
-  'linear-gradient(135deg,#bbf7d0,#86efac)',
-  'linear-gradient(135deg,#fce7f3,#fbcfe8)',
-  'linear-gradient(135deg,#e9d5ff,#c4b5fd)',
-]
+const SOURCES = ['天猫', '京东', '拼多多', '线下门店', '海淘', '其他']
 
-export default function PublishScreen({ onBack, onPublish }: { onBack: () => void; onPublish: () => void }) {
-  const [step, setStep] = useState(1)
-  const [images, setImages] = useState<number[]>([0, 1, 2])
+export default function PublishScreen() {
+  const navigate = useNavigate()
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [productName, setProductName] = useState('')
-  const [source, setSource] = useState('🛒 天猫')
+  const [source, setSource] = useState(SOURCES[0])
   const [price, setPrice] = useState('')
-  const [rating, setRating] = useState(4)
+  const [rating, setRating] = useState(5)
+  const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [published, setPublished] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
+  const [publishStage, setPublishStage] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const handlePublish = () => {
-    setPublished(true)
-    setTimeout(onPublish, 1500)
+  useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview) }, [imagePreview])
+
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    const validationError = validateImageFile(file)
+    if (validationError) { setError(validationError); event.target.value = ''; return }
+    setError(null)
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
   }
 
-  if (published) {
-    return (
-      <div className="min-h-screen bg-warm-bg flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-            <Check className="w-8 h-8 text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground">发布成功！</h2>
-          <p className="text-muted-foreground">正在跳转首页...</p>
-        </div>
-      </div>
-    )
+  const handlePublish = async () => {
+    const trimmedTitle = title.trim()
+    const trimmedContent = content.trim()
+    if (!imageFile || !trimmedTitle || !trimmedContent) { setError('请填写标题、正文并选择图片'); return }
+    if (trimmedContent.length < 10) { setError('正文至少填写 10 个字符'); return }
+    if (price && (!Number.isFinite(Number(price)) || Number(price) < 0)) { setError('请输入有效的商品价格'); return }
+
+    setIsPublishing(true)
+    setError(null)
+    setPublishStage('正在上传图片...')
+    let uploadedObjectName: string | null = null
+    try {
+      const uploadResult = await uploadImage(imageFile)
+      uploadedObjectName = uploadResult.objectName
+      setPublishStage('图片上传完成，正在发布内容...')
+      const post = await createPost({
+        title: trimmedTitle, content: trimmedContent, images: [uploadResult.objectName], tags: selectedTags,
+        productName: productName.trim() || undefined, productPrice: price ? Number(price) : undefined,
+        productSource: source, productRating: rating,
+      })
+      setResult(post.moderationStatus === 1 ? '内容已提交，正在等待人工审核' : '发布成功，即将跳转详情页')
+      window.setTimeout(() => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`), 1200)
+    } catch (requestError) {
+      if (uploadedObjectName) {
+        await deleteUploadedImage(uploadedObjectName).catch(() => undefined)
+      }
+      setError(requestError instanceof Error ? requestError.message : '发布失败')
+    } finally {
+      setIsPublishing(false)
+      setPublishStage(null)
+    }
   }
 
-  return (
-    <div className="min-h-screen bg-warm-bg">
-      {/* Top Nav */}
-      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-border">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1.5 text-muted-foreground">
-            <ArrowLeft className="w-4 h-4" /> {step > 1 ? '上一步' : '取消'}
-          </Button>
-          <div className="flex items-center gap-2">
-            {[1, 2, 3].map(s => (
-              <div key={s} className={`w-2 h-2 rounded-full transition-all ${s === step ? 'bg-coral w-6' : s < step ? 'bg-coral/40' : 'bg-muted'}`} />
-            ))}
-          </div>
-          <Button
-            onClick={() => step < 3 ? setStep(step + 1) : handlePublish()}
-            disabled={step === 1 && images.length === 0}
-            className="bg-coral hover:bg-coral-dark text-white rounded-full h-8 px-4 text-sm"
-          >
-            {step < 3 ? '下一步' : '发布 🎉'}
-          </Button>
-        </div>
-      </nav>
+  if (result) return <div className="flex min-h-screen items-center justify-center bg-warm-bg"><div className="space-y-4 text-center"><div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100"><Check className="h-8 w-8 text-green-600" /></div><h1 className="text-xl font-bold">{result}</h1></div></div>
 
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        {/* Step 1: Image Upload + Product Info */}
-        {step === 1 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-border/60 p-5 md:p-6">
-              <h2 className="text-lg font-bold text-foreground mb-1">上传图片</h2>
-              <p className="text-sm text-muted-foreground mb-4">选择 1-9 张商品实拍图</p>
-              <div className="grid grid-cols-3 gap-3">
-                {images.map((idx, i) => (
-                  <div key={i} className="aspect-square rounded-xl relative group overflow-hidden" style={{ background: IMG_GRADIENTS[idx] }}>
-                    <div className="absolute inset-0 flex items-center justify-center text-3xl opacity-60">
-                      {['🧴', '✨', '💆', '🌿', '💄', '🧖'][idx]}
-                    </div>
-                    <button
-                      onClick={() => setImages(images.filter((_, j) => j !== i))}
-                      className="absolute top-2 right-2 w-6 h-6 bg-black/50 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-                {images.length < 9 && (
-                  <button
-                    onClick={() => setImages([...images, images.length % 6])}
-                    className="aspect-square rounded-xl border-2 border-dashed border-border hover:border-coral/50 flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-coral transition-colors"
-                  >
-                    <Upload className="w-6 h-6" />
-                    <span className="text-xs">添加图片</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-border/60 p-5 md:p-6 space-y-4">
-              <h2 className="text-lg font-bold text-foreground mb-1">商品信息</h2>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">商品名称 <span className="text-coral">*</span></label>
-                <Input value={productName} onChange={e => setProductName(e.target.value)} placeholder="输入商品名称，如「兰蔻菁纯面霜 60ml」" />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-foreground mb-1.5 block">购物来源 <span className="text-coral">*</span></label>
-                <div className="flex flex-wrap gap-2">
-                  {SOURCES.map(s => (
-                    <button key={s} onClick={() => setSource(s)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${source === s ? 'bg-coral text-white shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-                      {s}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">价格（元）</label>
-                  <Input value={price} onChange={e => setPrice(e.target.value)} placeholder="¥ 0.00" type="number" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-foreground mb-1.5 block">评分</label>
-                  <div className="flex items-center gap-1 h-10">
-                    {[1, 2, 3, 4, 5].map(s => (
-                      <button key={s} onClick={() => setRating(s)}>
-                        <Star className={`w-7 h-7 transition-colors ${s <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2: Content Editor */}
-        {step === 2 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-border/60 p-5 md:p-6">
-              <h2 className="text-lg font-bold text-foreground mb-1">分享正文</h2>
-              <p className="text-sm text-muted-foreground mb-4">写下你的真实使用体验</p>
-              <Textarea
-                value={content}
-                onChange={e => setContent(e.target.value)}
-                placeholder="这款商品值不值得买？使用感受如何？有什么优缺点？..."
-                className="min-h-[200px] resize-none border-border/60 text-sm leading-relaxed"
-              />
-              <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/40">
-                <button className="text-muted-foreground hover:text-coral transition-colors"><Image className="w-5 h-5" /></button>
-                <button className="text-muted-foreground hover:text-coral transition-colors"><Smile className="w-5 h-5" /></button>
-                <button className="text-muted-foreground hover:text-coral transition-colors"><Hash className="w-5 h-5" /></button>
-                <button className="text-muted-foreground hover:text-coral transition-colors"><AtSign className="w-5 h-5" /></button>
-                <span className="ml-auto text-xs text-muted-foreground">{content.length}/2000</span>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl border border-border/60 p-5 md:p-6">
-              <div className="flex items-center gap-2 mb-3">
-                <Tag className="w-4 h-4 text-coral" />
-                <h3 className="text-sm font-semibold text-foreground">添加标签</h3>
-                <span className="text-xs text-muted-foreground">（最多 5 个）</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {mockTags.filter(t => t.name !== '全部').map(tag => {
-                  const cleanName = tag.name.replace(/^[^\u4e00-\u9fa5]+/, '')
-                  const isSelected = selectedTags.includes(cleanName)
-                  return (
-                    <button key={tag.name} onClick={() => {
-                      if (isSelected) setSelectedTags(selectedTags.filter(t => t !== cleanName))
-                      else if (selectedTags.length < 5) setSelectedTags([...selectedTags, cleanName])
-                    }}
-                      className={`px-3 py-1.5 rounded-full text-sm transition-all ${isSelected ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}>
-                      {isSelected && '✓ '}{tag.name}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Preview & Publish */}
-        {step === 3 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl border border-border/60 overflow-hidden">
-              <div className="p-5 md:p-6 border-b border-border/40">
-                <h2 className="text-lg font-bold text-foreground">预览</h2>
-                <p className="text-sm text-muted-foreground">检查你的分享是否满意</p>
-              </div>
-
-              {/* Preview Card */}
-              <div className="p-5 md:p-6">
-                <div className="flex gap-3 mb-4">
-                  {images.slice(0, 3).map((idx, i) => (
-                    <div key={i} className={`rounded-lg overflow-hidden ${i === 0 ? 'flex-[2]' : 'flex-1'}`} style={{ background: IMG_GRADIENTS[idx] }}>
-                      <div className="aspect-square flex items-center justify-center text-2xl opacity-60">
-                        {['🧴', '✨', '💆', '🌿', '💄', '🧖'][idx]}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <h3 className="text-lg font-bold text-foreground mb-3">{productName || '商品名称'}</h3>
-
-                {productName && (
-                  <div className="bg-warm-bg border border-border/60 rounded-xl p-4 flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-lg flex items-center justify-center text-xl" style={{ background: IMG_GRADIENTS[0] }}>🧴</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold truncate">{productName}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge variant="secondary" className="bg-green-50 text-green-700 border-0 text-xs">{source}</Badge>
-                        <div className="flex">{Array.from({ length: rating }).map((_, i) => <Star key={i} className="w-3 h-3 fill-yellow-400 text-yellow-400" />)}</div>
-                      </div>
-                    </div>
-                    {price && <span className="text-lg font-bold text-coral">¥{price}</span>}
-                  </div>
-                )}
-
-                <p className="text-sm text-foreground/70 leading-relaxed line-clamp-4">{content || '在这里预览你的正文内容...'}</p>
-
-                {selectedTags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    {selectedTags.map(tag => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(2)} className="flex-1 h-12 rounded-full">返回编辑</Button>
-              <Button onClick={handlePublish} className="flex-1 h-12 rounded-full bg-coral hover:bg-coral-dark text-white text-base font-semibold shadow-lg shadow-coral/20">
-                发布分享 🎉
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
+  return <div className="min-h-screen bg-warm-bg"><nav className="sticky top-0 z-50 border-b border-border bg-white/95"><div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4"><Button variant="ghost" onClick={() => navigate(-1)}><ArrowLeft className="mr-1 h-4 w-4" />取消</Button><h1 className="font-semibold">发布分享</h1><Button disabled={isPublishing} onClick={() => void handlePublish()} className="bg-coral text-white hover:bg-coral-dark">{isPublishing ? '上传并发布中...' : '发布'}</Button></div></nav><main className="mx-auto max-w-3xl space-y-6 p-4 py-6"><section className="space-y-4 rounded-2xl border border-border/60 bg-white p-5"><h2 className="text-lg font-bold">分享内容</h2><div><label className="mb-1.5 block text-sm font-medium">标题</label><Input value={title} maxLength={200} onChange={(event) => setTitle(event.target.value)} placeholder="用一句话概括你的购物体验" /></div><div><label className="mb-1.5 block text-sm font-medium">正文</label><Textarea value={content} maxLength={5000} onChange={(event) => setContent(event.target.value)} className="min-h-48" placeholder="写下真实使用体验、优缺点和购买建议..." /></div><div><label className="mb-1.5 block text-sm font-medium">商品图片</label><label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border p-5 text-sm text-muted-foreground hover:border-coral hover:text-coral"><ImagePlus className="mb-2 h-6 w-6" /><span>{imageFile ? imageFile.name : '选择 JPEG、PNG 或 WebP 图片（最大 10MB）'}</span><input className="sr-only" type="file" accept="image/jpeg,image/png,image/webp" onChange={handleFileChange} /></label>{imagePreview && <img className="mt-3 aspect-video w-full rounded-xl object-cover" src={imagePreview} alt="待发布商品预览" />}</div></section><section className="space-y-4 rounded-2xl border border-border/60 bg-white p-5"><h2 className="text-lg font-bold">商品信息</h2><Input value={productName} onChange={(event) => setProductName(event.target.value)} placeholder="商品名称（可选）" /><div className="grid gap-4 sm:grid-cols-2"><Input value={price} type="number" min="0" onChange={(event) => setPrice(event.target.value)} placeholder="价格（元）" /><div className="flex items-center gap-1">{[1, 2, 3, 4, 5].map((value) => <button type="button" key={value} onClick={() => setRating(value)}><Star className={`h-6 w-6 ${value <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} /></button>)}</div></div><div className="flex flex-wrap gap-2">{SOURCES.map((item) => <button type="button" key={item} onClick={() => setSource(item)} className={`rounded-lg px-3 py-2 text-sm ${source === item ? 'bg-coral text-white' : 'bg-muted text-muted-foreground'}`}>{item}</button>)}</div></section><section className="rounded-2xl border border-border/60 bg-white p-5"><h2 className="mb-3 text-lg font-bold">标签</h2><div className="flex flex-wrap gap-2">{mockTags.filter((tag) => tag.name !== '全部').map((tag) => { const name = tag.name.replace(/^[^\u4e00-\u9fa5]+/, ''); const selected = selectedTags.includes(name); return <button type="button" key={tag.name} onClick={() => setSelectedTags((current) => selected ? current.filter((item) => item !== name) : current.length < 5 ? [...current, name] : current)} className={`rounded-full px-3 py-1.5 text-sm ${selected ? 'bg-coral text-white' : 'bg-muted text-muted-foreground'}`}>{tag.name}</button> })}</div></section>{publishStage && <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground">{publishStage}</p>}{error && <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3"><p className="text-sm text-destructive">{error}</p>{imageFile && <Button size="sm" variant="outline" disabled={isPublishing} onClick={() => void handlePublish()}>重试</Button>}</div>}</main></div>
 }

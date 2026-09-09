@@ -23,6 +23,7 @@ public class PostDTO {
     private Integer likeCount;
     private Integer commentCount;
     private Integer favoriteCount;
+    private Integer moderationStatus;
     private Boolean isLiked;
     private Boolean isFavorited;
     private LocalDateTime createdAt;

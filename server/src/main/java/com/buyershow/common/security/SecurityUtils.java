@@ -10,10 +10,10 @@ public class SecurityUtils {
 
     public static User getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user;
+        if (auth == null || !(auth.getPrincipal() instanceof User)) {
+            return null;
         }
-        return null;
+        return (User) auth.getPrincipal();
     }
 
     public static Long getCurrentUserId() {

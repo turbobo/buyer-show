@@ -39,6 +39,13 @@ public enum ErrorCode {
     COMMENT_CONTENT_EMPTY(4003, "评论内容不能为空"),
     COMMENT_REPLY_DEPTH(4004, "仅支持一级嵌套回复"),
 
+    // 内容安全 7000-7999
+    CONTENT_REJECTED(7001, "内容未通过安全校验"),
+    REPORT_DUPLICATED(7002, "请勿重复举报相同内容"),
+    REPORT_NOT_FOUND(7003, "举报记录不存在"),
+    REPORT_ALREADY_HANDLED(7004, "举报记录已处理"),
+    CONTENT_NOT_PENDING(7005, "内容不在待审核状态"),
+
     // 上传 5000-5999
     FILE_TOO_LARGE(5001, "文件大小不能超过10MB"),
     FILE_TYPE_INVALID(5002, "仅支持 jpg/png/webp 格式"),

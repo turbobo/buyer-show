@@ -1,6 +1,7 @@
 package com.buyershow.service;
 
 import com.buyershow.common.ErrorCode;
+import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.common.util.CursorUtils;
@@ -32,18 +33,22 @@ public class PostService {
     private final LikeMapper likeMapper;
     private final FavoriteMapper favoriteMapper;
     private final PostAssembler postAssembler;
+    private final ContentModerationService contentModerationService;
+    private final UploadService uploadService;
 
     /**
      * 稳定游标分页：自增 id 与发帖顺序一致，避免深分页与 MySQL filesort。
      * 点赞/收藏状态通过 JOIN 一次返回，消除每页 2N 次查询。
      */
-    public CursorPage<PostDTO> getFeed(String cursor, int requestedLimit) {
+    public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit) {
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
         Long currentUserId = SecurityUtils.getCurrentUserId();
+        String normalizedTag = tag == null || tag.isBlank() ? null : tag.trim();
 
         List<PostQueryRow> rows = postMapper.selectFeedRows(
                 cursorId,
+                normalizedTag,
                 limit + 1,
                 currentUserId);
 
@@ -74,7 +79,11 @@ public class PostService {
         if (row == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        return postAssembler.toPostDTO(row);
+        PostDTO dto = postAssembler.toPostDTO(row);
+        if (dto.getModerationStatus() != ModerationStatus.APPROVED) {
+            dto.setImages(Collections.emptyList());
+        }
+        return dto;
     }
 
     @Transactional
@@ -91,10 +100,25 @@ public class PostService {
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
         post.setProductRating(request.getProductRating());
+        uploadService.validatePendingImages(userId, request.getImages());
+        String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
+        ModerationDecision decision = contentModerationService.evaluate(
+                request.getTitle(), request.getContent(), request.getProductName(),
+                request.getProductSource(), tagsText);
+        if (decision.getStatus() == ModerationStatus.REJECTED) {
+            uploadService.deletePendingImages(userId, request.getImages());
+            throw new BusinessException(ErrorCode.CONTENT_REJECTED, decision.getReason());
+        }
+        if (decision.getStatus() == ModerationStatus.APPROVED) {
+            post.setImages(uploadService.publishImages(userId, request.getImages()));
+        }
+
         post.setLikeCount(0);
         post.setCommentCount(0);
         post.setFavoriteCount(0);
         post.setStatus(0);
+        post.setModerationStatus(decision.getStatus());
+        post.setModerationReason(decision.getReason());
         postMapper.insert(post);
 
         userMapper.adjustPostCount(userId, 1);
@@ -173,7 +197,8 @@ public class PostService {
 
     private void requireActivePost(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null || post.getStatus() != 0) {
+        if (post == null || post.getStatus() != 0
+                || post.getModerationStatus() != ModerationStatus.APPROVED) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
     }

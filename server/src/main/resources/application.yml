@@ -37,6 +37,12 @@ spring:
     username: app
     password: devpassword
 
+  # Multipart upload boundary
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
+
   # Jackson
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss
@@ -65,6 +71,7 @@ jwt:
 # MinIO
 minio:
   endpoint: http://localhost:9000
+  public-url: http://localhost:9000
   access-key: minioadmin
   secret-key: minioadmin
   bucket-name: buyershow-images

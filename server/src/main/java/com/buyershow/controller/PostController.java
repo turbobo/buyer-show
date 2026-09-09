@@ -21,8 +21,9 @@ public class PostController {
     @GetMapping
     public R<CursorPage<PostDTO>> getFeed(
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "20") int limit) {
-        return R.ok(postService.getFeed(cursor, limit));
+        return R.ok(postService.getFeed(cursor, tag, limit));
     }
 
     @GetMapping("/{id}")

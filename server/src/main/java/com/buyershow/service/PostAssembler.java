@@ -36,6 +36,7 @@ public class PostAssembler {
                 .likeCount(row.getLikeCount())
                 .commentCount(row.getCommentCount())
                 .favoriteCount(row.getFavoriteCount())
+                .moderationStatus(row.getModerationStatus())
                 .isLiked(row.getLiked() != null && row.getLiked() == 1)
                 .isFavorited(row.getFavorited() != null && row.getFavorited() == 1)
                 .createdAt(row.getCreatedAt())

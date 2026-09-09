@@ -1,12 +1,11 @@
 // FLOW: Messages & Notifications
 // SCREEN 1 of 2: Messages Center | PLATFORM: Web (responsive) | ENTRY: /messages | EXIT: Chat
 import { useState } from 'react'
-import { ArrowLeft, Search, Heart, MessageCircle, User as UserIcon, Bell, Send, Image, Mic, MoreVertical, Phone, Video } from 'lucide-react'
+import { ArrowLeft, Search, MessageCircle, Send, Image, Mic, MoreVertical, Phone, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { mockConversations, mockMessages, mockNotifications, mockCurrentUser } from '../shared/mock-data'
 import type { Conversation, Message, Notification } from '../shared/types'
 
