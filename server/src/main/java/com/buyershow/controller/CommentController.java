@@ -4,6 +4,7 @@ import com.buyershow.common.R;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
 import com.buyershow.service.CommentService;
+import com.buyershow.common.security.RateLimit;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
