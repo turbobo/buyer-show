@@ -1,7 +1,7 @@
 # 买家说 — 项目代码规范
 
 > 本文件是项目级强制规范，所有代码生成和修改必须遵守。
-> 完整规范详见：`UI设计规范文档.md`、`技术开发规范.md`、`技术方案文档.md`、`架构设计文档.md`
+> 完整规范详见：`产品设计文档.md`（含 UI 设计规范）、`技术方案文档.md`、`架构设计文档.md`
 
 ---
 
@@ -25,17 +25,17 @@
 - 样式：Tailwind CSS 4
 - 路由：react-router-dom
 - 图标：lucide-react
-- 状态管理：Zustand（全局 store ≤ 3 个）
+- 状态管理：组件内 `useState` + `services/` 请求层（未引入全局状态库；Zustand 为规划项）
 - 包管理：npm
 
 ### 后端（server/）
 - 框架：Spring Boot 3.3 + Java 21
 - ORM：MyBatis-Plus
 - 数据库：MySQL 8.0
-- 缓存：Redis 7
-- 搜索：Elasticsearch 8
-- 消息队列：RabbitMQ 3.13
-- 对象存储：MinIO / 阿里云 OSS
+- 缓存：Redis 7（容器已就绪，代码未接入）
+- 搜索：Elasticsearch 8（规划）
+- 消息队列：RabbitMQ 3.13（规划）
+- 对象存储：MinIO（已接入）/ 阿里云 OSS
 - 认证：Spring Security + JWT（双 token）
 - API 文档：SpringDoc OpenAPI 3
 
@@ -86,20 +86,16 @@ buyer-show/
 │
 ├── app/                         # 移动端（待实现）
 │
-├── docs/                        # 项目文档
-│   └── assets/                  # logo 等资源
+├── docs/assets/                 # logo 等静态资源
+├── ui-prototype.html            # 移动端 UI 原型（15 屏）
 │
-├── supabase/                    # 旧版迁移脚本（归档）
-├── AGENTS.md                    # 本文件
-├── CLAUDE.md                    # AI 编码规范
-├── 架构设计文档.md               # 架构方案
-├── 架构改进分析.md               # 竞品对标分析
-├── 产品设计文档.md               # 产品功能定义
-├── 技术方案文档.md               # 技术实现细节
-├── UI设计规范文档.md             # UI 设计规范
-├── 技术开发规范.md               # 编码规范
-├── ui-prototype.html            # 移动端 UI 原型
-└── README.md
+├── 产品设计文档.md               # 产品功能、UI 规范与待办
+├── 技术方案文档.md               # 技术栈、数据库、API 契约与部署
+├── 架构设计文档.md               # 目标态架构与演进方向
+│
+├── AGENTS.md                    # 本文件（项目规范）
+├── CLAUDE.md                    # Claude Code 入口指针
+└── README.md                    # 项目入口与文档索引
 ```
 
 ---
@@ -125,16 +121,16 @@ buyer-show/
 | 状态类型 | 存储 | 工具 |
 |----------|------|------|
 | UI 临时状态 | 组件内 | `useState` |
-| 服务端数据 | React Query / SWR | 缓存 + 自动刷新 |
-| 全局用户态 | Zustand | `useUserStore` |
-| 全局 UI 态 | Zustand | `useUIStore` |
+| 服务端数据 | 组件内 + `services/` | fetch 封装（React Query/SWR 为规划项） |
+| 登录态 | localStorage | `services/http.ts`（JWT 双 token 自动刷新） |
+| 全局 UI 态 | 组件内 | `useState`（Zustand 为规划项） |
 | 持久化 | localStorage | 自定义 Hook |
 
 ### API 调用
 - 请求函数统一放 `services/`，按领域拆分
-- 使用 ky 或 axios 封装 HTTP 客户端
-- 自动处理 JWT token 刷新
-- 统一错误处理 + Toast 提示
+- HTTP 客户端使用原生 `fetch` 封装（`services/http.ts`），统一解析 `R<T>` 响应
+- 401 时用 refresh token 自动刷新并重试一次
+- 统一错误处理（`ApiError`）+ 用户提示
 
 ### 响应式断点
 | 断点 | 宽度 | 布局 |
@@ -178,6 +174,8 @@ public class R<T> {
 | 3000-3999 | 帖子相关 |
 | 4000-4999 | 评论相关 |
 | 5000-5999 | 上传相关 |
+| 6000-6999 | 参数校验 |
+| 7000-7999 | 内容安全（审核/举报） |
 | 9000-9999 | 系统错误 |
 
 ### 数据库
@@ -224,7 +222,7 @@ public class R<T> {
 |---------|---------|
 | 架构调整、技术选型 | `架构设计文档.md` + `技术方案文档.md` |
 | 新增/修改功能 | `产品设计文档.md` |
-| UI 设计变更 | `UI设计规范文档.md` |
+| UI 设计变更 | `产品设计文档.md`（§五 UI 设计规范） |
 | 编码规范变更 | `AGENTS.md` + `CLAUDE.md` |
 
 文档变更与代码变更**同一次 commit 内**完成。

@@ -12,13 +12,13 @@
 - Tailwind CSS 4（`@import "tailwindcss"` + `@theme` Token）
 - react-router-dom（路由）
 - lucide-react（图标）
-- Zustand（状态管理）
+- 状态：组件内 useState + `services/` 请求层（未引入全局状态库）
 
 ### 后端 server/
 - Spring Boot 3.3 + Java 21
 - MyBatis-Plus（ORM）
-- MySQL 8.0 + Redis 7
-- Elasticsearch 8 + RabbitMQ 3.13
+- MySQL 8.0（已接入）+ MinIO 图片存储（已接入）
+- Redis 7 / Elasticsearch 8 / RabbitMQ 3.13（规划，未接入）
 - Spring Security + JWT
 - Flyway（数据库迁移）
 
@@ -51,7 +51,7 @@
 - 状态字段用 `TINYINT` + Java 枚举
 - 禁止数据库外键；Service 事务 + 唯一索引维护关系一致性
 - 主业务表含创建/更新时间，关系表只要求创建时间
-- 游标分页必须使用稳定联合游标（如 `created_at + id`）及对应联合索引
+- 游标分页必须使用稳定唯一键；主 Feed 以自增 `id` 为游标并使用 `(status, id DESC)` 索引
 - 计数器必须用原子 SQL 自增/自减，禁止先读后写
 - 禁止直接改线上数据库，必须走迁移
 
@@ -67,11 +67,11 @@
 
 ### 新增功能
 1. 读 `产品设计文档.md` 确认功能定位
-2. 读 `UI设计规范文档.md` 确认视觉规范
+2. 读 `产品设计文档.md` §五 确认视觉规范
 3. 后端：Entity → Mapper → Service → Controller
 4. 前端：types → services → hooks → components → pages
 5. 同步文档
-6. 验证：前端 `npm run build` 通过，后端 `mvn verify` 通过
+6. 验证：前端 `npm run build` 通过，后端 `./mvnw verify` 通过（需 JDK 21）
 7. Commit：`feat(scope): 描述`
 
 ### 修复 Bug
