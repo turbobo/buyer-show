@@ -4,8 +4,10 @@ import HomeFeedScreen from './flows/home-feed/feed'
 import PostDetailScreen from './flows/post-detail/detail'
 import PublishScreen from './flows/publish-post/publish'
 import MessagesScreen from './flows/messages/messages'
+import { NotificationsScreen } from './flows/messages/notifications-screen'
 import LoginScreen from './flows/auth/login'
 import AdminModerationScreen from './flows/admin/moderation'
+import AdminAnalytics from './flows/admin/analytics'
 import NotFoundScreen from './flows/not-found/not-found'
 import { getAccessToken } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
@@ -28,7 +30,9 @@ function AnimatedRoutes() {
         <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
+        <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </div>
