@@ -76,7 +76,7 @@ export default function HomeFeedScreen() {
     <div className="min-h-screen bg-warm-bg pb-20">
       <nav className="sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
-          <div className="flex items-center gap-2"><div className="flex h-8 w-8 items-center justify-center rounded-lg bg-coral text-sm font-bold text-white">¥</div><span className="hidden text-lg font-bold sm:block">买家说</span></div>
+          <div className="flex items-center gap-2"><img src="/favicon.svg" alt="" className="h-8 w-8" /><span className="hidden text-lg font-bold sm:block">买家说</span></div>
           <div className="relative mx-auto max-w-xl flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input placeholder="搜索好物、品牌、标签..." className="h-10 rounded-full border-0 bg-muted/50 pl-10" /></div>
           <Button aria-label="消息" variant="ghost" size="icon" onClick={() => navigate('/messages')}><Bell className="h-5 w-5" /></Button>
           {getTokenRole() === 'ADMIN' && <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>审核台</Button>}
