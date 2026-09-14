@@ -18,6 +18,12 @@ import {
 
 type Tab = 'posts' | 'comments' | 'reports'
 
+// 审核状态常量
+const MODERATION_STATUS = {
+  APPROVED: 0,  // 通过
+  REJECTED: 2,  // 驳回
+} as const
+
 function imageBackground(image?: string): string {
   if (image?.startsWith('http')) {
     const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
@@ -42,9 +48,9 @@ export default function AdminModerationScreen() {
     setIsLoading(true)
     setError(null)
     try {
-      if (tab === 'posts') setPosts((await getPendingPosts()).records)
-      else if (tab === 'comments') setComments((await getPendingComments()).records)
-      else setReports((await getPendingReports()).records)
+      if (tab === 'posts') setPosts((await getPendingPosts()).list)
+      else if (tab === 'comments') setComments((await getPendingComments()).list)
+      else setReports((await getPendingReports()).list)
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : '加载审核队列失败')
     } finally {
@@ -57,8 +63,9 @@ export default function AdminModerationScreen() {
 
   const moderate = async (type: 'post' | 'comment', id: number, action: 'APPROVE' | 'REJECT') => {
     try {
-      if (type === 'post') await moderatePost(id, action, reason || undefined)
-      else await moderateComment(id, action, reason || undefined)
+      const status = action === 'APPROVE' ? MODERATION_STATUS.APPROVED : MODERATION_STATUS.REJECTED
+      if (type === 'post') await moderatePost(id, status, reason || undefined)
+      else await moderateComment(id, status, reason || undefined)
       setReason('')
       toast('success', action === 'APPROVE' ? '已通过' : '已驳回')
       await load()
@@ -67,9 +74,9 @@ export default function AdminModerationScreen() {
     }
   }
 
-  const processReport = async (id: number, action: 'ACCEPT' | 'DISMISS') => {
+  const processReport = async (id: number, action: 'ACCEPT' | 'REJECT') => {
     try {
-      await handleReport(id, action)
+      await handleReport(id, action, reason || undefined)
       toast('success', action === 'ACCEPT' ? '已采纳并下架' : '已驳回举报')
       await load()
     } catch (requestError) {
@@ -174,19 +181,22 @@ export default function AdminModerationScreen() {
                 <div className="mb-2 flex justify-between">
                   <span className="font-semibold">举报 #{report.id}</span>
                   <span className="text-xs text-muted-foreground">
-                    {report.contentType === 1 ? '帖子' : '评论'} #{report.contentId}
+                    {report.contentType === 'POST' ? '帖子' : '评论'} #{report.contentId}
                   </span>
                 </div>
                 <p className="text-sm">原因：{report.reason}</p>
-                {report.description && (
-                  <p className="mt-1 text-sm text-muted-foreground">补充：{report.description}</p>
+                {report.postTitle && (
+                  <p className="mt-1 text-sm text-muted-foreground">帖子标题：{report.postTitle}</p>
+                )}
+                {report.commentContent && (
+                  <p className="mt-1 text-sm text-muted-foreground">评论内容：{report.commentContent}</p>
                 )}
                 <p className="mt-2 text-xs text-muted-foreground">{report.createdAt}</p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" variant="destructive" onClick={() => void processReport(report.id, 'ACCEPT')}>
                     采纳并下架
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => void processReport(report.id, 'DISMISS')}>
+                  <Button size="sm" variant="outline" onClick={() => void processReport(report.id, 'REJECT')}>
                     驳回举报
                   </Button>
                 </div>
