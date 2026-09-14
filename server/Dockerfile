@@ -1,10 +1,15 @@
 # Build stage
 FROM maven:3.9-eclipse-temurin-21 AS builder
 WORKDIR /app
+
+# 配置 Maven 镜像加速
+COPY .mvn/settings.xml /root/.m2/settings.xml
+
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 COPY src ./src
-RUN mvn package -DskipTests -B
+# 跳过测试编译和执行
+RUN mvn package -Dmaven.test.skip=true -B
 
 # Runtime stage
 FROM eclipse-temurin:21-jre-alpine
