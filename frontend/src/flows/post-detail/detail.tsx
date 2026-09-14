@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, Bookmark, Flag, Heart, Send } from 'lucide-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Send } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { ApiError } from '@/services/http'
 import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 
-function contentBackground(image?: string): string {
+function imageBackground(image?: string): string {
   if (image?.startsWith('http')) {
     const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
     return `url("${encoded}") center / cover`
@@ -18,6 +18,84 @@ function contentBackground(image?: string): string {
   return image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
 }
 
+/* ─── 图片轮播组件 ─── */
+function PostImageCarousel({ images, title }: { images: string[]; title: string }) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const hasMultiple = images.length > 1
+
+  const scrollTo = (index: number) => {
+    const el = scrollRef.current
+    if (!el) return
+    const target = Math.max(0, Math.min(index, images.length - 1))
+    el.scrollTo({ left: el.offsetWidth * target, behavior: 'smooth' })
+  }
+
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el) return
+    const index = Math.round(el.scrollLeft / el.offsetWidth)
+    setActiveIndex(Math.max(0, Math.min(index, images.length - 1)))
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex snap-x snap-mandatory overflow-x-hidden"
+        role="region"
+        aria-label={`${title} 商品图片`}
+      >
+        {images.map((image, index) => (
+          <div
+            key={index}
+            className="w-full flex-none snap-center bg-muted"
+            style={{ aspectRatio: '1 / 1', background: imageBackground(image) }}
+          />
+        ))}
+      </div>
+
+      {/* 左右箭头 */}
+      {hasMultiple && activeIndex > 0 && (
+        <button
+          type="button"
+          onClick={() => scrollTo(activeIndex - 1)}
+          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
+          aria-label="上一张图片"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {hasMultiple && activeIndex < images.length - 1 && (
+        <button
+          type="button"
+          onClick={() => scrollTo(activeIndex + 1)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
+          aria-label="下一张图片"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* 圆点指示器 */}
+      {hasMultiple && (
+        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
+          {images.map((_, index) => (
+            <span
+              key={index}
+              className={`block h-1.5 rounded-full transition-all ${
+                index === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+              }`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ─── 评论项组件 ─── */
 interface CommentItemProps {
   comment: ApiComment
   onReply: (comment: ApiComment) => void
@@ -68,6 +146,7 @@ function isAuthError(error: unknown): boolean {
   return error instanceof ApiError && [1002, 1003, 1007].includes(error.code)
 }
 
+/* ─── 详情页主组件 ─── */
 export default function PostDetailScreen() {
   const { postId } = useParams()
   const navigate = useNavigate()
@@ -183,37 +262,106 @@ export default function PostDetailScreen() {
     return <div className="min-h-screen bg-warm-bg p-8 text-center"><p className="mb-4 text-destructive">{loadError ?? '帖子不存在'}</p><Button onClick={() => void load()}>重新加载</Button></div>
   }
 
+  const fallbackImages = ['linear-gradient(135deg,#fecdd3,#fda4af)']
+  const displayImages = post.images.length > 0 ? post.images : fallbackImages
+
   return (
     <div className="min-h-screen bg-warm-bg pb-20">
       <nav className="sticky top-0 z-50 border-b border-border bg-white/95">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button aria-label="返回" variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-          <Avatar className="h-7 w-7"><AvatarFallback className="bg-coral-light text-[10px] text-coral">{post.userNickname?.[0] ?? "?"}</AvatarFallback></Avatar>
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Avatar className="h-7 w-7">
+            <AvatarFallback className="bg-coral-light text-[10px] text-coral">
+              {post.userNickname?.[0] ?? '?'}
+            </AvatarFallback>
+          </Avatar>
           <span className="flex-1 text-sm font-medium">{post.userNickname}</span>
-          {post.moderationStatus === 0 && <Button aria-label="举报帖子" variant="ghost" size="icon" onClick={() => void handleReport('POST', post.id)}><Flag className="h-5 w-5" /></Button>}
+          {post.moderationStatus === 0 && (
+            <Button aria-label="举报帖子" variant="ghost" size="icon" onClick={() => void handleReport('POST', post.id)}>
+              <Flag className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </nav>
+
       <main className="mx-auto max-w-5xl p-4 py-6">
-        {post.moderationStatus === 1 && <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">该帖子正在审核，仅作者可见。</p>}
-        {actionMessage && <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-foreground/80">{actionMessage}</p>}
+        {post.moderationStatus === 1 && (
+          <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">该帖子正在审核，仅作者可见。</p>
+        )}
+        {actionMessage && (
+          <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-foreground/80">{actionMessage}</p>
+        )}
+
         <article className="overflow-hidden rounded-2xl border border-border/60 bg-white">
           <div className="grid md:grid-cols-2">
-            <div role="img" aria-label={`${post.title} 商品图片`} className="aspect-square bg-muted" style={{ background: contentBackground(post.images[0]) }} />
+            {/* 图片轮播区 */}
+            <PostImageCarousel images={displayImages} title={post.title} />
+
+            {/* 内容区 */}
             <div className="p-5">
               <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
               <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
-              {post.productName && <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4"><p className="font-semibold">{post.productName}</p><p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p></div>}
-              <div className="flex flex-wrap gap-2">{post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}</div>
+
+              {post.productName && (
+                <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4">
+                  <p className="font-semibold">{post.productName}</p>
+                  <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2">
+                {post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
+              </div>
+
               <Separator className="my-4" />
-              <p className="text-sm text-muted-foreground">{post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏</p>
+              <p className="text-sm text-muted-foreground">
+                {post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏
+              </p>
               <Separator className="my-4" />
+
               <h2 className="mb-4 font-semibold">评论</h2>
-              <div className="max-h-96 space-y-4 overflow-y-auto">{comments.length === 0 ? <p className="text-sm text-muted-foreground">还没有公开评论</p> : comments.map((comment) => <CommentItem key={comment.id} comment={comment} onReply={setReplyTarget} onReport={(commentId) => void handleReport('COMMENT', commentId)} />)}</div>
+              <div className="max-h-96 space-y-4 overflow-y-auto">
+                {comments.length === 0
+                  ? <p className="text-sm text-muted-foreground">还没有公开评论</p>
+                  : comments.map((comment) => (
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      onReply={setReplyTarget}
+                      onReport={(commentId) => void handleReport('COMMENT', commentId)}
+                    />
+                  ))
+                }
+              </div>
             </div>
           </div>
         </article>
       </main>
-      {post.moderationStatus === 0 && <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-white/95"><div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4"><Input aria-label="评论内容" value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder={replyTarget ? `回复 ${replyTarget.userNickname ?? '用户'}...` : '说点什么...'} /><Button aria-label="发送评论" disabled={isCommentSubmitting} size="icon" onClick={() => void handleSubmitComment()}><Send className="h-4 w-4" /></Button><Button aria-label="点赞" disabled={isLikeSubmitting} variant="ghost" size="icon" onClick={() => void handleLike()}><Heart className={`h-5 w-5 ${post.isLiked ? 'fill-coral text-coral' : ''}`} /></Button><Button aria-label="收藏" disabled={isFavoriteSubmitting} variant="ghost" size="icon" onClick={() => void handleFavorite()}><Bookmark className={`h-5 w-5 ${post.isFavorited ? 'fill-coral text-coral' : ''}`} /></Button></div></div>}
+
+      {/* 底部操作栏 */}
+      {post.moderationStatus === 0 && (
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-white/95">
+          <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
+            <Input
+              aria-label="评论内容"
+              value={commentText}
+              onChange={(event) => setCommentText(event.target.value)}
+              placeholder={replyTarget ? `回复 ${replyTarget.userNickname ?? '用户'}...` : '说点什么...'}
+            />
+            <Button aria-label="发送评论" disabled={isCommentSubmitting} size="icon" onClick={() => void handleSubmitComment()}>
+              <Send className="h-4 w-4" />
+            </Button>
+            <Button aria-label={post.isLiked ? '取消点赞' : '点赞'} disabled={isLikeSubmitting} variant="ghost" size="icon" onClick={() => void handleLike()}>
+              <Heart className={`h-5 w-5 ${post.isLiked ? 'fill-coral text-coral' : ''}`} />
+            </Button>
+            <Button aria-label={post.isFavorited ? '取消收藏' : '收藏'} disabled={isFavoriteSubmitting} variant="ghost" size="icon" onClick={() => void handleFavorite()}>
+              <Bookmark className={`h-5 w-5 ${post.isFavorited ? 'fill-coral text-coral' : ''}`} />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
