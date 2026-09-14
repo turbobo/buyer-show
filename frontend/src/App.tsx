@@ -1,16 +1,30 @@
-import type { ReactElement } from 'react'
+import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import HomeFeedScreen from './flows/home-feed/feed'
-import PostDetailScreen from './flows/post-detail/detail'
-import PublishScreen from './flows/publish-post/publish'
-import MessagesScreen from './flows/messages/messages'
-import { NotificationsScreen } from './flows/messages/notifications-screen'
-import LoginScreen from './flows/auth/login'
-import AdminModerationScreen from './flows/admin/moderation'
-import AdminAnalytics from './flows/admin/analytics'
-import NotFoundScreen from './flows/not-found/not-found'
 import { getAccessToken } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
+import { Skeleton } from './components/ui/skeleton'
+
+// 路由级懒加载 — 首页 Feed 立即加载，其余按需
+const HomeFeedScreen = lazy(() => import('./flows/home-feed/feed'))
+const PostDetailScreen = lazy(() => import('./flows/post-detail/detail'))
+const PublishScreen = lazy(() => import('./flows/publish-post/publish'))
+const MessagesScreen = lazy(() => import('./flows/messages/messages'))
+const NotificationsScreen = lazy(() => import('./flows/messages/notifications-screen').then(m => ({ default: m.NotificationsScreen })))
+const LoginScreen = lazy(() => import('./flows/auth/login'))
+const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
+const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
+const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
+
+function RouteFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-3">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-4 w-48" />
+      </div>
+    </div>
+  )
+}
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   const location = useLocation()
@@ -20,21 +34,30 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
   return children
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 function AnimatedRoutes() {
   const location = useLocation()
   return (
     <div key={location.pathname} className="page-transition">
-      <Routes location={location}>
-        <Route path="/" element={<HomeFeedScreen />} />
-        <Route path="/posts/:postId" element={<PostDetailScreen />} />
-        <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
-        <Route path="/login" element={<LoginScreen />} />
-        <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
-        <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
-        <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
-        <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
-        <Route path="*" element={<NotFoundScreen />} />
-      </Routes>
+      <ScrollToTop />
+      <Suspense fallback={<RouteFallback />}>
+        <Routes location={location}>
+          <Route path="/" element={<HomeFeedScreen />} />
+          <Route path="/posts/:postId" element={<PostDetailScreen />} />
+          <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
+          <Route path="/login" element={<LoginScreen />} />
+          <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
+          <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
+          <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
+          <Route path="*" element={<NotFoundScreen />} />
+        </Routes>
+      </Suspense>
     </div>
   )
 }
