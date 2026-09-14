@@ -34,6 +34,7 @@ public class CommentService {
     private final PostMapper postMapper;
     private final UserMapper userMapper;
     private final ContentModerationService contentModerationService;
+    private final NotificationService notificationService;
 
     public List<CommentDTO> listComments(Long postId, int requestedLimit) {
         requireVisiblePost(postId);
@@ -91,6 +92,11 @@ public class CommentService {
             commentMapper.adjustPostCommentCount(postId, 1);
             if (parent != null) {
                 commentMapper.adjustReplyCount(parent.getId(), 1);
+            }
+            // 发送评论通知
+            Post post = postMapper.selectById(postId);
+            if (post != null) {
+                notificationService.notifyComment(post.getUserId(), userId, postId, request.getContent());
             }
         }
         return toCreatedComment(comment, userMapper.selectById(userId));

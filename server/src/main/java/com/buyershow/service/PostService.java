@@ -15,7 +15,9 @@ import com.buyershow.mapper.FavoriteMapper;
 import com.buyershow.mapper.LikeMapper;
 import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
+import com.buyershow.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,18 +38,22 @@ public class PostService {
     private final PostAssembler postAssembler;
     private final ContentModerationService contentModerationService;
     private final UploadService uploadService;
+    private final NotificationService notificationService;
 
-    public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit) {
+    public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit, String sort) {
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
         Long currentUserId = SecurityUtils.getCurrentUserId();
         String normalizedTag = tag == null || tag.isBlank() ? null : tag.trim();
+        boolean isHotSort = "hot".equalsIgnoreCase(sort);
 
-        List<PostQueryRow> rows = postMapper.selectFeedRows(
-                cursorId,
-                normalizedTag,
-                limit + 1,
-                currentUserId);
+        List<PostQueryRow> rows;
+        if (isHotSort && cursorId == null) {
+            // Hot sort only works for first page (no cursor support for score-based sorting)
+            rows = postMapper.selectHotFeedRows(normalizedTag, limit + 1, currentUserId);
+        } else {
+            rows = postMapper.selectFeedRows(cursorId, normalizedTag, limit + 1, currentUserId);
+        }
 
         boolean hasMore = rows.size() > limit;
         List<PostQueryRow> visibleRows = hasMore ? rows.subList(0, limit) : rows;
@@ -68,6 +74,11 @@ public class PostService {
                 .build();
     }
 
+    /**
+     * 帖子详情查询。
+     * 注意：PostDTO 包含用户维度的 isLiked/isFavorited，不适合跨用户缓存。
+     * 缓存失效由写操作（create/delete/toggleLike/toggleFavorite）保证。
+     */
     public PostDTO getPostDetail(Long postId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         PostQueryRow row = postMapper.selectPostDetailRow(postId, currentUserId);
@@ -82,6 +93,8 @@ public class PostService {
         return dto;
     }
 
+    @Transactional
+    @CacheEvict(cacheNames = "user:profile", key = "#root.target.getCurrentUserIdSafe()")
     public PostDTO createPost(CreatePostRequest request) {
         Long userId = requireCurrentUserId();
 
@@ -166,6 +179,11 @@ public class PostService {
         int inserted = likeMapper.insertIgnore(userId, postId);
         if (inserted > 0) {
             postMapper.adjustLikeCount(postId, 1);
+            // 发送点赞通知
+            Post post = postMapper.selectById(postId);
+            if (post != null) {
+                notificationService.notifyLike(post.getUserId(), userId, postId, post.getTitle());
+            }
         }
         return true;
     }
@@ -186,6 +204,14 @@ public class PostService {
             postMapper.adjustFavoriteCount(postId, 1);
         }
         return true;
+    }
+
+
+    /**
+     * 供 @CacheEvict SpEL 调用，安全获取当前用户 ID。
+     */
+    public Long getCurrentUserIdSafe() {
+        return SecurityUtils.getCurrentUserId();
     }
 
     private int normalizePageSize(int requestedLimit) {
