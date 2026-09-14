@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { login, register } from '@/services/auth'
+import { trackLogin, trackRegister } from '@/services/analytics'
 import { useToast } from '@/components/ui/toast'
 
 const PHONE_REGEX = /^1[3-9]\d{9}$/
@@ -49,6 +50,7 @@ export default function LoginScreen() {
         toast('success', '注册成功，欢迎加入买家说！')
       } else {
         await login(account.trim(), password)
+        trackLogin('password')
         toast('success', '登录成功')
       }
       navigate(safeRedirect)
