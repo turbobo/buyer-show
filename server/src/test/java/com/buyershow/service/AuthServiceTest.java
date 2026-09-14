@@ -61,7 +61,7 @@ class AuthServiceTest {
         BusinessException exception = assertThrows(BusinessException.class, () -> authService.register(request));
 
         assertEquals(ErrorCode.PHONE_EXISTS.getCode(), exception.getCode());
-        verify(userMapper, never()).insert(any());
+        verify(userMapper, never()).insert(any(User.class));
     }
 
     @Test
