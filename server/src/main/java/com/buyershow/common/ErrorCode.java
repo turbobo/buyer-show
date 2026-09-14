@@ -24,6 +24,7 @@ public enum ErrorCode {
     EMAIL_EXISTS(2004, "邮箱已被注册"),
     PHONE_EXISTS(2005, "手机号已被注册"),
     PROFILE_UPDATE_FAILED(2006, "资料更新失败"),
+    ACCOUNT_EXISTS(2007, "用户名、手机号或邮箱已被注册"),
 
     // 帖子 3000-3999
     POST_NOT_FOUND(3001, "帖子不存在或已删除"),

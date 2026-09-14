@@ -10,8 +10,11 @@ import com.buyershow.dto.response.TokenPair;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -22,9 +25,13 @@ public class AuthService {
     private final JwtTokenProvider jwtTokenProvider;
 
     public TokenPair register(RegisterRequest request) {
+        String username = request.getUsername().trim();
+        String phone = trimToNull(request.getPhone());
+        String email = trimToNull(request.getEmail());
+
         // Check username uniqueness
         Long count = userMapper.selectCount(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername()));
+                new LambdaQueryWrapper<User>().eq(User::getUsername, username));
         if (count > 0) {
             throw new BusinessException(ErrorCode.USERNAME_EXISTS);
         }
@@ -36,9 +43,21 @@ public class AuthService {
             throw new BusinessException(ErrorCode.NICKNAME_EXISTS);
         }
 
+        // Check optional contact uniqueness
+        if (phone != null && userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getPhone, phone)) > 0) {
+            throw new BusinessException(ErrorCode.PHONE_EXISTS);
+        }
+        if (email != null && userMapper.selectCount(
+                new LambdaQueryWrapper<User>().eq(User::getEmail, email)) > 0) {
+            throw new BusinessException(ErrorCode.EMAIL_EXISTS);
+        }
+
         // Create user
         User user = new User();
-        user.setUsername(request.getUsername());
+        user.setUsername(username);
+        user.setPhone(phone);
+        user.setEmail(email);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setNickname(request.getNickname());
         user.setRole(0);   // USER
@@ -46,14 +65,18 @@ public class AuthService {
         user.setPostCount(0);
         user.setFollowerCount(0);
         user.setFollowingCount(0);
-        userMapper.insert(user);
+        try {
+            userMapper.insert(user);
+        } catch (DuplicateKeyException exception) {
+            // 并发注册时以数据库唯一索引兜底
+            throw new BusinessException(ErrorCode.ACCOUNT_EXISTS);
+        }
 
         return buildTokenPair(user);
     }
 
     public TokenPair login(LoginRequest request) {
-        User user = userMapper.selectOne(
-                new LambdaQueryWrapper<User>().eq(User::getUsername, request.getUsername()));
+        User user = resolveByLoginIdentifier(request.getUsername().trim());
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.AUTH_FAILED);
         }
@@ -92,5 +115,35 @@ public class AuthService {
                 .avatarUrl(user.getAvatarUrl())
                 .role(role)
                 .build();
+    }
+
+    /**
+     * 按用户名、手机号、邮箱的优先级定位账号。
+     *
+     * @param identifier 登录标识
+     * @return 匹配用户，未找到返回 null
+     */
+    private User resolveByLoginIdentifier(String identifier) {
+        List<User> candidates = userMapper.selectList(new LambdaQueryWrapper<User>()
+                .eq(User::getUsername, identifier)
+                .or().eq(User::getPhone, identifier)
+                .or().eq(User::getEmail, identifier));
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        return candidates.stream()
+                .filter(candidate -> identifier.equals(candidate.getUsername()))
+                .findFirst()
+                .orElseGet(() -> candidates.stream()
+                        .filter(candidate -> identifier.equals(candidate.getPhone()))
+                        .findFirst()
+                        .orElse(candidates.get(0)));
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 }
