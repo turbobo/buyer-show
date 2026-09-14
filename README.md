@@ -20,6 +20,8 @@ buyer-show/
 
 ### 一键启动（推荐）
 
+> 前置：Docker 运行时已启动（macOS 使用 Colima：`colima start`，详见《技术方案文档》§7.2）
+
 ```bash
 ./start-dev.sh     # 启动中间件 + 后端 + 前端
 ./stop-dev.sh      # 停止全部

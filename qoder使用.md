@@ -160,7 +160,8 @@ PC 端内容容器统一 `mx-auto` 居中：常规页面 `max-w-3xl`，宽布局
 ### 6.4 启动 / 重启开发环境
 
 ```bash
-./start-dev.sh      # 中间件 + 后端 + 前端
+colima start        # 前置：启动 Docker 运行时（macOS 使用 Colima）
+./start-dev.sh      # 中间件 + 后端 + 前端（自动检测 JDK 21 与 Colima）
 ./stop-dev.sh       # 停止全部
 ```
 

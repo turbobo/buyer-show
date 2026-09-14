@@ -21,6 +21,17 @@ fi
 export PATH="$JAVA_HOME/bin:$PATH"
 echo "☕ 使用 JDK: $JAVA_HOME"
 
+# Docker 运行时检测（macOS 使用 Colima）
+if ! docker info >/dev/null 2>&1; then
+  if command -v colima >/dev/null 2>&1; then
+    echo "🐳 Docker 运行时未启动，正在启动 Colima..."
+    colima start
+  else
+    echo "❌ Docker 运行时不可用。macOS 可安装 Colima：brew install colima docker"
+    exit 1
+  fi
+fi
+
 echo "🚀 启动买家说开发环境..."
 echo ""
 
