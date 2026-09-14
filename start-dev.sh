@@ -3,6 +3,24 @@ set -e
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
+# JDK 21 检测（Spring Boot 3 必需；本机 brew 安装路径优先）
+if [ -z "${JAVA_HOME:-}" ] || ! "$JAVA_HOME/bin/java" -version 2>&1 | grep -q 'version "21'; then
+  for candidate in \
+    "/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home" \
+    "$(/usr/libexec/java_home -v 21 2>/dev/null || true)"; do
+    if [ -n "$candidate" ] && [ -x "$candidate/bin/java" ]; then
+      export JAVA_HOME="$candidate"
+      break
+    fi
+  done
+fi
+if [ -z "${JAVA_HOME:-}" ] || ! "$JAVA_HOME/bin/java" -version 2>&1 | grep -q 'version "21'; then
+  echo "❌ 未找到 JDK 21（Spring Boot 3 必需）。安装：brew install openjdk@21"
+  exit 1
+fi
+export PATH="$JAVA_HOME/bin:$PATH"
+echo "☕ 使用 JDK: $JAVA_HOME"
+
 echo "🚀 启动买家说开发环境..."
 echo ""
 
