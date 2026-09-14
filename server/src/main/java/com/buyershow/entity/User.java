@@ -1,6 +1,7 @@
 package com.buyershow.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -14,7 +15,10 @@ public class User {
     private String username;
     private String email;
     private String phone;
+    
+    @JsonIgnore
     private String passwordHash;
+    
     private String nickname;
     private String avatarUrl;
     private String bio;
@@ -29,6 +33,7 @@ public class User {
     /** 0=正常 1=封禁 2=注销 */
     private Integer status;
 
+    @JsonIgnore
     private String openid;
 
     @TableField(fill = FieldFill.INSERT)

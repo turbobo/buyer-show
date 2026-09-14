@@ -73,14 +73,18 @@ public class PostService {
 
     /**
      * 帖子、作者、当前用户点赞/收藏状态一次 JOIN 返回。
+     * 作者本人可以看到自己待审帖子的图片。
      */
     public PostDTO getPostDetail(Long postId) {
-        PostQueryRow row = postMapper.selectPostDetailRow(postId, SecurityUtils.getCurrentUserId());
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        PostQueryRow row = postMapper.selectPostDetailRow(postId, currentUserId);
         if (row == null) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         PostDTO dto = postAssembler.toPostDTO(row);
-        if (dto.getModerationStatus() != ModerationStatus.APPROVED) {
+        // 非审核通过的帖子隐藏图片，但作者本人除外
+        if (dto.getModerationStatus() != ModerationStatus.APPROVED
+                && !row.getUserId().equals(currentUserId)) {
             dto.setImages(Collections.emptyList());
         }
         return dto;
