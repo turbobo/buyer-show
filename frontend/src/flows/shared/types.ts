@@ -21,6 +21,7 @@ export interface Post {
   title: string
   content: string
   images: string[]
+  thumbnails?: string[]
   tags: string[]
   productName?: string
   productPrice?: number

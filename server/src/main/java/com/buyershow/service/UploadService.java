@@ -15,13 +15,20 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -36,16 +43,23 @@ public class UploadService {
     private static final String PNG = "image/png";
     private static final String WEBP = "image/webp";
 
+    // 缩略图配置
+    private static final int THUMBNAIL_MAX_WIDTH = 400;
+    private static final float THUMBNAIL_JPEG_QUALITY = 0.85f;
+
     private final MinioClient minioClient;
     private final String publicUrl;
+    private final String cdnUrl;
     private final String bucketName;
 
     public UploadService(
             MinioClient minioClient,
             @Value("${minio.public-url:${minio.endpoint}}") String publicUrl,
+            @Value("${minio.cdn-url:}") String cdnUrl,
             @Value("${minio.bucket-name}") String bucketName) {
         this.minioClient = minioClient;
         this.publicUrl = publicUrl.replaceAll("/+$", "");
+        this.cdnUrl = (cdnUrl != null && !cdnUrl.isBlank()) ? cdnUrl.replaceAll("/+$", "") : null;
         this.bucketName = bucketName;
     }
 
@@ -72,7 +86,7 @@ public class UploadService {
         }
 
         return UploadImageResponse.builder()
-                .url(publicUrl + "/" + bucketName + "/" + objectName)
+                .url(buildPublicUrl(objectName))
                 .objectName(objectName)
                 .contentType(prepared.contentType())
                 .size(prepared.bytes().length)
@@ -88,13 +102,19 @@ public class UploadService {
         }
     }
 
+    /**
+     * 发布图片：将 pending 图片复制到 published/，同时生成缩略图到 thumbnails/。
+     * 返回原图 URL 列表（缩略图 URL 通过 objectName 约定可推导）。
+     */
     public List<String> publishImages(Long ownerId, List<String> images) {
         validatePendingImages(ownerId, images);
         List<String> publishedUrls = new ArrayList<>();
         for (String image : images) {
             String requiredPrefix = "pending/" + ownerId + "/";
             String publishedObject = "published/" + image.substring(requiredPrefix.length());
+            String thumbnailObject = "thumbnails/" + image.substring(requiredPrefix.length());
             try {
+                // 复制原图到 published/
                 if (!objectExists(publishedObject)) {
                     minioClient.copyObject(CopyObjectArgs.builder()
                             .bucket(bucketName)
@@ -102,8 +122,11 @@ public class UploadService {
                             .source(CopySource.builder().bucket(bucketName).object(image).build())
                             .build());
                 }
+                // 生成缩略图
+                generateAndUploadThumbnail(image, thumbnailObject);
+                // 清理原 pending 图片
                 removeObjectQuietly(image);
-                publishedUrls.add(publicUrl + "/" + bucketName + "/" + publishedObject);
+                publishedUrls.add(buildPublicUrl(publishedObject));
             } catch (Exception exception) {
                 log.error("Image promotion failed. ownerId: {}, objectName: {}", ownerId, image, exception);
                 throw new BusinessException(ErrorCode.FILE_UPLOAD_FAILED, "图片发布失败");
@@ -120,24 +143,7 @@ public class UploadService {
         }
     }
 
-    private boolean objectExists(String objectName) {
-        try {
-            minioClient.statObject(StatObjectArgs.builder().bucket(bucketName).object(objectName).build());
-            return true;
-        } catch (Exception ignored) {
-            return false;
-        }
-    }
-
-    private void removeObjectQuietly(String objectName) {
-        try {
-            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucketName).object(objectName).build());
-        } catch (Exception exception) {
-            log.warn("Upload cleanup failed. objectName: {}, error: {}", objectName, exception.getMessage());
-        }
-    }
-
-    public void deleteOwnImage(String objectName) {
+    public void cancelPendingUpload(String objectName) {
         Long userId = SecurityUtils.getCurrentUserId();
         if (userId == null) {
             throw new BusinessException(ErrorCode.TOKEN_INVALID);
@@ -152,6 +158,119 @@ public class UploadService {
             log.warn("Orphan upload cleanup failed. userId: {}, objectName: {}, error: {}",
                     userId, objectName, exception.getMessage());
         }
+    }
+
+    // ─── 缩略图生成 ─────────────────────────────────────────────────
+
+    /**
+     * 生成缩略图并上传到 MinIO。
+     * 规则：长边 ≤ 400px，保持宽高比，JPEG 质量 85%。
+     */
+    private void generateAndUploadThumbnail(String sourceObject, String thumbnailObject) {
+        try {
+            // 下载原图
+            byte[] originalBytes;
+            try (var stream = minioClient.getObject(
+                    io.minio.GetObjectArgs.builder()
+                            .bucket(bucketName)
+                            .object(sourceObject)
+                            .build())) {
+                originalBytes = stream.readAllBytes();
+            }
+
+            BufferedImage original = ImageIO.read(new ByteArrayInputStream(originalBytes));
+            if (original == null) {
+                log.warn("Cannot decode image for thumbnail: {}", sourceObject);
+                return;
+            }
+
+            // 计算缩略图尺寸
+            int origWidth = original.getWidth();
+            int origHeight = original.getHeight();
+            int targetWidth = Math.min(origWidth, THUMBNAIL_MAX_WIDTH);
+            int targetHeight = (int) ((double) targetWidth / origWidth * origHeight);
+
+            // 缩放
+            BufferedImage thumbnail = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+            Graphics2D g2d = thumbnail.createGraphics();
+            g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+            g2d.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+            g2d.drawImage(original, 0, 0, targetWidth, targetHeight, null);
+            g2d.dispose();
+
+            // 编码为 JPEG（质量 85%）
+            byte[] thumbnailBytes;
+            try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+                Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+                if (!writers.hasNext()) {
+                    log.warn("No JPEG writer available for thumbnail generation");
+                    return;
+                }
+                ImageWriter writer = writers.next();
+                try (ImageOutputStream ios = ImageIO.createImageOutputStream(output)) {
+                    writer.setOutput(ios);
+                    ImageWriteParam param = writer.getDefaultWriteParam();
+                    if (param.canWriteCompressed()) {
+                        param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+                        param.setCompressionQuality(THUMBNAIL_JPEG_QUALITY);
+                    }
+                    writer.write(null, new IIOImage(thumbnail, null, null), param);
+                } finally {
+                    writer.dispose();
+                }
+                thumbnailBytes = output.toByteArray();
+            }
+
+            // 上传缩略图
+            try (ByteArrayInputStream inputStream = new ByteArrayInputStream(thumbnailBytes)) {
+                minioClient.putObject(PutObjectArgs.builder()
+                        .bucket(bucketName)
+                        .object(thumbnailObject)
+                        .stream(inputStream, thumbnailBytes.length, -1)
+                        .contentType(JPEG)
+                        .build());
+            }
+            log.debug("Thumbnail generated: {} -> {}", sourceObject, thumbnailObject);
+        } catch (Exception exception) {
+            log.warn("Thumbnail generation failed for {}: {}", sourceObject, exception.getMessage());
+            // 缩略图生成失败不阻断发布流程
+        }
+    }
+
+    // ─── 工具方法 ─────────────────────────────────────────────────
+
+    private boolean objectExists(String objectName) {
+        try {
+            minioClient.statObject(StatObjectArgs.builder().bucket(bucketName).object(objectName).build());
+            return true;
+        } catch (Exception exception) {
+            return false;
+        }
+    }
+
+    private void removeObjectQuietly(String objectName) {
+        try {
+            minioClient.removeObject(RemoveObjectArgs.builder().bucket(bucketName).object(objectName).build());
+        } catch (Exception exception) {
+            log.warn("Object removal failed. objectName: {}, error: {}", objectName, exception.getMessage());
+        }
+    }
+
+    /**
+     * 构建公开访问 URL：优先使用 CDN 域名，否则使用 MinIO 公开 URL。
+     */
+    private String buildPublicUrl(String objectName) {
+        String baseUrl = (cdnUrl != null) ? cdnUrl : publicUrl;
+        return baseUrl + "/" + bucketName + "/" + objectName;
+    }
+
+    /**
+     * 根据原图 URL 推导缩略图 URL。
+     * 约定：published/xxx.jpg -> thumbnails/xxx.jpg
+     */
+    public String getThumbnailUrl(String imageUrl) {
+        if (imageUrl == null) return null;
+        return imageUrl.replace("/published/", "/thumbnails/");
     }
 
     private void validateFile(MultipartFile file) {

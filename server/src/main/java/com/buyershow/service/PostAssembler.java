@@ -22,12 +22,14 @@ public class PostAssembler {
     private final ObjectMapper objectMapper;
 
     public PostDTO toPostDTO(PostQueryRow row) {
+        List<String> images = parseStringList(row.getImagesJson());
         return PostDTO.builder()
                 .id(row.getId())
                 .userId(row.getUserId())
                 .title(row.getTitle())
                 .content(row.getContent())
-                .images(parseStringList(row.getImagesJson()))
+                .images(images)
+                .thumbnails(deriveThumbnails(images))
                 .tags(parseStringList(row.getTagsJson()))
                 .productName(row.getProductName())
                 .productPrice(row.getProductPrice())
@@ -43,6 +45,19 @@ public class PostAssembler {
                 .userNickname(row.getUserNickname())
                 .userAvatarUrl(row.getUserAvatarUrl())
                 .build();
+    }
+
+    /**
+     * 根据原图 URL 推导缩略图 URL。
+     * 约定：published/xxx.jpg -> thumbnails/xxx.jpg
+     */
+    private List<String> deriveThumbnails(List<String> images) {
+        if (images == null || images.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return images.stream()
+                .map(url -> url.replace("/published/", "/thumbnails/"))
+                .toList();
     }
 
     private List<String> parseStringList(String json) {

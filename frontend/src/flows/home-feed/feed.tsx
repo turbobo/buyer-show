@@ -26,7 +26,7 @@ function cardImageHeight(postId: number): string {
 }
 
 function postBackground(post: ApiPostSummary): string {
-  const image = post.images[0]
+  const image = post.thumbnails?.[0] ?? post.images[0]
   if (image?.startsWith('http')) {
     const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
     return `url("${encoded}") center / cover`
@@ -138,6 +138,7 @@ export default function HomeFeedScreen() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('home')
   const [searchQuery, setSearchQuery] = useState('')
+  const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const requestVersion = useRef(0)
 
@@ -147,7 +148,7 @@ export default function HomeFeedScreen() {
     setIsLoading(true)
     setError(null)
     try {
-      const page = await getFeed(nextCursor, tag)
+      const page = await getFeed(nextCursor, tag, feedSort)
       if (version !== requestVersion.current) return
       setPosts((current) => append ? [...current, ...page.list] : page.list)
       setCursor(page.nextCursor)
@@ -158,7 +159,7 @@ export default function HomeFeedScreen() {
     } finally {
       if (version === requestVersion.current) setIsLoading(false)
     }
-  }, [activeTag])
+  }, [activeTag, feedSort])
 
   useEffect(() => { void loadFeed() }, [loadFeed])
 
@@ -274,19 +275,32 @@ export default function HomeFeedScreen() {
 
       {/* ─── 标签筛选栏 ─── */}
       <div className="sticky top-16 z-40 border-b border-border bg-white/80 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4">
-          {mockTags.map((tag) => (
-            <button
-              type="button"
-              key={tag.display}
-              onClick={() => setActiveTag(tag.display)}
-              className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                activeTag === tag.display ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              }`}
-            >
-              {tag.display}
-            </button>
-          ))}
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4">
+          <div className="flex flex-1 gap-2 overflow-x-auto">
+            {mockTags.map((tag) => (
+              <button
+                type="button"
+                key={tag.display}
+                onClick={() => setActiveTag(tag.display)}
+                className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                  activeTag === tag.display ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                {tag.display}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setFeedSort(feedSort === 'new' ? 'hot' : 'new')}
+            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+              feedSort === 'hot' ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+            title={feedSort === 'hot' ? '切换到最新' : '切换到热门'}
+          >
+            {feedSort === 'hot' ? <TrendingUp className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
+            <span className="hidden sm:inline">{feedSort === 'hot' ? '热门' : '最新'}</span>
+          </button>
         </div>
       </div>
 

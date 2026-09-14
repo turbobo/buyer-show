@@ -15,6 +15,7 @@ public class PostDTO {
     private String title;
     private String content;
     private List<String> images;
+    private List<String> thumbnails;
     private List<String> tags;
     private String productName;
     private BigDecimal productPrice;
