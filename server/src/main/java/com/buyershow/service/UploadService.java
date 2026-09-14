@@ -72,6 +72,7 @@ public class UploadService {
         }
 
         return UploadImageResponse.builder()
+                .url(publicUrl + "/" + bucketName + "/" + objectName)
                 .objectName(objectName)
                 .contentType(prepared.contentType())
                 .size(prepared.bytes().length)

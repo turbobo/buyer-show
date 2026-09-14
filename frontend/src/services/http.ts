@@ -8,6 +8,23 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api/v1'
 const ACCESS_TOKEN_KEY = 'buyer-show.access-token'
 const REFRESH_TOKEN_KEY = 'buyer-show.refresh-token'
 const REFRESH_AHEAD_SECONDS = 30
+const IS_DEV = import.meta.env.DEV
+
+/** Development-only HTTP logger: traces requests and responses with timing. */
+function logRequest(method: string, url: string, durationMs: number, status: number, ok: boolean): void {
+  if (!IS_DEV) return
+  const style = ok ? 'color: #16a34a' : 'color: #dc2626'
+  console.log(
+    `%c[HTTP]%c ${method} ${url} → ${status} (${durationMs}ms)`,
+    style,
+    'color: inherit',
+  )
+}
+
+function logError(method: string, url: string, error: unknown): void {
+  if (!IS_DEV) return
+  console.error(`[HTTP] ${method} ${url} 失败:`, error)
+}
 
 let refreshPromise: Promise<string | null> | null = null
 

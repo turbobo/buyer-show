@@ -1,7 +1,9 @@
 package com.buyershow.service;
 
+import com.buyershow.common.CommentStatus;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
+import com.buyershow.common.PostStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.dto.request.CreateCommentRequest;
@@ -25,8 +27,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class CommentService {
 
-    private static final int COMMENT_ACTIVE = 0;
-    private static final int COMMENT_DELETED = 1;
     private static final int DEFAULT_ROOT_LIMIT = 50;
     private static final int MAX_ROOT_LIMIT = 100;
 
@@ -35,7 +35,6 @@ public class CommentService {
     private final UserMapper userMapper;
     private final ContentModerationService contentModerationService;
 
-    /** 查询通过审核的顶级评论及其一级回复，限制顶级评论数量。 */
     public List<CommentDTO> listComments(Long postId, int requestedLimit) {
         requireVisiblePost(postId);
         int limit = Math.min(Math.max(requestedLimit, 1), MAX_ROOT_LIMIT);
@@ -83,8 +82,8 @@ public class CommentService {
         comment.setContent(request.getContent().trim());
         comment.setReplyCount(0);
         comment.setLikeCount(0);
-        comment.setStatus(COMMENT_ACTIVE);
-        comment.setModerationStatus(decision.getStatus());
+        comment.setStatus(CommentStatus.ACTIVE.getValue());
+        comment.setModerationStatus(decision.getStatus().getValue());
         comment.setModerationReason(decision.getReason());
         commentMapper.insert(comment);
 
@@ -101,7 +100,7 @@ public class CommentService {
     public void deleteComment(Long commentId) {
         Long userId = requireCurrentUserId();
         Comment comment = commentMapper.selectById(commentId);
-        if (comment == null || comment.getStatus() == COMMENT_DELETED) {
+        if (comment == null || comment.getStatus() == CommentStatus.DELETED.getValue()) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
         if (!SecurityUtils.isAdmin() && !userId.equals(comment.getUserId())) {
@@ -124,7 +123,7 @@ public class CommentService {
         if (changed == 0) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
-        if (comment.getModerationStatus() == ModerationStatus.APPROVED) {
+        if (comment.getModerationStatus() == ModerationStatus.APPROVED.getValue()) {
             commentMapper.adjustPostCommentCount(comment.getPostId(), -1);
             commentMapper.adjustReplyCount(comment.getParentId(), -1);
         }
@@ -153,8 +152,8 @@ public class CommentService {
             return null;
         }
         Comment parent = commentMapper.selectById(parentId);
-        if (parent == null || parent.getStatus() != COMMENT_ACTIVE
-                || parent.getModerationStatus() != ModerationStatus.APPROVED
+        if (parent == null || parent.getStatus() != CommentStatus.ACTIVE.getValue()
+                || parent.getModerationStatus() != ModerationStatus.APPROVED.getValue()
                 || !postId.equals(parent.getPostId())) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
@@ -166,8 +165,8 @@ public class CommentService {
 
     private void requireVisiblePost(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null || post.getStatus() != 0
-                || post.getModerationStatus() != ModerationStatus.APPROVED) {
+        if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()
+                || post.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
     }

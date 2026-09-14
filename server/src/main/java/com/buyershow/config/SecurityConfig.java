@@ -41,6 +41,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/posts").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/users/*").permitAll()
                 // Admin endpoints
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 // All other endpoints require authentication

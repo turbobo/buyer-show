@@ -1,5 +1,6 @@
 package com.buyershow.common.security;
 
+import com.buyershow.common.UserRole;
 import com.buyershow.entity.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,7 +24,7 @@ public class SecurityUtils {
 
     public static boolean isAdmin() {
         User user = getCurrentUser();
-        return user != null && user.getRole() == 1;
+        return user != null && user.getRole() == UserRole.ADMIN.getValue();
     }
 
     public static boolean isLoggedIn() {

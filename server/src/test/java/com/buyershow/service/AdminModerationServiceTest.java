@@ -12,6 +12,7 @@ import com.buyershow.entity.User;
 import com.buyershow.mapper.CommentMapper;
 import com.buyershow.mapper.ContentReportMapper;
 import com.buyershow.mapper.PostMapper;
+import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -30,9 +31,10 @@ class AdminModerationServiceTest {
     private final PostMapper postMapper = mock(PostMapper.class);
     private final CommentMapper commentMapper = mock(CommentMapper.class);
     private final ContentReportMapper contentReportMapper = mock(ContentReportMapper.class);
+    private final UserMapper userMapper = mock(UserMapper.class);
     private final UploadService uploadService = mock(UploadService.class);
     private final AdminModerationService service = new AdminModerationService(
-            postMapper, commentMapper, contentReportMapper, uploadService);
+            postMapper, commentMapper, contentReportMapper, userMapper, uploadService);
 
     @AfterEach
     void tearDown() {
@@ -58,10 +60,10 @@ class AdminModerationServiceTest {
         post.setId(1L);
         post.setUserId(10L);
         post.setStatus(0);
-        post.setModerationStatus(ModerationStatus.PENDING);
+        post.setModerationStatus(ModerationStatus.PENDING.getValue());
         post.setImages(List.of("pending/10/product.png"));
         when(postMapper.selectById(1L)).thenReturn(post);
-        when(postMapper.moderatePending(eq(1L), eq(ModerationStatus.APPROVED), isNull(), eq(100L), any(LocalDateTime.class)))
+        when(postMapper.moderatePending(eq(1L), eq(ModerationStatus.APPROVED.getValue()), isNull(), eq(100L), any(LocalDateTime.class)))
                 .thenReturn(1);
         when(uploadService.publishImages(10L, post.getImages()))
                 .thenReturn(List.of("http://cdn/published/product.png"));
@@ -70,7 +72,7 @@ class AdminModerationServiceTest {
         request.setAction("APPROVE");
         service.moderatePost(1L, request);
 
-        verify(postMapper).moderatePending(eq(1L), eq(ModerationStatus.APPROVED), isNull(), eq(100L), any(LocalDateTime.class));
+        verify(postMapper).moderatePending(eq(1L), eq(ModerationStatus.APPROVED.getValue()), isNull(), eq(100L), any(LocalDateTime.class));
         verify(uploadService).publishImages(10L, List.of("pending/10/product.png"));
         verify(postMapper).updateById(argThat((Post update) -> update.getId().equals(1L)
                 && update.getImages().equals(List.of("http://cdn/published/product.png"))));
@@ -111,7 +113,7 @@ class AdminModerationServiceTest {
         comment.setPostId(3L);
         comment.setParentId(4L);
         comment.setStatus(0);
-        comment.setModerationStatus(ModerationStatus.APPROVED);
+        comment.setModerationStatus(ModerationStatus.APPROVED.getValue());
         when(commentMapper.selectById(2L)).thenReturn(comment);
         when(commentMapper.rejectApprovedThread(eq(2L), anyString(), eq(100L), any(LocalDateTime.class)))
                 .thenReturn(1);

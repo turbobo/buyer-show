@@ -53,7 +53,7 @@ spring:
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl  # dev only, prod uses NopLogging
   global-config:
     db-config:
       id-type: auto
@@ -83,8 +83,25 @@ springdoc:
   swagger-ui:
     path: /swagger-ui.html
 
-# Logging
+# Logging (structured via logback-spring.xml)
 logging:
   level:
     com.buyershow: debug
     org.springframework.security: info
+    org.flywaydb: info
+
+---
+# Production profile overrides
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.nop.NopLogging
+
+logging:
+  level:
+    com.buyershow: info
+    org.springframework.security: warn

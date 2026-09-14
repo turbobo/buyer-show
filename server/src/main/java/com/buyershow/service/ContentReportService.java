@@ -1,7 +1,10 @@
 package com.buyershow.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.buyershow.common.CommentStatus;
 import com.buyershow.common.ErrorCode;
+import com.buyershow.common.ModerationStatus;
+import com.buyershow.common.PostStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.dto.request.CreateContentReportRequest;
@@ -17,9 +20,6 @@ import org.springframework.stereotype.Service;
 
 /**
  * 用户内容举报服务。
- *
- * @author Qoder
- * @since 2026/09/08
  */
 @Service
 @RequiredArgsConstructor
@@ -33,12 +33,6 @@ public class ContentReportService {
     private final PostMapper postMapper;
     private final CommentMapper commentMapper;
 
-    /**
-     * 创建举报并由唯一索引防止重复提交。
-     *
-     * @param request 举报请求
-     * @return 已创建举报ID
-     */
     public Long createReport(CreateContentReportRequest request) {
         Long reporterId = requireCurrentUserId();
         int contentType = resolveContentType(request.getContentType());
@@ -72,21 +66,21 @@ public class ContentReportService {
     private void ensureTargetExists(int contentType, Long contentId) {
         if (contentType == TYPE_POST) {
             Post post = postMapper.selectById(contentId);
-            if (post == null || post.getStatus() != 0
-                    || post.getModerationStatus() != com.buyershow.common.ModerationStatus.APPROVED) {
+            if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()
+                    || post.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
                 throw new BusinessException(ErrorCode.POST_NOT_FOUND);
             }
             return;
         }
 
         Comment comment = commentMapper.selectById(contentId);
-        if (comment == null || comment.getStatus() != 0
-                || comment.getModerationStatus() != com.buyershow.common.ModerationStatus.APPROVED) {
+        if (comment == null || comment.getStatus() != CommentStatus.ACTIVE.getValue()
+                || comment.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
         Post parentPost = postMapper.selectById(comment.getPostId());
-        if (parentPost == null || parentPost.getStatus() != 0
-                || parentPost.getModerationStatus() != com.buyershow.common.ModerationStatus.APPROVED) {
+        if (parentPost == null || parentPost.getStatus() != PostStatus.PUBLIC.getValue()
+                || parentPost.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
     }

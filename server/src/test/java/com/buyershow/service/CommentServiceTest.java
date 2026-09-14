@@ -44,7 +44,7 @@ class CommentServiceTest {
         parent.setId(20L);
         parent.setPostId(10L);
         parent.setStatus(0);
-        parent.setModerationStatus(ModerationStatus.PENDING);
+        parent.setModerationStatus(ModerationStatus.PENDING.getValue());
         when(commentMapper.selectById(20L)).thenReturn(parent);
 
         CreateCommentRequest request = new CreateCommentRequest();
@@ -71,7 +71,7 @@ class CommentServiceTest {
         request.setContent("这是一条需要审核的评论");
         CommentDTO result = service.createComment(10L, request);
 
-        assertEquals(ModerationStatus.PENDING, result.getModerationStatus());
+        assertEquals(ModerationStatus.PENDING.getValue(), result.getModerationStatus());
         assertEquals("测试用户", result.getUserNickname());
         verify(commentMapper, never()).adjustPostCommentCount(anyLong(), anyInt());
     }
@@ -84,7 +84,7 @@ class CommentServiceTest {
         root.setUserId(1L);
         root.setPostId(10L);
         root.setStatus(0);
-        root.setModerationStatus(ModerationStatus.APPROVED);
+        root.setModerationStatus(ModerationStatus.APPROVED.getValue());
         when(commentMapper.selectById(20L)).thenReturn(root);
         when(commentMapper.countApprovedThread(20L)).thenReturn(3);
         when(commentMapper.softDeleteThread(20L)).thenReturn(3);
@@ -113,7 +113,7 @@ class CommentServiceTest {
         Post post = new Post();
         post.setId(id);
         post.setStatus(0);
-        post.setModerationStatus(ModerationStatus.APPROVED);
+        post.setModerationStatus(ModerationStatus.APPROVED.getValue());
         return post;
     }
 

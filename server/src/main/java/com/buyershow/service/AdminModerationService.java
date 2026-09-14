@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
+import com.buyershow.common.PostStatus;
+import com.buyershow.common.CommentStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.dto.request.HandleReportRequest;
@@ -43,8 +45,8 @@ public class AdminModerationService {
     public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
         IPage<Post> entityPage = postMapper.selectPage(page(page, size), Wrappers.<Post>lambdaQuery()
-                .eq(Post::getStatus, 0)
-                .eq(Post::getModerationStatus, ModerationStatus.PENDING)
+                .eq(Post::getStatus, PostStatus.PUBLIC.getValue())
+                .eq(Post::getModerationStatus, ModerationStatus.PENDING.getValue())
                 .orderByAsc(Post::getCreatedAt, Post::getId));
         return entityPage.convert(this::toModerationPostDTO);
     }
@@ -52,8 +54,8 @@ public class AdminModerationService {
     public IPage<ModerationCommentDTO> listPendingComments(long page, long size) {
         requireAdminId();
         IPage<Comment> entityPage = commentMapper.selectPage(page(page, size), Wrappers.<Comment>lambdaQuery()
-                .eq(Comment::getStatus, 0)
-                .eq(Comment::getModerationStatus, ModerationStatus.PENDING)
+                .eq(Comment::getStatus, CommentStatus.ACTIVE.getValue())
+                .eq(Comment::getModerationStatus, ModerationStatus.PENDING.getValue())
                 .orderByAsc(Comment::getCreatedAt, Comment::getId));
         return entityPage.convert(this::toModerationCommentDTO);
     }
@@ -69,9 +71,9 @@ public class AdminModerationService {
     @Transactional
     public void moderatePost(Long postId, ModerateContentRequest request) {
         Long adminId = requireAdminId();
-        int newStatus = resolveModerationStatus(request.getAction());
+        int newStatus = resolveModerationStatus(request.getAction()).getValue();
         Post post = postMapper.selectById(postId);
-        if (post == null || post.getStatus() != 0) {
+        if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         int affected = postMapper.moderatePending(
@@ -79,7 +81,7 @@ public class AdminModerationService {
         if (affected == 0) {
             throw new BusinessException(ErrorCode.CONTENT_NOT_PENDING);
         }
-        if (newStatus == ModerationStatus.APPROVED) {
+        if (newStatus == ModerationStatus.APPROVED.getValue()) {
             Post imageUpdate = new Post();
             imageUpdate.setId(postId);
             imageUpdate.setImages(uploadService.publishImages(post.getUserId(), post.getImages()));
@@ -93,21 +95,21 @@ public class AdminModerationService {
     public void moderateComment(Long commentId, ModerateContentRequest request) {
         Long adminId = requireAdminId();
         Comment comment = commentMapper.selectById(commentId);
-        if (comment == null || comment.getStatus() != 0) {
+        if (comment == null || comment.getStatus() != CommentStatus.ACTIVE.getValue()) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
         }
 
-        int newStatus = resolveModerationStatus(request.getAction());
+        ModerationStatus newStatus = resolveModerationStatus(request.getAction());
         if (newStatus == ModerationStatus.APPROVED && comment.getParentId() != null) {
             Comment parent = commentMapper.selectById(comment.getParentId());
-            if (parent == null || parent.getStatus() != 0
-                    || parent.getModerationStatus() != ModerationStatus.APPROVED) {
+            if (parent == null || parent.getStatus() != CommentStatus.ACTIVE.getValue()
+                    || parent.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
                 throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND, "父评论不可见，无法通过该回复");
             }
         }
 
         int affected = commentMapper.moderatePending(
-                commentId, newStatus, trimToNull(request.getReason()), adminId, LocalDateTime.now());
+                commentId, newStatus.getValue(), trimToNull(request.getReason()), adminId, LocalDateTime.now());
         if (affected == 0) {
             throw new BusinessException(ErrorCode.CONTENT_NOT_PENDING);
         }
@@ -146,8 +148,8 @@ public class AdminModerationService {
         }
 
         Comment comment = commentMapper.selectById(report.getContentId());
-        if (comment == null || comment.getStatus() != 0
-                || comment.getModerationStatus() != ModerationStatus.APPROVED) {
+        if (comment == null || comment.getStatus() != CommentStatus.ACTIVE.getValue()
+                || comment.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
             return;
         }
         if (comment.getParentId() == null) {
@@ -233,7 +235,7 @@ public class AdminModerationService {
         return new Page<>(safePage, safeSize);
     }
 
-    private int resolveModerationStatus(String action) {
+    private ModerationStatus resolveModerationStatus(String action) {
         return "APPROVE".equals(action) ? ModerationStatus.APPROVED : ModerationStatus.REJECTED;
     }
 

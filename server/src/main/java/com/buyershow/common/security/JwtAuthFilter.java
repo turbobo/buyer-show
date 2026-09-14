@@ -1,5 +1,7 @@
 package com.buyershow.common.security;
 
+import com.buyershow.common.UserRole;
+import com.buyershow.common.UserStatus;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.UserMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,16 +47,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userMapper.selectById(userId);
-        if (user == null || user.getStatus() == 2) {
+        if (user == null || user.getStatus() == UserStatus.DELETED.getValue()) {
             writeError(response, HttpServletResponse.SC_UNAUTHORIZED, ErrorCode.TOKEN_INVALID);
             return;
         }
-        if (user.getStatus() == 1) {
+        if (user.getStatus() == UserStatus.BANNED.getValue()) {
             writeError(response, HttpServletResponse.SC_FORBIDDEN, ErrorCode.ACCOUNT_BANNED);
             return;
         }
 
-        String role = user.getRole() == 1 ? "ADMIN" : "USER";
+        String role = user.getRole() == UserRole.ADMIN.getValue() ? "ADMIN" : "USER";
         var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
         var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);

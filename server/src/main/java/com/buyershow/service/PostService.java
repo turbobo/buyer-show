@@ -2,6 +2,7 @@ package com.buyershow.service;
 
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
+import com.buyershow.common.PostStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.common.util.CursorUtils;
@@ -36,10 +37,6 @@ public class PostService {
     private final ContentModerationService contentModerationService;
     private final UploadService uploadService;
 
-    /**
-     * 稳定游标分页：自增 id 与发帖顺序一致，避免深分页与 MySQL filesort。
-     * 点赞/收藏状态通过 JOIN 一次返回，消除每页 2N 次查询。
-     */
     public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit) {
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
@@ -71,10 +68,6 @@ public class PostService {
                 .build();
     }
 
-    /**
-     * 帖子、作者、当前用户点赞/收藏状态一次 JOIN 返回。
-     * 作者本人可以看到自己待审帖子的图片。
-     */
     public PostDTO getPostDetail(Long postId) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         PostQueryRow row = postMapper.selectPostDetailRow(postId, currentUserId);
@@ -82,27 +75,22 @@ public class PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
         PostDTO dto = postAssembler.toPostDTO(row);
-        // 非审核通过的帖子隐藏图片，但作者本人除外
-        if (dto.getModerationStatus() != ModerationStatus.APPROVED
+        if (dto.getModerationStatus() != ModerationStatus.APPROVED.getValue()
                 && !row.getUserId().equals(currentUserId)) {
             dto.setImages(Collections.emptyList());
         }
         return dto;
     }
 
-    /**
-     * 创建帖子（事务外处理 MinIO 操作，减少事务持有时间）。
-     */
     public PostDTO createPost(CreatePostRequest request) {
         Long userId = requireCurrentUserId();
 
-        // 1. 事务外：校验和发布图片（MinIO I/O）
         uploadService.validatePendingImages(userId, request.getImages());
         String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
                 request.getProductSource(), tagsText);
-        
+
         List<String> publishedImages;
         if (decision.getStatus() == ModerationStatus.REJECTED) {
             uploadService.deletePendingImages(userId, request.getImages());
@@ -111,12 +99,10 @@ public class PostService {
         if (decision.getStatus() == ModerationStatus.APPROVED) {
             publishedImages = uploadService.publishImages(userId, request.getImages());
         } else {
-            publishedImages = request.getImages(); // PENDING 状态保留 pending 路径
+            publishedImages = request.getImages();
         }
 
-        // 2. 事务内：仅 DB 操作
         PostDTO result = createPostInTransaction(userId, request, decision, publishedImages);
-        
         return getPostDetail(result.getId());
     }
 
@@ -136,12 +122,12 @@ public class PostService {
         post.setLikeCount(0);
         post.setCommentCount(0);
         post.setFavoriteCount(0);
-        post.setStatus(0);
-        post.setModerationStatus(decision.getStatus());
+        post.setStatus(PostStatus.PUBLIC.getValue());
+        post.setModerationStatus(decision.getStatus().getValue());
         post.setModerationReason(decision.getReason());
         postMapper.insert(post);
         userMapper.adjustPostCount(userId, 1);
-        
+
         return PostDTO.builder()
                 .id(post.getId())
                 .moderationStatus(post.getModerationStatus())
@@ -152,7 +138,7 @@ public class PostService {
     public void deletePost(Long postId) {
         Long currentUserId = requireCurrentUserId();
         Post post = postMapper.selectById(postId);
-        if (post == null || post.getStatus() == 2) {
+        if (post == null || post.getStatus() == PostStatus.DELETED.getValue()) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
 
@@ -163,7 +149,6 @@ public class PostService {
             throw new BusinessException(ErrorCode.POST_NO_DELETE);
         }
 
-        // 管理员删除他人帖子时，扣减原作者而不是管理员自己的计数。
         userMapper.adjustPostCount(post.getUserId(), -1);
     }
 
@@ -220,8 +205,8 @@ public class PostService {
 
     private void requireActivePost(Long postId) {
         Post post = postMapper.selectById(postId);
-        if (post == null || post.getStatus() != 0
-                || post.getModerationStatus() != ModerationStatus.APPROVED) {
+        if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()
+                || post.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
     }

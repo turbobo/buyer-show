@@ -1,22 +1,22 @@
 package com.buyershow.common;
 
+import lombok.Getter;
+
 /**
- * 内容审核状态常量。
- *
- * @author Qoder
- * @since 2026/09/08
+ * 内容审核状态枚举。
  */
-public final class ModerationStatus {
+@Getter
+public enum ModerationStatus {
 
-    /** 审核通过，可公开展示。 */
-    public static final int APPROVED = 0;
+    APPROVED(0, "审核通过"),
+    PENDING(1, "待人工审核"),
+    REJECTED(2, "审核驳回");
 
-    /** 需要人工审核，不公开展示。 */
-    public static final int PENDING = 1;
+    private final int value;
+    private final String description;
 
-    /** 审核驳回，不公开展示。 */
-    public static final int REJECTED = 2;
-
-    private ModerationStatus() {
+    ModerationStatus(int value, String description) {
+        this.value = value;
+        this.description = description;
     }
 }

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Dev: human-readable colored output -->
+    <springProfile name="default,dev">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{HH:mm:ss.SSS} %highlight(%-5level) [%X{trace_id:-}] [%X{request_id:-}] %-30.30logger{30} | %msg%n</pattern>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.buyershow" level="DEBUG"/>
+        <logger name="org.springframework.security" level="INFO"/>
+        <logger name="org.flywaydb" level="INFO"/>
+    </springProfile>
+
+    <!-- Prod: single-line JSON for log aggregation -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+                <includeMdcKeyName>trace_id</includeMdcKeyName>
+                <includeMdcKeyName>request_id</includeMdcKeyName>
+                <includeMdcKeyName>user_id</includeMdcKeyName>
+                <timeZone>Asia/Shanghai</timeZone>
+            </encoder>
+        </appender>
+        <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>/var/log/buyer-show/application.json.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+                <fileNamePattern>/var/log/buyer-show/application.%d{yyyy-MM-dd}.%i.json.log</fileNamePattern>
+                <maxFileSize>100MB</maxFileSize>
+                <maxHistory>7</maxHistory>
+                <totalSizeCap>2GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <fieldNames>
+                    <timestamp>timestamp</timestamp>
+                    <version>[ignore]</version>
+                    <levelValue>[ignore]</levelValue>
+                </fieldNames>
+                <includeMdcKeyName>trace_id</includeMdcKeyName>
+                <includeMdcKeyName>request_id</includeMdcKeyName>
+                <includeMdcKeyName>user_id</includeMdcKeyName>
+                <timeZone>Asia/Shanghai</timeZone>
+            </encoder>
+        </appender>
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+        <logger name="com.buyershow" level="INFO"/>
+        <logger name="org.springframework.security" level="WARN"/>
+        <logger name="org.flywaydb" level="WARN"/>
+        <logger name="org.apache.ibatis.logging.stdout.StdOutImpl" level="OFF"/>
+    </springProfile>
+</configuration>
