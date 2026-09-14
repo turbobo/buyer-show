@@ -9,7 +9,9 @@ import { createComment, getComments, type ApiComment } from '@/services/comments
 import { ApiError } from '@/services/http'
 import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
+import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
 import { useToast } from '@/components/ui/toast'
+import { trackPostView, trackPostLike, trackPostFavorite, trackCommentCreate } from '@/services/analytics'
 
 function imageBackground(image?: string): string {
   if (image?.startsWith('http')) {
@@ -20,7 +22,7 @@ function imageBackground(image?: string): string {
 }
 
 /* ─── 图片轮播组件 ─── */
-function PostImageCarousel({ images, title }: { images: string[]; title: string }) {
+function PostImageCarousel({ images, title, onImageClick }: { images: string[]; title: string; onImageClick?: (index: number) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [activeIndex, setActiveIndex] = useState(0)
   const hasMultiple = images.length > 1
@@ -51,8 +53,9 @@ function PostImageCarousel({ images, title }: { images: string[]; title: string 
         {images.map((image, index) => (
           <div
             key={index}
-            className="w-full flex-none snap-center bg-muted"
+            className="w-full flex-none snap-center bg-muted cursor-zoom-in"
             style={{ aspectRatio: '4 / 3', background: imageBackground(image) }}
+            onClick={() => onImageClick?.(index)}
           />
         ))}
       </div>
@@ -160,6 +163,8 @@ export default function PostDetailScreen() {
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false)
   const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
   const [isFavoriteSubmitting, setIsFavoriteSubmitting] = useState(false)
+  const [showFullscreen, setShowFullscreen] = useState(false)
+  const [fullscreenIndex, setFullscreenIndex] = useState(0)
 
   const redirectToLogin = useCallback(() => {
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)
@@ -292,14 +297,14 @@ export default function PostDetailScreen() {
 
         {/* ─── 移动端：图片全宽展示 ─── */}
         <div className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-white md:hidden">
-          <PostImageCarousel images={displayImages} title={post.title} />
+          <PostImageCarousel images={displayImages} title={post.title} onImageClick={(index) => { setFullscreenIndex(index); setShowFullscreen(true) }} />
         </div>
 
         {/* ─── 帖子内容卡片 ─── */}
         <article className="overflow-hidden rounded-2xl border border-border/60 bg-white">
           {/* 桌面端：左图右文 */}
           <div className="hidden md:grid md:grid-cols-2">
-            <PostImageCarousel images={displayImages} title={post.title} />
+            <PostImageCarousel images={displayImages} title={post.title} onImageClick={(index) => { setFullscreenIndex(index); setShowFullscreen(true) }} />
             <div className="p-5">
               <PostContent post={post} />
             </div>
@@ -381,6 +386,14 @@ export default function PostDetailScreen() {
             </div>
           )}
         </div>
+      )}
+
+      {showFullscreen && (
+        <ImageFullscreenViewer
+          images={displayImages}
+          initialIndex={fullscreenIndex}
+          onClose={() => setShowFullscreen(false)}
+        />
       )}
     </div>
   )
