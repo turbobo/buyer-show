@@ -85,7 +85,7 @@ export default function AdminModerationScreen() {
   }
 
   return (
-    <main className="min-h-screen bg-warm-bg p-4 md:p-8">
+    <main className="min-h-screen bg-background p-4 md:p-8">
       <section className="mx-auto max-w-5xl">
         <header className="mb-6">
           <p className="text-sm font-semibold text-coral">管理员</p>
@@ -116,18 +116,18 @@ export default function AdminModerationScreen() {
           maxLength={500}
           onChange={(event) => setReason(event.target.value)}
           placeholder="驳回或审核说明（可选，最多500字）"
-          className="mb-4 bg-white"
+          className="mb-4 bg-card"
         />
 
         {error && <p className="mb-4 rounded-lg bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
 
         {isLoading ? (
-          <p className="rounded-xl bg-white p-8 text-center text-muted-foreground">加载中...</p>
+          <p className="rounded-xl bg-card p-8 text-center text-muted-foreground">加载中...</p>
         ) : (
           <div className="space-y-3">
             {/* ─── 待审帖子 ─── */}
             {tab === 'posts' && posts.map((post) => (
-              <article key={post.id} className="rounded-xl border border-border/60 bg-white p-4">
+              <article key={post.id} className="rounded-xl border border-border/60 bg-card p-4">
                 <div className="mb-2 flex items-center justify-between gap-3">
                   <h2 className="font-semibold">{post.title}</h2>
                   <span className="text-xs text-muted-foreground">#{post.id}</span>
@@ -152,14 +152,14 @@ export default function AdminModerationScreen() {
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" onClick={() => void moderate('post', post.id, 'APPROVE')}>通过</Button>
-                  <Button size="sm" variant="destructive" onClick={() => void moderate('post', post.id, 'REJECT')}>驳回</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ type: 'post', id: post.id, action: 'REJECT' })}>驳回</Button>
                 </div>
               </article>
             ))}
 
             {/* ─── 待审评论 ─── */}
             {tab === 'comments' && comments.map((comment) => (
-              <article key={comment.id} className="rounded-xl border border-border/60 bg-white p-4">
+              <article key={comment.id} className="rounded-xl border border-border/60 bg-card p-4">
                 <div className="mb-2 flex justify-between">
                   <span className="font-semibold">评论 #{comment.id}</span>
                   <span className="text-xs text-muted-foreground">帖子 #{comment.postId}</span>
@@ -170,14 +170,14 @@ export default function AdminModerationScreen() {
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button size="sm" onClick={() => void moderate('comment', comment.id, 'APPROVE')}>通过</Button>
-                  <Button size="sm" variant="destructive" onClick={() => void moderate('comment', comment.id, 'REJECT')}>驳回</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setConfirmAction({ type: 'comment', id: comment.id, action: 'REJECT' })}>驳回</Button>
                 </div>
               </article>
             ))}
 
             {/* ─── 待处理举报 ─── */}
             {tab === 'reports' && reports.map((report) => (
-              <article key={report.id} className="rounded-xl border border-border/60 bg-white p-4">
+              <article key={report.id} className="rounded-xl border border-border/60 bg-card p-4">
                 <div className="mb-2 flex justify-between">
                   <span className="font-semibold">举报 #{report.id}</span>
                   <span className="text-xs text-muted-foreground">
@@ -207,7 +207,7 @@ export default function AdminModerationScreen() {
             {((tab === 'posts' && posts.length === 0) ||
               (tab === 'comments' && comments.length === 0) ||
               (tab === 'reports' && reports.length === 0)) && (
-              <p className="rounded-xl bg-white p-8 text-center text-sm text-muted-foreground">
+              <p className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground">
                 当前没有待处理内容
               </p>
             )}

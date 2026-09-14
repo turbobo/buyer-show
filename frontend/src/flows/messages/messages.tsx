@@ -38,7 +38,7 @@ function MessageBubble({ msg, isSent }: { msg: Message; isSent: boolean }) {
   if (msg.type === 'product' && msg.productData) {
     return (
       <div className={`flex ${isSent ? 'justify-end' : 'justify-start'}`}>
-        <div className={`max-w-[280px] rounded-2xl overflow-hidden ${isSent ? 'bg-coral text-white rounded-br-md' : 'bg-white border border-border/60 rounded-bl-md'}`}>
+        <div className={`max-w-[280px] rounded-2xl overflow-hidden ${isSent ? 'bg-coral text-white rounded-br-md' : 'bg-card border border-border/60 rounded-bl-md'}`}>
           <div className="flex items-center gap-3 p-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0" style={{ background: 'linear-gradient(135deg,#fecdd3,#fda4af)' }}>🧴</div>
             <div className="min-w-0">
@@ -52,7 +52,7 @@ function MessageBubble({ msg, isSent }: { msg: Message; isSent: boolean }) {
   }
   return (
     <div className={`flex ${isSent ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[75%] px-4 py-2.5 text-sm leading-relaxed ${isSent ? 'bg-coral text-white rounded-2xl rounded-br-md' : 'bg-white border border-border/60 text-foreground rounded-2xl rounded-bl-md'}`}>
+      <div className={`max-w-[75%] px-4 py-2.5 text-sm leading-relaxed ${isSent ? 'bg-coral text-white rounded-2xl rounded-br-md' : 'bg-card border border-border/60 text-foreground rounded-2xl rounded-bl-md'}`}>
         {msg.content}
       </div>
     </div>
@@ -94,9 +94,9 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const showChat = activeConv !== null
 
   return (
-    <div className="min-h-screen bg-warm-bg">
+    <div className="flex h-screen flex-col bg-background">
       {/* Top Nav */}
-      <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b border-border">
+      <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={showChat ? () => setActiveConv(null) : onBack}>
             <ArrowLeft className="w-5 h-5" />
@@ -112,9 +112,9 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           )}
           {showChat && (
             <div className="ml-auto flex items-center gap-1">
-              <Button variant="ghost" size="icon"><Phone className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon"><Video className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon"><MoreVertical className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" aria-label="语音通话"><Phone className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" aria-label="视频通话"><Video className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" aria-label="更多操作"><MoreVertical className="w-4 h-4" /></Button>
             </div>
           )}
         </div>
@@ -127,16 +127,16 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto flex h-[calc(100vh-56px)]">
+      <div className="mx-auto flex max-w-7xl flex-1 overflow-hidden">
         {/* Left Panel: Conversations + Notifications */}
-        <div className={`${showChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-96 shrink-0 border-r border-border/60 bg-white`}>
+        <div className={`${showChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-96 shrink-0 border-r border-border/60 bg-card`}>
           {/* Tabs */}
           <div className="p-3">
             <div className="flex bg-muted/50 rounded-xl p-1">
-              <button onClick={() => setActiveTab('dm')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'dm' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              <button onClick={() => setActiveTab('dm')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'dm' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 私信
               </button>
-              <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-white text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 互动通知
                 <span className="w-4 h-4 bg-coral text-white text-[10px] rounded-full flex items-center justify-center font-bold">3</span>
               </button>
@@ -175,7 +175,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         {/* Right Panel: Chat */}
-        <div className={`${showChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-warm-bg`}>
+        <div className={`${showChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-background`}>
           {activeConv ? (
             <>
               {/* Messages */}
@@ -189,16 +189,16 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               </div>
 
               {/* Input Bar */}
-              <div className="border-t border-border/60 bg-white p-3">
+              <div className="border-t border-border/60 bg-card p-3">
                 <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="shrink-0"><Mic className="w-5 h-5 text-muted-foreground" /></Button>
+                  <Button variant="ghost" size="icon" className="shrink-0" aria-label="语音消息"><Mic className="w-5 h-5 text-muted-foreground" /></Button>
                   <Input
                     value={messageText}
                     onChange={e => setMessageText(e.target.value)}
                     placeholder="输入消息..."
                     className="flex-1 h-10 bg-muted/50 border-0 rounded-full"
                   />
-                  <Button variant="ghost" size="icon" className="shrink-0"><Image className="w-5 h-5 text-muted-foreground" /></Button>
+                  <Button variant="ghost" size="icon" className="shrink-0" aria-label="发送图片"><Image className="w-5 h-5 text-muted-foreground" /></Button>
                   <Button size="icon" className="shrink-0 w-10 h-10 bg-coral hover:bg-coral-dark text-white rounded-full">
                     <Send className="w-4 h-4" />
                   </Button>

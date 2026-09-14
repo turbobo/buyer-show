@@ -64,7 +64,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-warm-bg p-4">
+    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
       {/* 背景装饰 */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-coral/5 blur-3xl" />
@@ -72,7 +72,7 @@ export default function LoginScreen() {
         <div className="absolute left-1/2 top-1/4 h-40 w-40 -translate-x-1/2 rounded-full bg-coral-light/50 blur-2xl" />
       </div>
 
-      <section className="relative z-10 w-full max-w-sm space-y-6 rounded-2xl border border-border/60 bg-white/95 p-8 shadow-xl backdrop-blur-sm">
+      <section className="relative z-10 w-full max-w-sm space-y-6 rounded-2xl border border-border/60 bg-card/95 p-8 shadow-xl backdrop-blur-sm">
         {/* 品牌区域 */}
         <div className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-coral to-coral-dark shadow-lg shadow-coral/30">
@@ -138,12 +138,12 @@ export default function LoginScreen() {
           )}
         </div>
 
-        {error && <p className="text-sm text-destructive">{error}</p>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
 
         <Button
+          type="submit"
           className="h-11 w-full rounded-full bg-coral text-white hover:bg-coral-dark"
           disabled={isSubmitting}
-          onClick={() => void handleSubmit()}
         >
           {isSubmitting ? '提交中...' : isRegistering ? '注册并登录' : '登录'}
         </Button>
@@ -157,6 +157,7 @@ export default function LoginScreen() {
             {isRegistering ? '已有账号？去登录' : '没有账号？去注册'}
           </button>
         </div>
+        </form>
       </section>
     </main>
   )

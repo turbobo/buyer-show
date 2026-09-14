@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, MessageCircle, Send } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
+import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
@@ -46,7 +48,12 @@ function PostImageCarousel({ images, title, onImageClick }: { images: string[]; 
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex snap-x snap-mandatory overflow-x-hidden"
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowLeft') scrollTo(activeIndex - 1)
+          if (e.key === 'ArrowRight') scrollTo(activeIndex + 1)
+        }}
+        tabIndex={0}
+        className="flex snap-x snap-mandatory overflow-x-hidden outline-none focus-visible:ring-2 focus-visible:ring-coral"
         role="region"
         aria-label={`${title} 商品图片`}
       >
@@ -64,31 +71,34 @@ function PostImageCarousel({ images, title, onImageClick }: { images: string[]; 
         <button
           type="button"
           onClick={() => scrollTo(activeIndex - 1)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
+          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
           aria-label="上一张图片"
         >
-          <ChevronLeft className="h-4 w-4" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
       )}
       {hasMultiple && activeIndex < images.length - 1 && (
         <button
           type="button"
           onClick={() => scrollTo(activeIndex + 1)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
           aria-label="下一张图片"
         >
-          <ChevronRight className="h-4 w-4" />
+          <ChevronRight className="h-5 w-5" />
         </button>
       )}
 
       {hasMultiple && (
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
           {images.map((_, index) => (
-            <span
+            <button
               key={index}
+              type="button"
+              onClick={() => scrollTo(index)}
               className={`block h-1.5 rounded-full transition-all ${
-                index === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50'
+                index === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
               }`}
+              aria-label={`跳转到第 ${index + 1} 张图片`}
             />
           ))}
         </div>
@@ -260,20 +270,66 @@ export default function PostDetailScreen() {
     }
   }
 
-  if (isLoading) return <div className="min-h-screen bg-warm-bg p-8 text-center text-muted-foreground">加载中...</div>
+  if (isLoading) return (
+    <div className="min-h-screen bg-background">
+      <div className="sticky top-0 z-50 border-b border-border bg-card/95">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-7 w-7 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+      </div>
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        <Skeleton className="mb-4 aspect-[4/3] w-full rounded-2xl" />
+        <Skeleton className="mb-2 h-6 w-3/4" />
+        <Skeleton className="mb-4 h-4 w-1/2" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    </div>
+  )
   if (!post || loadError) {
-    return <div className="min-h-screen bg-warm-bg p-8 text-center"><p className="mb-4 text-destructive">{loadError ?? '帖子不存在'}</p><Button onClick={() => void load()}>重新加载</Button></div>
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-8">
+        <p className="mb-2 text-lg font-semibold text-foreground">{loadError ? '加载失败' : '帖子不存在'}</p>
+        <p className="mb-6 text-sm text-muted-foreground">{loadError ?? '该帖子可能已被删除或无权查看'}</p>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={() => void load()}>重新加载</Button>
+          <Button onClick={() => navigate('/')} className="bg-coral text-white hover:bg-coral-dark">返回首页</Button>
+        </div>
+      </div>
+    )
+  }
+
+  // JSON-LD 结构化数据（SEO）
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SocialMediaPosting',
+    headline: post.title,
+    articleBody: post.content.substring(0, 200),
+    author: {
+      '@type': 'Person',
+      name: post.userNickname,
+    },
+    datePublished: post.createdAt,
+    interactionStatistic: [
+      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: post.likeCount },
+      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/CommentAction', userInteractionCount: post.commentCount },
+    ],
+    ...(post.images.length > 0 ? { image: post.images } : {}),
   }
 
   const fallbackImages = ['linear-gradient(135deg,#fecdd3,#fda4af)']
   const displayImages = post.images.length > 0 ? post.images : fallbackImages
 
   return (
-    <div className="min-h-screen bg-warm-bg pb-24">
+    <div className="min-h-screen bg-background pb-24">
+      {/* ─── 结构化数据 ─── */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+
       {/* ─── 顶部导航 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-white/95">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <Avatar className="h-7 w-7">
@@ -296,12 +352,12 @@ export default function PostDetailScreen() {
         )}
 
         {/* ─── 移动端：图片全宽展示 ─── */}
-        <div className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-white md:hidden">
+        <div className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-card md:hidden">
           <PostImageCarousel images={displayImages} title={post.title} onImageClick={(index) => { setFullscreenIndex(index); setShowFullscreen(true) }} />
         </div>
 
         {/* ─── 帖子内容卡片 ─── */}
-        <article className="overflow-hidden rounded-2xl border border-border/60 bg-white">
+        <article className="overflow-hidden rounded-2xl border border-border/60 bg-card">
           {/* 桌面端：左图右文 */}
           <div className="hidden md:grid md:grid-cols-2">
             <PostImageCarousel images={displayImages} title={post.title} onImageClick={(index) => { setFullscreenIndex(index); setShowFullscreen(true) }} />
@@ -318,7 +374,7 @@ export default function PostDetailScreen() {
 
         {/* ─── 评论区（独立区块） ─── */}
         {post.moderationStatus === 0 && (
-          <section className="mt-6 rounded-2xl border border-border/60 bg-white p-5">
+          <section className="mt-6 rounded-2xl border border-border/60 bg-card p-5">
             <div className="mb-4 flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-foreground" />
               <h2 className="font-semibold">评论 ({comments.length})</h2>
@@ -346,7 +402,7 @@ export default function PostDetailScreen() {
 
       {/* ─── 底部操作栏 ─── */}
       {post.moderationStatus === 0 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-white/95 backdrop-blur-sm">
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm">
           <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
             <div className="relative flex-1">
               <Input
@@ -406,7 +462,7 @@ function PostContent({ post }: { post: ApiPost }) {
       <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
       <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
       {post.productName && (
-        <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4">
+        <div className="mb-4 rounded-xl border border-border/60 bg-background p-4">
           <p className="font-semibold">{post.productName}</p>
           <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
         </div>

@@ -142,27 +142,6 @@
   }
 }
 
-/* ─── 骨架屏 shimmer 动画 ─── */
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
-  }
-  100% {
-    background-position: 1000px 0;
-  }
-}
-
-.skeleton-shimmer {
-  animation: shimmer 1.5s infinite;
-  background: linear-gradient(
-    90deg,
-    hsl(var(--muted)) 0%,
-    hsl(var(--muted-foreground) / 0.1) 50%,
-    hsl(var(--muted)) 100%
-  );
-  background-size: 1000px 100%;
-}
-
 /* ─── 路由过渡动画 ─── */
 @keyframes page-enter {
   from {
@@ -181,8 +160,20 @@
 
 /* 尊重用户偏好设置 */
 @media (prefers-reduced-motion: reduce) {
-  .page-transition,
-  .skeleton-shimmer {
-    animation: none;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
+}
+
+/* iOS 安全区适配 */
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.safe-top {
+  padding-top: max(0px, env(safe-area-inset-top));
 }

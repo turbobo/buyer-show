@@ -40,11 +40,14 @@ function PostCard({ post }: { post: ApiPostSummary }) {
     <button
       type="button"
       onClick={() => navigate(`/posts/${post.id}`)}
-      className="group w-full overflow-hidden rounded-xl border border-border/60 bg-white text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
+      className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
     >
       <div className={`bg-muted ${cardImageHeight(post.id)}`} style={{ background: postBackground(post) }} />
       <div className="p-3">
         <h3 className="mb-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
+        {post.productName && (
+          <p className="mb-2 truncate text-xs text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? post.productName}</p>
+        )}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <Avatar className="h-5 w-5"><AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral">{post.userNickname[0]}</AvatarFallback></Avatar>
@@ -65,6 +68,16 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
   const navigate = useNavigate()
   const { toast } = useToast()
   const { theme, toggleTheme } = useTheme()
+
+  // Escape 键关闭搜索面板
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
   const filteredHot = query
     ? hotSearchTags.filter((tag) => tag.includes(query))
     : hotSearchTags
@@ -75,7 +88,7 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
   }
 
   return (
-    <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-border/60 bg-white p-4 shadow-lg">
+    <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-border/60 bg-card p-4 shadow-lg">
       {/* 搜索历史 */}
       {!query && searchHistory.length > 0 && (
         <div className="mb-4">
@@ -193,9 +206,9 @@ export default function HomeFeedScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-warm-bg pb-20">
+    <div className="min-h-screen bg-background pb-20">
       {/* ─── 顶部导航栏 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="h-8 w-8" />
@@ -274,7 +287,7 @@ export default function HomeFeedScreen() {
       </nav>
 
       {/* ─── 标签筛选栏 ─── */}
-      <div className="sticky top-16 z-40 border-b border-border bg-white/80 py-3 backdrop-blur-sm">
+      <div className="sticky top-16 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-7xl items-center gap-2 px-4">
           <div className="flex flex-1 gap-2 overflow-x-auto">
             {mockTags.map((tag) => (
@@ -318,13 +331,19 @@ export default function HomeFeedScreen() {
           </div>
         )}
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-white p-6 text-center">
+          <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
             <p className="mb-3 text-sm text-destructive">{error}</p>
             <Button variant="outline" onClick={() => void loadFeed()}>重新加载</Button>
           </div>
         )}
         {!isLoading && !error && posts.length === 0 && (
-          <div className="rounded-xl bg-white p-12 text-center text-sm text-muted-foreground">暂无公开分享</div>
+          <div className="rounded-xl bg-card p-12 text-center">
+            <p className="mb-4 text-sm text-muted-foreground">暂无公开分享</p>
+            <Button onClick={() => navigate('/publish')} className="bg-coral text-white hover:bg-coral-dark">
+              <Plus className="mr-1.5 h-4 w-4" />
+              去发布
+            </Button>
+          </div>
         )}
         <div className="columns-2 gap-3 space-y-3 md:columns-3 xl:columns-4">
           {posts.map((post) => (
@@ -334,16 +353,14 @@ export default function HomeFeedScreen() {
           ))}
         </div>
         {hasMore && (
-          <div className="py-8 text-center">
-            <Button variant="outline" disabled={isLoading} onClick={() => cursor && void loadFeed(cursor, true)}>
-              {isLoading ? '加载中...' : '加载更多'}
-            </Button>
+          <div ref={loadMoreRef} className="py-8 text-center">
+            {isLoading && <span className="text-sm text-muted-foreground">加载中...</span>}
           </div>
         )}
       </main>
 
       {/* ─── 底部 TabBar（移动端） ─── */}
-      <div className="fixed bottom-0 left-0 right-0 flex h-16 items-center border-t border-border bg-white/95 backdrop-blur-lg safe-bottom md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 flex h-16 items-center border-t border-border bg-card/95 backdrop-blur-lg safe-bottom md:hidden">
         {([
           { key: 'home' as const, icon: Home, label: '首页' },
           { key: 'search' as const, icon: Search, label: '搜索' },

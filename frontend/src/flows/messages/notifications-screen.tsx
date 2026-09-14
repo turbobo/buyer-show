@@ -64,7 +64,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
             {notification.actorNickname?.[0] || '?'}
           </AvatarFallback>
         </Avatar>
-        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center border border-border/40">
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center border border-border/40">
           {getNotificationIcon(notification.type)}
         </div>
       </div>

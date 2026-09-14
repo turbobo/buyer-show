@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { ArrowLeft, Check, ImagePlus, Star, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -37,10 +38,11 @@ export default function PublishScreen() {
   const navigateTimerRef = useRef<number | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // 清理所有预览 URL
+  // 用 ref 追踪所有预览 URL，仅在组件卸载时清理
+  const previewUrlsRef = useRef<string[]>([])
   useEffect(() => () => {
-    images.forEach((img) => URL.revokeObjectURL(img.preview))
-  }, [images])
+    previewUrlsRef.current.forEach((url) => URL.revokeObjectURL(url))
+  }, [])
 
   // 清理导航定时器
   useEffect(() => () => {
@@ -70,7 +72,9 @@ export default function PublishScreen() {
         event.target.value = ''
         return
       }
-      newItems.push({ file, preview: URL.createObjectURL(file) })
+      const preview = URL.createObjectURL(file)
+      previewUrlsRef.current.push(preview)
+      newItems.push({ file, preview })
     }
 
     setError(null)
@@ -81,7 +85,10 @@ export default function PublishScreen() {
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => {
       const item = prev[index]
-      if (item) URL.revokeObjectURL(item.preview)
+      if (item) {
+        URL.revokeObjectURL(item.preview)
+        previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== item.preview)
+      }
       return prev.filter((_, i) => i !== index)
     })
   }, [])
@@ -144,7 +151,7 @@ export default function PublishScreen() {
 
   if (result) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-warm-bg">
+      <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
             <Check className="h-8 w-8 text-green-600" />
@@ -156,11 +163,11 @@ export default function PublishScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-warm-bg">
+    <div className="min-h-screen bg-background">
       {/* ─── 顶部导航 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-white/95">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
         <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-          <Button variant="ghost" onClick={() => navigate(-1)}>
+          <Button variant="ghost" onClick={() => smartBack()}>
             <ArrowLeft className="mr-1 h-4 w-4" />取消
           </Button>
           <h1 className="font-semibold">发布分享</h1>
@@ -176,11 +183,11 @@ export default function PublishScreen() {
 
       <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
         {/* ─── 分享内容 ─── */}
-        <section className="space-y-4 rounded-2xl border border-border/60 bg-white p-5">
+        <section className="space-y-4 rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="text-lg font-bold">分享内容</h2>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium">标题</label>
+            <label htmlFor="post-title" className="mb-1.5 block text-sm font-medium">标题</label>
             <Input
               value={title}
               maxLength={200}
@@ -190,7 +197,7 @@ export default function PublishScreen() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-medium">正文</label>
+            <label htmlFor="post-content" className="mb-1.5 block text-sm font-medium">正文</label>
             <Textarea
               value={content}
               maxLength={5000}
@@ -220,7 +227,7 @@ export default function PublishScreen() {
                   <button
                     type="button"
                     onClick={() => handleRemoveImage(index)}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
                     aria-label={`删除第 ${index + 1} 张图片`}
                   >
                     <X className="h-3.5 w-3.5" />
@@ -255,7 +262,7 @@ export default function PublishScreen() {
         </section>
 
         {/* ─── 商品信息 ─── */}
-        <section className="space-y-4 rounded-2xl border border-border/60 bg-white p-5">
+        <section className="space-y-4 rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="text-lg font-bold">商品信息</h2>
           <Input
             value={productName}
@@ -295,7 +302,7 @@ export default function PublishScreen() {
         </section>
 
         {/* ─── 标签 ─── */}
-        <section className="rounded-2xl border border-border/60 bg-white p-5">
+        <section className="rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="mb-3 text-lg font-bold">标签</h2>
           <div className="flex flex-wrap gap-2">
             {mockTags.filter((tag) => tag.name !== '全部').map((tag) => {
