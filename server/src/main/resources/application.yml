@@ -7,9 +7,9 @@ spring:
 
   # MySQL
   datasource:
-    url: jdbc:mysql://localhost:3306/buyershow?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
-    username: root
-    password: rootpass
+    url: ${DB_URL:jdbc:mysql://localhost:3306/buyershow?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:rootpass}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       minimum-idle: 5
@@ -26,16 +26,16 @@ spring:
   # Redis
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
       timeout: 3000ms
 
   # RabbitMQ
   rabbitmq:
-    host: localhost
-    port: 5672
-    username: app
-    password: devpassword
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:app}
+    password: ${RABBITMQ_PASSWORD:devpassword}
 
   # Multipart upload boundary
   servlet:
@@ -64,17 +64,17 @@ mybatis-plus:
 
 # JWT
 jwt:
-  secret: buyer-show-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256
+  secret: ${JWT_SECRET:buyer-show-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
   access-token-expiration: 1800000   # 30 minutes
   refresh-token-expiration: 604800000 # 7 days
 
 # MinIO
 minio:
-  endpoint: http://localhost:9000
-  public-url: http://localhost:9000
-  access-key: minioadmin
-  secret-key: minioadmin
-  bucket-name: buyershow-images
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:minioadmin}
+  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  bucket-name: ${MINIO_BUCKET:buyershow-images}
 
 # SpringDoc
 springdoc:

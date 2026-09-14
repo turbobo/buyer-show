@@ -92,7 +92,7 @@ public class AuthService {
     }
 
     public TokenPair refresh(String refreshToken) {
-        if (!jwtTokenProvider.validateToken(refreshToken)) {
+        if (!jwtTokenProvider.validateRefreshToken(refreshToken)) {
             throw new BusinessException(ErrorCode.REFRESH_TOKEN_INVALID);
         }
 

@@ -87,7 +87,9 @@ async function refreshAccessToken(): Promise<string | null> {
 
 export async function request<T>(path: string, options: RequestInit = {}, retried = false): Promise<T> {
   const headers = new Headers(options.headers)
-  headers.set('Content-Type', 'application/json')
+  if (!(options.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
   return requestWithHeaders<T>(path, { ...options, headers }, retried)
 }
 
