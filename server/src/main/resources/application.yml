@@ -1,3 +1,9 @@
+# ============================================================================
+# 开发环境配置 - 包含默认值便于本地开发
+# 生产环境请使用 application-prod.yml 并通过环境变量注入所有敏感配置
+# 启动方式: java -jar app.jar --spring.profiles.active=prod
+# ============================================================================
+
 server:
   port: 8080
 
@@ -68,6 +74,7 @@ jwt:
 minio:
   endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
   public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+  cdn-url: ${MINIO_CDN_URL:}
   access-key: ${MINIO_ACCESS_KEY:minioadmin}
   secret-key: ${MINIO_SECRET_KEY:minioadmin}
   bucket-name: ${MINIO_BUCKET:buyershow-images}
