@@ -12,6 +12,9 @@ import com.buyershow.entity.User;
 import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,10 +26,7 @@ public class UserService {
     private final FollowMapper followMapper;
 
     public UserDTO getUserProfile(Long userId) {
-        User user = userMapper.selectById(userId);
-        if (user == null || user.getStatus() == UserStatus.DELETED.getValue()) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        User user = findUserOrThrow(userId);
         Long currentUserId = SecurityUtils.getCurrentUserId();
         boolean isFollowing = currentUserId != null && isFollowing(currentUserId, userId);
         return toUserDTO(user, isFollowing);
@@ -41,12 +41,13 @@ public class UserService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "user:profile", key = "#result.id"),
+            @CacheEvict(cacheNames = "user:profile", key = "#root.target.getCurrentUserIdSafe()")
+    })
     public UserDTO updateCurrentUserProfile(UpdateProfileRequest request) {
         Long userId = requireCurrentUserId();
-        User user = userMapper.selectById(userId);
-        if (user == null || user.getStatus() != UserStatus.ACTIVE.getValue()) {
-            throw new BusinessException(ErrorCode.TOKEN_INVALID);
-        }
+        User user = findUserOrThrow(userId);
 
         if (request.getNickname() != null && !request.getNickname().isBlank()) {
             String nickname = request.getNickname().trim();
@@ -68,6 +69,31 @@ public class UserService {
         userMapper.updateById(user);
         return toUserDTO(user, false);
     }
+
+    /**
+     * 供 @CacheEvict SpEL 调用，安全获取当前用户 ID。
+     */
+    public Long getCurrentUserIdSafe() {
+        return SecurityUtils.getCurrentUserId();
+    }
+
+    // ─── 缓存层：User 实体查询 ──────────────────────────────────────
+
+    /**
+     * 带缓存的 User 实体查询（10 分钟 TTL）。
+     * 缓存的是数据库实体，不含用户维度的 isFollowing 等字段。
+     */
+    @Cacheable(cacheNames = "user:profile", key = "#userId",
+            unless = "#result == null")
+    public User findUserOrThrow(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getStatus() == UserStatus.DELETED.getValue()) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        return user;
+    }
+
+    // ─── 私有方法 ─────────────────────────────────────────────────
 
     private boolean isFollowing(Long followerId, Long followingId) {
         if (followerId.equals(followingId)) {
