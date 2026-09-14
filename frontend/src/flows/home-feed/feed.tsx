@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Heart, Home, LogOut, MessageCircle, Plus, Search, User as UserIcon } from 'lucide-react'
+import { Clock, Heart, Home, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -9,9 +9,19 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getFeed, type ApiPostSummary } from '@/services/posts'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
-import { mockTags } from '../shared/mock-data'
+import { useToast } from '@/components/ui/toast'
+import { mockTags, hotSearchTags, searchHistory } from '../shared/mock-data'
 
 type TabKey = 'home' | 'search' | 'publish' | 'messages' | 'profile'
+
+/** 根据 post id 生成确定性的随机图片高度（180~260px 范围） */
+function cardImageHeight(postId: number): string {
+  const seed = ((postId * 2654435761) >>> 0) % 100
+  if (seed < 30) return 'aspect-[3/4]'      // 30% 高卡
+  if (seed < 60) return 'aspect-square'      // 30% 方卡
+  if (seed < 85) return 'aspect-[4/5]'       // 25% 中高卡
+  return 'aspect-[5/6]'                      // 15% 矮卡
+}
 
 function postBackground(post: ApiPostSummary): string {
   const image = post.images[0]
@@ -30,7 +40,7 @@ function PostCard({ post }: { post: ApiPostSummary }) {
       onClick={() => navigate(`/posts/${post.id}`)}
       className="group w-full overflow-hidden rounded-xl border border-border/60 bg-white text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
     >
-      <div className="aspect-[3/4] bg-muted" style={{ background: postBackground(post) }} />
+      <div className={`bg-muted ${cardImageHeight(post.id)}`} style={{ background: postBackground(post) }} />
       <div className="p-3">
         <h3 className="mb-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
         <div className="flex items-center justify-between">
@@ -48,8 +58,73 @@ function PostCard({ post }: { post: ApiPostSummary }) {
   )
 }
 
+/** 搜索面板 */
+function SearchPanel({ query, onClose }: { query: string; onClose: () => void }) {
+  const navigate = useNavigate()
+  const { toast } = useToast()
+  const filteredHot = query
+    ? hotSearchTags.filter((tag) => tag.includes(query))
+    : hotSearchTags
+
+  const handleSearch = (keyword: string) => {
+    toast('info', `搜索「${keyword}」功能开发中`)
+    onClose()
+  }
+
+  return (
+    <div className="absolute left-0 right-0 top-full z-30 mt-2 rounded-2xl border border-border/60 bg-white p-4 shadow-lg">
+      {/* 搜索历史 */}
+      {!query && searchHistory.length > 0 && (
+        <div className="mb-4">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            搜索历史
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {searchHistory.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => handleSearch(tag)}
+                className="rounded-full bg-muted px-3 py-1 text-xs text-foreground/80 transition-colors hover:bg-muted/80"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 热门搜索 */}
+      <div>
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <TrendingUp className="h-3.5 w-3.5" />
+          {query ? '匹配结果' : '热门搜索'}
+        </div>
+        {filteredHot.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {filteredHot.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => handleSearch(tag)}
+                className="rounded-full bg-coral-light px-3 py-1 text-xs text-coral transition-colors hover:bg-coral-light/80"
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">无匹配结果</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function HomeFeedScreen() {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -58,6 +133,8 @@ export default function HomeFeedScreen() {
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('home')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchFocused, setIsSearchFocused] = useState(false)
   const requestVersion = useRef(0)
 
   const loadFeed = useCallback(async (nextCursor?: string, append = false) => {
@@ -96,7 +173,18 @@ export default function HomeFeedScreen() {
     setActiveTab(tab)
     if (tab === 'publish') navigate('/publish')
     else if (tab === 'messages') navigate('/messages')
-    // home / search / profile 暂留在首页，后续接入独立页面
+    else if (tab === 'search') {
+      setIsSearchFocused(true)
+      // 滚动到搜索框
+      document.getElementById('search-input')?.focus()
+    }
+  }
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      toast('info', `搜索「${searchQuery.trim()}」功能开发中`)
+      setIsSearchFocused(false)
+    }
   }
 
   return (
@@ -110,7 +198,32 @@ export default function HomeFeedScreen() {
           </div>
           <div className="relative mx-auto max-w-xl flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="搜索好物、品牌、标签..." className="h-10 rounded-full border-0 bg-muted/50 pl-10" />
+            <Input
+              id="search-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => {
+                // 延迟关闭，让点击事件先触发
+                setTimeout(() => setIsSearchFocused(false), 200)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSearchSubmit()
+              }}
+              placeholder="搜索好物、品牌、标签..."
+              className="h-10 rounded-full border-0 bg-muted/50 pl-10 pr-10"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                aria-label="清除搜索内容"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+            {isSearchFocused && <SearchPanel query={searchQuery} onClose={() => setIsSearchFocused(false)} />}
           </div>
           {currentUser && (
             <Button aria-label="消息" variant="ghost" size="icon" onClick={() => navigate('/messages')}>
@@ -184,7 +297,7 @@ export default function HomeFeedScreen() {
         {isLoading && posts.length === 0 && (
           <div className="columns-2 gap-3 space-y-3 md:columns-3 xl:columns-4">
             {Array.from({ length: 8 }).map((_, index) => (
-              <Skeleton key={index} className="aspect-[3/4] break-inside-avoid rounded-xl" />
+              <Skeleton key={index} className="break-inside-avoid rounded-xl" style={{ aspectRatio: index % 3 === 0 ? '3/4' : index % 3 === 1 ? '1/1' : '4/5' }} />
             ))}
           </div>
         )}

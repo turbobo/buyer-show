@@ -120,6 +120,13 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
         </div>
       </nav>
 
+      {/* 静态数据提示 */}
+      <div className="mx-auto max-w-7xl px-4 pt-3">
+        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-700">
+          ⚠️ 当前为静态演示数据，消息服务开发中
+        </div>
+      </div>
+
       <div className="max-w-7xl mx-auto flex h-[calc(100vh-56px)]">
         {/* Left Panel: Conversations + Notifications */}
         <div className={`${showChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-96 shrink-0 border-r border-border/60 bg-white`}>

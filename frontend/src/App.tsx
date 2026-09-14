@@ -6,6 +6,7 @@ import PublishScreen from './flows/publish-post/publish'
 import MessagesScreen from './flows/messages/messages'
 import LoginScreen from './flows/auth/login'
 import AdminModerationScreen from './flows/admin/moderation'
+import NotFoundScreen from './flows/not-found/not-found'
 import { getAccessToken } from './services/http'
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
@@ -26,7 +27,7 @@ function App() {
         <Route path="/login" element={<LoginScreen />} />
         <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
         <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundScreen />} />
       </Routes>
     </BrowserRouter>
   )

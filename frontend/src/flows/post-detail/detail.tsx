@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Send } from 'lucide-react'
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, MessageCircle, Send } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { createComment, getComments, type ApiComment } from '@/services/comments
 import { ApiError } from '@/services/http'
 import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
+import { useToast } from '@/components/ui/toast'
 
 function imageBackground(image?: string): string {
   if (image?.startsWith('http')) {
@@ -56,7 +57,6 @@ function PostImageCarousel({ images, title }: { images: string[]; title: string 
         ))}
       </div>
 
-      {/* 左右箭头 */}
       {hasMultiple && activeIndex > 0 && (
         <button
           type="button"
@@ -78,7 +78,6 @@ function PostImageCarousel({ images, title }: { images: string[]; title: string 
         </button>
       )}
 
-      {/* 圆点指示器 */}
       {hasMultiple && (
         <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
           {images.map((_, index) => (
@@ -151,12 +150,12 @@ export default function PostDetailScreen() {
   const { postId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  const { toast } = useToast()
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
   const [commentText, setCommentText] = useState('')
   const [replyTarget, setReplyTarget] = useState<ApiComment | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
-  const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCommentSubmitting, setIsCommentSubmitting] = useState(false)
   const [isLikeSubmitting, setIsLikeSubmitting] = useState(false)
@@ -188,13 +187,12 @@ export default function PostDetailScreen() {
       redirectToLogin()
       return
     }
-    setActionMessage(error instanceof Error ? error.message : fallback)
+    toast('error', error instanceof Error ? error.message : fallback)
   }
 
   const handleSubmitComment = async () => {
     if (!postId || !commentText.trim() || isCommentSubmitting) return
     setIsCommentSubmitting(true)
-    setActionMessage(null)
     try {
       const comment = await createComment(postId, commentText.trim(), replyTarget?.id)
       setCommentText('')
@@ -204,7 +202,7 @@ export default function PostDetailScreen() {
           ? { ...item, replies: [...item.replies, comment] }
           : item)
         : [...current, comment])
-      setActionMessage(comment.moderationStatus === 1 ? '评论已提交，审核通过后公开展示' : '评论发布成功')
+      toast('success', comment.moderationStatus === 1 ? '评论已提交，审核通过后公开展示' : '评论发布成功')
     } catch (requestError) {
       handleActionError(requestError, '评论发布失败')
     } finally {
@@ -215,7 +213,6 @@ export default function PostDetailScreen() {
   const handleLike = async () => {
     if (!postId || isLikeSubmitting) return
     setIsLikeSubmitting(true)
-    setActionMessage(null)
     try {
       const result = await toggleLike(postId)
       setPost((current) => current && ({
@@ -223,6 +220,7 @@ export default function PostDetailScreen() {
         isLiked: result.liked,
         likeCount: Math.max(0, current.likeCount + (result.liked ? 1 : -1)),
       }))
+      toast('success', result.liked ? '已点赞' : '已取消点赞')
     } catch (requestError) {
       handleActionError(requestError, '点赞失败')
     } finally {
@@ -233,7 +231,6 @@ export default function PostDetailScreen() {
   const handleFavorite = async () => {
     if (!postId || isFavoriteSubmitting) return
     setIsFavoriteSubmitting(true)
-    setActionMessage(null)
     try {
       const result = await toggleFavorite(postId)
       setPost((current) => current && ({
@@ -241,6 +238,7 @@ export default function PostDetailScreen() {
         isFavorited: result.favorited,
         favoriteCount: Math.max(0, current.favoriteCount + (result.favorited ? 1 : -1)),
       }))
+      toast('success', result.favorited ? '已收藏' : '已取消收藏')
     } catch (requestError) {
       handleActionError(requestError, '收藏失败')
     } finally {
@@ -251,7 +249,7 @@ export default function PostDetailScreen() {
   const handleReport = async (contentType: 'POST' | 'COMMENT', contentId: number) => {
     try {
       await createContentReport(contentType, contentId, '用户举报')
-      setActionMessage('举报已提交，管理员将尽快处理')
+      toast('success', '举报已提交，管理员将尽快处理')
     } catch (requestError) {
       handleActionError(requestError, '举报提交失败')
     }
@@ -266,7 +264,8 @@ export default function PostDetailScreen() {
   const displayImages = post.images.length > 0 ? post.images : fallbackImages
 
   return (
-    <div className="min-h-screen bg-warm-bg pb-20">
+    <div className="min-h-screen bg-warm-bg pb-24">
+      {/* ─── 顶部导航 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-white/95">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => navigate(-1)}>
@@ -286,73 +285,86 @@ export default function PostDetailScreen() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-5xl p-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         {post.moderationStatus === 1 && (
           <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">该帖子正在审核，仅作者可见。</p>
         )}
-        {actionMessage && (
-          <p className="mb-4 rounded-lg bg-muted p-3 text-sm text-foreground/80">{actionMessage}</p>
-        )}
 
+        {/* ─── 帖子内容卡片（图片 + 信息） ─── */}
         <article className="overflow-hidden rounded-2xl border border-border/60 bg-white">
           <div className="grid md:grid-cols-2">
-            {/* 图片轮播区 */}
             <PostImageCarousel images={displayImages} title={post.title} />
-
-            {/* 内容区 */}
             <div className="p-5">
               <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
               <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
-
               {post.productName && (
                 <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4">
                   <p className="font-semibold">{post.productName}</p>
                   <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
                 </div>
               )}
-
               <div className="flex flex-wrap gap-2">
                 {post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
               </div>
-
               <Separator className="my-4" />
               <p className="text-sm text-muted-foreground">
                 {post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏
               </p>
-              <Separator className="my-4" />
-
-              <h2 className="mb-4 font-semibold">评论</h2>
-              <div className="max-h-96 space-y-4 overflow-y-auto">
-                {comments.length === 0
-                  ? <p className="text-sm text-muted-foreground">还没有公开评论</p>
-                  : comments.map((comment) => (
-                    <CommentItem
-                      key={comment.id}
-                      comment={comment}
-                      onReply={setReplyTarget}
-                      onReport={(commentId) => void handleReport('COMMENT', commentId)}
-                    />
-                  ))
-                }
-              </div>
             </div>
           </div>
         </article>
+
+        {/* ─── 评论区（独立区块） ─── */}
+        {post.moderationStatus === 0 && (
+          <section className="mt-6 rounded-2xl border border-border/60 bg-white p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-foreground" />
+              <h2 className="font-semibold">评论 ({comments.length})</h2>
+            </div>
+            {comments.length === 0 ? (
+              <div className="py-8 text-center">
+                <MessageCircle className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">还没有评论，来说两句吧</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {comments.map((comment) => (
+                  <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    onReply={setReplyTarget}
+                    onReport={(commentId) => void handleReport('COMMENT', commentId)}
+                  />
+                ))}
+              </div>
+            )}
+          </section>
+        )}
       </main>
 
-      {/* 底部操作栏 */}
+      {/* ─── 底部操作栏 ─── */}
       {post.moderationStatus === 0 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-white/95">
+        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-white/95 backdrop-blur-sm">
           <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
-            <Input
-              aria-label="评论内容"
-              value={commentText}
-              onChange={(event) => setCommentText(event.target.value)}
-              placeholder={replyTarget ? `回复 ${replyTarget.userNickname ?? '用户'}...` : '说点什么...'}
-            />
-            <Button aria-label="发送评论" disabled={isCommentSubmitting} size="icon" onClick={() => void handleSubmitComment()}>
-              <Send className="h-4 w-4" />
-            </Button>
+            <div className="relative flex-1">
+              <Input
+                aria-label="评论内容"
+                value={commentText}
+                onChange={(event) => setCommentText(event.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSubmitComment() } }}
+                placeholder={replyTarget ? `回复 ${replyTarget.userNickname ?? '用户'}...` : '说点什么...'}
+                className="h-10 rounded-full bg-muted/50 pr-10"
+              />
+              <Button
+                aria-label="发送评论"
+                disabled={isCommentSubmitting || !commentText.trim()}
+                size="icon"
+                className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-coral text-white hover:bg-coral-dark disabled:opacity-40"
+                onClick={() => void handleSubmitComment()}
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            </div>
             <Button aria-label={post.isLiked ? '取消点赞' : '点赞'} disabled={isLikeSubmitting} variant="ghost" size="icon" onClick={() => void handleLike()}>
               <Heart className={`h-5 w-5 ${post.isLiked ? 'fill-coral text-coral' : ''}`} />
             </Button>
@@ -360,6 +372,17 @@ export default function PostDetailScreen() {
               <Bookmark className={`h-5 w-5 ${post.isFavorited ? 'fill-coral text-coral' : ''}`} />
             </Button>
           </div>
+          {replyTarget && (
+            <div className="mx-auto max-w-5xl px-4 pb-2">
+              <button
+                type="button"
+                onClick={() => setReplyTarget(null)}
+                className="flex items-center gap-1 text-xs text-coral hover:underline"
+              >
+                回复 {replyTarget.userNickname ?? '用户'} ×
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
