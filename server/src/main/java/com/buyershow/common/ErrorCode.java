@@ -43,6 +43,7 @@ public enum ErrorCode {
     // 内容安全 7000-7999
     CONTENT_REJECTED(7001, "内容未通过安全校验"),
     REPORT_DUPLICATED(7002, "请勿重复举报相同内容"),
+    CONTENT_DUPLICATED(7003, "检测到重复内容，请勿频繁发布相同内容"),
     REPORT_NOT_FOUND(7003, "举报记录不存在"),
     REPORT_ALREADY_HANDLED(7004, "举报记录已处理"),
     CONTENT_NOT_PENDING(7005, "内容不在待审核状态"),

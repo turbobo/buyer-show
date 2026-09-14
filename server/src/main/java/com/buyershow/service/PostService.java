@@ -98,6 +98,13 @@ public class PostService {
     public PostDTO createPost(CreatePostRequest request) {
         Long userId = requireCurrentUserId();
 
+        // 内容去重：检查最近 24 小时内是否发布过相同标题+内容的帖子
+        int duplicateCount = postMapper.countRecentDuplicates(
+                userId, request.getTitle().trim(), request.getContent().trim());
+        if (duplicateCount > 0) {
+            throw new BusinessException(ErrorCode.CONTENT_DUPLICATED, "检测到重复内容，请勿频繁发布相同内容");
+        }
+
         uploadService.validatePendingImages(userId, request.getImages());
         String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
         ModerationDecision decision = contentModerationService.evaluate(
@@ -237,3 +244,15 @@ public class PostService {
         }
     }
 }
+
+    public List<PostDTO> searchPosts(String keyword, int limit) {
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<PostQueryRow> rows = postMapper.searchPosts(keyword, limit, currentUserId);
+        return rows.stream()
+                .map(postAssembler::toPostDTO)
+                .toList();
+    }
+
+    public boolean isDuplicateContent(Long userId, String title, String content) {
+        return postMapper.countRecentDuplicates(userId, title, content) > 0;
+    }
