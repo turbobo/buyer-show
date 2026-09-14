@@ -5,6 +5,7 @@ import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.service.PostService;
+import com.buyershow.common.security.RateLimit;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +23,9 @@ public class PostController {
     public R<CursorPage<PostDTO>> getFeed(
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String tag,
-            @RequestParam(defaultValue = "20") int limit) {
-        return R.ok(postService.getFeed(cursor, tag, limit));
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "new") String sort) {
+        return R.ok(postService.getFeed(cursor, tag, limit, sort));
     }
 
     @GetMapping("/{id}")
@@ -32,6 +34,7 @@ public class PostController {
     }
 
     @PostMapping
+    @RateLimit(key = "post:create", limit = 10, windowSeconds = 60)
     public R<PostDTO> createPost(@Valid @RequestBody CreatePostRequest request) {
         return R.ok(postService.createPost(request));
     }

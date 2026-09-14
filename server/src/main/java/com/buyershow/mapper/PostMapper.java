@@ -99,4 +99,38 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("reason") String reason,
             @Param("adminId") Long adminId,
             @Param("moderatedAt") java.time.LocalDateTime moderatedAt);
+
+
+    @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited",
+            "FROM posts p",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE p.status = 0 AND p.moderation_status = 0",
+            "  AND p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+            "<if test='tag != null and tag != ""'>",
+            "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
+            "</if>",
+            "ORDER BY (p.like_count * 3 + p.comment_count * 5 + p.favorite_count * 2) DESC, p.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectHotFeedRows(
+            @Param("tag") String tag,
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
+
+
+    @Select("SELECT id, created_at FROM posts WHERE status = 0 AND moderation_status = 0 ORDER BY id DESC LIMIT 1000")
+    List<Post> selectPublicPosts();
+
 }
