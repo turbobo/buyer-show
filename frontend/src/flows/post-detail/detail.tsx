@@ -12,6 +12,7 @@ import { ApiError } from '@/services/http'
 import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
+import { PostStructuredData } from '@/components/structured-data'
 import { useToast } from '@/components/ui/toast'
 import { trackPostView, trackPostLike, trackPostFavorite, trackCommentCreate } from '@/services/analytics'
 
