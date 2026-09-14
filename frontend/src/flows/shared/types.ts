@@ -80,6 +80,7 @@ export interface Notification {
 }
 
 export interface Tag {
+  display: string
   name: string
   postCount: number
   isFavorited: boolean

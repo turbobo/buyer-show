@@ -10,6 +10,8 @@ import { getFeed, type ApiPostSummary } from '@/services/posts'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
+import { useTheme } from '@/hooks/use-theme'
+import { Moon, Sun } from 'lucide-react'
 import { mockTags, hotSearchTags, searchHistory } from '../shared/mock-data'
 
 type TabKey = 'home' | 'search' | 'publish' | 'messages' | 'profile'
@@ -62,6 +64,7 @@ function PostCard({ post }: { post: ApiPostSummary }) {
 function SearchPanel({ query, onClose }: { query: string; onClose: () => void }) {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { theme, toggleTheme } = useTheme()
   const filteredHot = query
     ? hotSearchTags.filter((tag) => tag.includes(query))
     : hotSearchTags
@@ -125,6 +128,7 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
 export default function HomeFeedScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { theme, toggleTheme } = useTheme()
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
@@ -225,11 +229,9 @@ export default function HomeFeedScreen() {
             )}
             {isSearchFocused && <SearchPanel query={searchQuery} onClose={() => setIsSearchFocused(false)} />}
           </div>
-          {currentUser && (
-            <Button aria-label="消息" variant="ghost" size="icon" onClick={() => navigate('/messages')}>
-              <MessageCircle className="h-5 w-5" />
-            </Button>
-          )}
+          <Button aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'} variant="ghost" size="icon" onClick={toggleTheme}>
+            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
           {currentUser && getTokenRole() === 'ADMIN' && (
             <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>
               审核台
@@ -276,13 +278,13 @@ export default function HomeFeedScreen() {
           {mockTags.map((tag) => (
             <button
               type="button"
-              key={tag.name}
-              onClick={() => setActiveTag(tag.name)}
+              key={tag.display}
+              onClick={() => setActiveTag(tag.display)}
               className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                activeTag === tag.name ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                activeTag === tag.display ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
               }`}
             >
-              {tag.name}
+              {tag.display}
             </button>
           ))}
         </div>

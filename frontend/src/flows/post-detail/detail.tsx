@@ -52,7 +52,7 @@ function PostImageCarousel({ images, title }: { images: string[]; title: string 
           <div
             key={index}
             className="w-full flex-none snap-center bg-muted"
-            style={{ aspectRatio: '1 / 1', background: imageBackground(image) }}
+            style={{ aspectRatio: '4 / 3', background: imageBackground(image) }}
           />
         ))}
       </div>
@@ -290,27 +290,24 @@ export default function PostDetailScreen() {
           <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">该帖子正在审核，仅作者可见。</p>
         )}
 
-        {/* ─── 帖子内容卡片（图片 + 信息） ─── */}
+        {/* ─── 移动端：图片全宽展示 ─── */}
+        <div className="mb-4 overflow-hidden rounded-2xl border border-border/60 bg-white md:hidden">
+          <PostImageCarousel images={displayImages} title={post.title} />
+        </div>
+
+        {/* ─── 帖子内容卡片 ─── */}
         <article className="overflow-hidden rounded-2xl border border-border/60 bg-white">
-          <div className="grid md:grid-cols-2">
+          {/* 桌面端：左图右文 */}
+          <div className="hidden md:grid md:grid-cols-2">
             <PostImageCarousel images={displayImages} title={post.title} />
             <div className="p-5">
-              <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
-              <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
-              {post.productName && (
-                <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4">
-                  <p className="font-semibold">{post.productName}</p>
-                  <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
-                </div>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
-              </div>
-              <Separator className="my-4" />
-              <p className="text-sm text-muted-foreground">
-                {post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏
-              </p>
+              <PostContent post={post} />
             </div>
+          </div>
+
+          {/* 移动端：紧凑布局 */}
+          <div className="p-5 md:hidden">
+            <PostContent post={post} />
           </div>
         </article>
 
@@ -386,5 +383,28 @@ export default function PostDetailScreen() {
         </div>
       )}
     </div>
+  )
+}
+
+/* ─── 帖子内容子组件 ─── */
+function PostContent({ post }: { post: ApiPost }) {
+  return (
+    <>
+      <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
+      <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
+      {post.productName && (
+        <div className="mb-4 rounded-xl border border-border/60 bg-warm-bg p-4">
+          <p className="font-semibold">{post.productName}</p>
+          <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
+      </div>
+      <Separator className="my-4" />
+      <p className="text-sm text-muted-foreground">
+        {post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏
+      </p>
+    </>
   )
 }

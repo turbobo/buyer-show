@@ -8,6 +8,7 @@ import LoginScreen from './flows/auth/login'
 import AdminModerationScreen from './flows/admin/moderation'
 import NotFoundScreen from './flows/not-found/not-found'
 import { getAccessToken } from './services/http'
+import { ErrorBoundary } from './components/error-boundary'
 
 function ProtectedRoute({ children }: { children: ReactElement }) {
   const location = useLocation()
@@ -17,10 +18,11 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
   return children
 }
 
-function App() {
+function AnimatedRoutes() {
+  const location = useLocation()
   return (
-    <BrowserRouter>
-      <Routes>
+    <div key={location.pathname} className="page-transition">
+      <Routes location={location}>
         <Route path="/" element={<HomeFeedScreen />} />
         <Route path="/posts/:postId" element={<PostDetailScreen />} />
         <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
@@ -29,6 +31,16 @@ function App() {
         <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
         <Route path="*" element={<NotFoundScreen />} />
       </Routes>
+    </div>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <ErrorBoundary>
+        <AnimatedRoutes />
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

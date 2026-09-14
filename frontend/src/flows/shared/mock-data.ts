@@ -29,9 +29,9 @@ export const mockPosts: Post[] = [
   { id: 'p1', userId: 'u2', user: mockUsers[1], title: '兰蔻菁纯面霜，干皮救星！用了一个月真的绝了', content: '兰蔻菁纯面霜真的是我今年买过最满意的护肤品了！我是混干皮，冬天脸颊会起皮，这款面霜的质地很滋润但不油腻...', images: [IMG.skincare], tags: ['护肤', '面霜', '兰蔻', '干皮救星'], productName: '兰蔻菁纯面霜 60ml', productPrice: 890, productSource: '天猫旗舰店', productRating: 4, likeCount: 328, commentCount: 56, favoriteCount: 189, isLiked: true, isFavorited: false, status: 'active', createdAt: '3小时前' },
   { id: 'p2', userId: 'u3', user: mockUsers[2], title: 'iPad mini 7 一个月使用感受', content: '作为一个数码爱好者，iPad mini 7 是今年最让我惊喜的产品...', images: [IMG.tech], tags: ['数码', 'iPad', 'Apple'], productName: 'iPad mini 7', productPrice: 3999, productSource: '京东自营', productRating: 5, likeCount: 156, commentCount: 23, favoriteCount: 67, isLiked: false, isFavorited: true, status: 'active', createdAt: '5小时前' },
   { id: 'p3', userId: 'u4', user: mockUsers[3], title: 'Nike Pegasus 41 跑步鞋开箱', content: '这双鞋的脚感真的太舒服了，适合日常慢跑5-10公里...', images: [IMG.shoes], tags: ['运动', '跑步鞋', 'Nike'], productName: 'Nike Pegasus 41', productPrice: 799, productSource: '得物', productRating: 5, likeCount: 512, commentCount: 89, favoriteCount: 234, isLiked: true, isFavorited: true, status: 'active', createdAt: '8小时前' },
-  { id: 'p4', userId: 'u6', user: mockUsers[5], title: '山姆的牛油果真的绝！又回购了', content: '每次去山姆必买的牛油果，品质稳定，价格实惠...', images: [IMG.food], tags: ['食品', '山姆', '水果'], productName: '进口牛油果 6个装', productPrice: 59.9, productSource: '山姆会员店', productRating: 4, likeCount: 89, commentCount: 12, favoriteCount: 34, isLiked: false, isFavorited: false, status: 'active', createdAt: '昨天' },
-  { id: 'p5', userId: 'u5', user: mockUsers[4], title: 'AirPods Pro 3 降噪体验，通勤必备', content: '降噪效果比上一代提升明显，通透模式也更自然了...', images: [IMG.audio], tags: ['数码', '耳机', 'Apple'], productName: 'AirPods Pro 3', productPrice: 1899, productSource: 'Apple Store', productRating: 5, likeCount: 267, commentCount: 45, favoriteCount: 123, isLiked: false, isFavorited: false, status: 'active', createdAt: '昨天' },
-  { id: 'p6', userId: 'u2', user: mockUsers[1], title: 'MAC 子弹头口红试色合集', content: '收集了 8 支 MAC 经典色号，黄皮白皮都有推荐...', images: [IMG.fashion], tags: ['美妆', '口红', 'MAC'], productName: 'MAC 子弹头口红', productPrice: 189, productSource: '免税店', productRating: 4, likeCount: 445, commentCount: 78, favoriteCount: 312, isLiked: true, isFavorited: true, status: 'active', createdAt: '2天前' },
+  { id: 'p4', userId: 'u5', user: mockUsers[4], title: '周末在家做了一桌菜，分享食谱', content: '周末宅家研究了几道新菜，朋友们都说好吃...', images: [IMG.food], tags: ['美食', '食谱', '家常菜'], productName: '食材套装', productPrice: 128, productSource: '盒马鲜生', productRating: 4, likeCount: 89, commentCount: 34, favoriteCount: 45, isLiked: false, isFavorited: false, status: 'active', createdAt: '1天前' },
+  { id: 'p5', userId: 'u6', user: mockUsers[5], title: 'AirPods Pro 2 降噪效果实测', content: '新买的 AirPods Pro 2 降噪效果真的太强了，地铁上完全听不到外界噪音...', images: [IMG.audio], tags: ['数码', '耳机', 'Apple'], productName: 'AirPods Pro 2', productPrice: 1899, productSource: 'Apple 官网', productRating: 5, likeCount: 267, commentCount: 45, favoriteCount: 123, isLiked: true, isFavorited: false, status: 'active', createdAt: '1天前' },
+  { id: 'p6', userId: 'u2', user: mockUsers[1], title: 'MAC 子弹头口红试色，这几个色号绝了', content: 'MAC 的口红真的是经典，这几个色号特别适合秋冬...', images: [IMG.fashion], tags: ['美妆', '口红', 'MAC'], productName: 'MAC 子弹头口红', productPrice: 189, productSource: '免税店', productRating: 4, likeCount: 445, commentCount: 78, favoriteCount: 312, isLiked: true, isFavorited: true, status: 'active', createdAt: '2天前' },
 ]
 
 export const mockComments: Comment[] = [
@@ -68,15 +68,16 @@ export const mockNotifications: Notification[] = [
   { id: 'n5', type: 'system', actor: mockUsers[0], content: '你的分享「兰蔻菁纯面霜」被选为精选推荐 🎉', createdAt: '3小时前', isRead: true },
 ]
 
+// 标签数据：name 为纯标签名（无 emoji 前缀），display 为带 emoji 的展示名
 export const mockTags: Tag[] = [
-  { name: '全部', postCount: 12800, isFavorited: false },
-  { name: '💄 美妆', postCount: 3400, isFavorited: true },
-  { name: '📱 数码', postCount: 2800, isFavorited: false },
-  { name: '👗 服饰', postCount: 2100, isFavorited: false },
-  { name: '🍕 食品', postCount: 1900, isFavorited: true },
-  { name: '🏠 家居', postCount: 1500, isFavorited: false },
-  { name: '👶 母婴', postCount: 900, isFavorited: false },
-  { name: '🏃 运动', postCount: 1200, isFavorited: false },
+  { name: '全部', display: '全部', postCount: 12800, isFavorited: false },
+  { name: '美妆', display: '💄 美妆', postCount: 3400, isFavorited: true },
+  { name: '数码', display: '📱 数码', postCount: 2800, isFavorited: false },
+  { name: '服饰', display: '👗 服饰', postCount: 2100, isFavorited: false },
+  { name: '食品', display: '🍕 食品', postCount: 1900, isFavorited: true },
+  { name: '家居', display: '🏠 家居', postCount: 1500, isFavorited: false },
+  { name: '母婴', display: '👶 母婴', postCount: 900, isFavorited: false },
+  { name: '运动', display: '🏃 运动', postCount: 1200, isFavorited: false },
 ]
 
 export const hotSearchTags = ['兰蔻菁纯', 'AirPods Pro', 'Switch 2', '优衣库联名', '戴森吹风机', '始祖鸟', '瑞幸咖啡', 'Costco好物']
