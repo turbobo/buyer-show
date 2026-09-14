@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, Bookmark, Flag, Heart, Send } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,9 +11,11 @@ import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/po
 import { createContentReport } from '@/services/reports'
 
 function contentBackground(image?: string): string {
-  return image?.startsWith('http')
-    ? `url(${image}) center / cover`
-    : image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
+  if (image?.startsWith('http')) {
+    const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
+    return `url("${encoded}") center / cover`
+  }
+  return image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
 }
 
 interface CommentItemProps {
@@ -69,6 +71,7 @@ function isAuthError(error: unknown): boolean {
 export default function PostDetailScreen() {
   const { postId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
   const [commentText, setCommentText] = useState('')
@@ -82,7 +85,7 @@ export default function PostDetailScreen() {
 
   const redirectToLogin = useCallback(() => {
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)
-  }, [navigate])
+  }, [navigate, location.pathname])
 
   const load = useCallback(async () => {
     if (!postId) return
@@ -185,7 +188,7 @@ export default function PostDetailScreen() {
       <nav className="sticky top-0 z-50 border-b border-border bg-white/95">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <Button aria-label="返回" variant="ghost" size="icon" onClick={() => navigate(-1)}><ArrowLeft className="h-5 w-5" /></Button>
-          <Avatar className="h-7 w-7"><AvatarFallback className="bg-coral-light text-[10px] text-coral">{post.userNickname[0]}</AvatarFallback></Avatar>
+          <Avatar className="h-7 w-7"><AvatarFallback className="bg-coral-light text-[10px] text-coral">{post.userNickname?.[0] ?? "?"}</AvatarFallback></Avatar>
           <span className="flex-1 text-sm font-medium">{post.userNickname}</span>
           {post.moderationStatus === 0 && <Button aria-label="举报帖子" variant="ghost" size="icon" onClick={() => void handleReport('POST', post.id)}><Flag className="h-5 w-5" /></Button>}
         </div>

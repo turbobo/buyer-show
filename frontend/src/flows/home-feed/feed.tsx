@@ -12,7 +12,11 @@ import { mockTags } from '../shared/mock-data'
 
 function postBackground(post: ApiPostSummary): string {
   const image = post.images[0]
-  return image?.startsWith('http') ? `url(${image}) center / cover` : image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
+  if (image?.startsWith('http')) {
+    const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
+    return `url("${encoded}") center / cover`
+  }
+  return image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
 }
 
 function PostCard({ post }: { post: ApiPostSummary }) {

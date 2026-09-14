@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { ArrowLeft, Check, ImagePlus, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -26,8 +26,16 @@ export default function PublishScreen() {
   const [publishStage, setPublishStage] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const navigateTimerRef = useRef<number | null>(null)
 
   useEffect(() => () => { if (imagePreview) URL.revokeObjectURL(imagePreview) }, [imagePreview])
+  
+  // 清理导航定时器
+  useEffect(() => () => {
+    if (navigateTimerRef.current !== null) {
+      window.clearTimeout(navigateTimerRef.current)
+    }
+  }, [])
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -60,7 +68,7 @@ export default function PublishScreen() {
         productSource: source, productRating: rating,
       })
       setResult(post.moderationStatus === 1 ? '内容已提交，正在等待人工审核' : '发布成功，即将跳转详情页')
-      window.setTimeout(() => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`), 1200)
+      navigateTimerRef.current = window.setTimeout(() => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`), 1200)
     } catch (requestError) {
       if (uploadedObjectName) {
         await deleteUploadedImage(uploadedObjectName).catch(() => undefined)

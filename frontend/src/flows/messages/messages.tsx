@@ -102,12 +102,12 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">
-            {showChat ? activeConv!.user.nickname : '消息'}
+            {showChat ? activeConv?.user.nickname ?? "消息" : '消息'}
           </h1>
           {showChat && (
             <div className="flex items-center gap-1 ml-1">
-              {activeConv!.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full" />}
-              <span className="text-xs text-muted-foreground">{activeConv!.isOnline ? '在线' : '离线'}</span>
+              {activeConv?.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full" />}
+              <span className="text-xs text-muted-foreground">{activeConv?.isOnline ? '在线' : '离线'}</span>
             </div>
           )}
           {showChat && (

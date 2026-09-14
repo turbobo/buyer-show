@@ -4,9 +4,9 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.buyershow.common.R;
 import com.buyershow.dto.request.HandleReportRequest;
 import com.buyershow.dto.request.ModerateContentRequest;
-import com.buyershow.entity.Comment;
-import com.buyershow.entity.ContentReport;
-import com.buyershow.entity.Post;
+import com.buyershow.dto.response.ModerationCommentDTO;
+import com.buyershow.dto.response.ModerationPostDTO;
+import com.buyershow.dto.response.ReportDTO;
 import com.buyershow.service.AdminModerationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,7 +33,7 @@ public class AdminModerationController {
 
     /** 获取待审核帖子。 */
     @GetMapping("/moderation/posts")
-    public R<IPage<Post>> listPendingPosts(
+    public R<IPage<ModerationPostDTO>> listPendingPosts(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size) {
         return R.ok(adminModerationService.listPendingPosts(page, size));
@@ -41,7 +41,7 @@ public class AdminModerationController {
 
     /** 获取待审核评论。 */
     @GetMapping("/moderation/comments")
-    public R<IPage<Comment>> listPendingComments(
+    public R<IPage<ModerationCommentDTO>> listPendingComments(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size) {
         return R.ok(adminModerationService.listPendingComments(page, size));
@@ -49,7 +49,7 @@ public class AdminModerationController {
 
     /** 获取待处理举报。 */
     @GetMapping("/reports")
-    public R<IPage<ContentReport>> listPendingReports(
+    public R<IPage<ReportDTO>> listPendingReports(
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size) {
         return R.ok(adminModerationService.listPendingReports(page, size));

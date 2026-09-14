@@ -9,12 +9,17 @@ import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.dto.request.HandleReportRequest;
 import com.buyershow.dto.request.ModerateContentRequest;
+import com.buyershow.dto.response.ModerationCommentDTO;
+import com.buyershow.dto.response.ModerationPostDTO;
+import com.buyershow.dto.response.ReportDTO;
 import com.buyershow.entity.Comment;
 import com.buyershow.entity.ContentReport;
 import com.buyershow.entity.Post;
+import com.buyershow.entity.User;
 import com.buyershow.mapper.CommentMapper;
 import com.buyershow.mapper.ContentReportMapper;
 import com.buyershow.mapper.PostMapper;
+import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -32,29 +37,33 @@ public class AdminModerationService {
     private final PostMapper postMapper;
     private final CommentMapper commentMapper;
     private final ContentReportMapper contentReportMapper;
+    private final UserMapper userMapper;
     private final UploadService uploadService;
 
-    public IPage<Post> listPendingPosts(long page, long size) {
+    public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
-        return postMapper.selectPage(page(page, size), Wrappers.<Post>lambdaQuery()
+        IPage<Post> entityPage = postMapper.selectPage(page(page, size), Wrappers.<Post>lambdaQuery()
                 .eq(Post::getStatus, 0)
                 .eq(Post::getModerationStatus, ModerationStatus.PENDING)
                 .orderByAsc(Post::getCreatedAt, Post::getId));
+        return entityPage.convert(this::toModerationPostDTO);
     }
 
-    public IPage<Comment> listPendingComments(long page, long size) {
+    public IPage<ModerationCommentDTO> listPendingComments(long page, long size) {
         requireAdminId();
-        return commentMapper.selectPage(page(page, size), Wrappers.<Comment>lambdaQuery()
+        IPage<Comment> entityPage = commentMapper.selectPage(page(page, size), Wrappers.<Comment>lambdaQuery()
                 .eq(Comment::getStatus, 0)
                 .eq(Comment::getModerationStatus, ModerationStatus.PENDING)
                 .orderByAsc(Comment::getCreatedAt, Comment::getId));
+        return entityPage.convert(this::toModerationCommentDTO);
     }
 
-    public IPage<ContentReport> listPendingReports(long page, long size) {
+    public IPage<ReportDTO> listPendingReports(long page, long size) {
         requireAdminId();
-        return contentReportMapper.selectPage(page(page, size), Wrappers.<ContentReport>lambdaQuery()
+        IPage<ContentReport> entityPage = contentReportMapper.selectPage(page(page, size), Wrappers.<ContentReport>lambdaQuery()
                 .eq(ContentReport::getStatus, ContentReportService.STATUS_PENDING)
                 .orderByAsc(ContentReport::getCreatedAt, ContentReport::getId));
+        return entityPage.convert(this::toReportDTO);
     }
 
     @Transactional
@@ -157,6 +166,65 @@ public class AdminModerationService {
             commentMapper.adjustPostCommentCount(comment.getPostId(), -1);
             commentMapper.adjustReplyCount(comment.getParentId(), -1);
         }
+    }
+
+    private ModerationPostDTO toModerationPostDTO(Post post) {
+        User user = userMapper.selectById(post.getUserId());
+        return ModerationPostDTO.builder()
+                .id(post.getId())
+                .userId(post.getUserId())
+                .userNickname(user != null ? user.getNickname() : null)
+                .title(post.getTitle())
+                .content(post.getContent())
+                .images(post.getImages())
+                .tags(post.getTags())
+                .productName(post.getProductName())
+                .productPrice(post.getProductPrice())
+                .productSource(post.getProductSource())
+                .productRating(post.getProductRating())
+                .likeCount(post.getLikeCount())
+                .commentCount(post.getCommentCount())
+                .favoriteCount(post.getFavoriteCount())
+                .status(post.getStatus())
+                .moderationStatus(post.getModerationStatus())
+                .moderationReason(post.getModerationReason())
+                .createdAt(post.getCreatedAt())
+                .build();
+    }
+
+    private ModerationCommentDTO toModerationCommentDTO(Comment comment) {
+        User user = userMapper.selectById(comment.getUserId());
+        return ModerationCommentDTO.builder()
+                .id(comment.getId())
+                .postId(comment.getPostId())
+                .userId(comment.getUserId())
+                .userNickname(user != null ? user.getNickname() : null)
+                .parentId(comment.getParentId())
+                .content(comment.getContent())
+                .replyCount(comment.getReplyCount())
+                .likeCount(comment.getLikeCount())
+                .status(comment.getStatus())
+                .moderationStatus(comment.getModerationStatus())
+                .moderationReason(comment.getModerationReason())
+                .createdAt(comment.getCreatedAt())
+                .build();
+    }
+
+    private ReportDTO toReportDTO(ContentReport report) {
+        User reporter = userMapper.selectById(report.getReporterId());
+        String contentTypeStr = report.getContentType() == ContentReportService.TYPE_POST ? "POST" : "COMMENT";
+        return ReportDTO.builder()
+                .id(report.getId())
+                .contentType(contentTypeStr)
+                .contentId(report.getContentId())
+                .reporterId(report.getReporterId())
+                .reporterNickname(reporter != null ? reporter.getNickname() : null)
+                .reason(report.getReason())
+                .status(report.getStatus())
+                .handledBy(report.getHandledBy())
+                .createdAt(report.getCreatedAt())
+                .handledAt(report.getHandledAt())
+                .build();
     }
 
     private <T> Page<T> page(long requestedPage, long requestedSize) {

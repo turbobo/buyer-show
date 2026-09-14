@@ -90,33 +90,49 @@ public class PostService {
         return dto;
     }
 
-    @Transactional
+    /**
+     * 创建帖子（事务外处理 MinIO 操作，减少事务持有时间）。
+     */
     public PostDTO createPost(CreatePostRequest request) {
         Long userId = requireCurrentUserId();
 
-        Post post = new Post();
-        post.setUserId(userId);
-        post.setTitle(request.getTitle().trim());
-        post.setContent(request.getContent().trim());
-        post.setImages(request.getImages());
-        post.setTags(request.getTags() == null ? Collections.emptyList() : request.getTags());
-        post.setProductName(request.getProductName());
-        post.setProductPrice(request.getProductPrice());
-        post.setProductSource(request.getProductSource());
-        post.setProductRating(request.getProductRating());
+        // 1. 事务外：校验和发布图片（MinIO I/O）
         uploadService.validatePendingImages(userId, request.getImages());
         String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
                 request.getProductSource(), tagsText);
+        
+        List<String> publishedImages;
         if (decision.getStatus() == ModerationStatus.REJECTED) {
             uploadService.deletePendingImages(userId, request.getImages());
             throw new BusinessException(ErrorCode.CONTENT_REJECTED, decision.getReason());
         }
         if (decision.getStatus() == ModerationStatus.APPROVED) {
-            post.setImages(uploadService.publishImages(userId, request.getImages()));
+            publishedImages = uploadService.publishImages(userId, request.getImages());
+        } else {
+            publishedImages = request.getImages(); // PENDING 状态保留 pending 路径
         }
 
+        // 2. 事务内：仅 DB 操作
+        PostDTO result = createPostInTransaction(userId, request, decision, publishedImages);
+        
+        return getPostDetail(result.getId());
+    }
+
+    @Transactional
+    protected PostDTO createPostInTransaction(Long userId, CreatePostRequest request,
+                                               ModerationDecision decision, List<String> publishedImages) {
+        Post post = new Post();
+        post.setUserId(userId);
+        post.setTitle(request.getTitle().trim());
+        post.setContent(request.getContent().trim());
+        post.setImages(publishedImages);
+        post.setTags(request.getTags() == null ? Collections.emptyList() : request.getTags());
+        post.setProductName(request.getProductName());
+        post.setProductPrice(request.getProductPrice());
+        post.setProductSource(request.getProductSource());
+        post.setProductRating(request.getProductRating());
         post.setLikeCount(0);
         post.setCommentCount(0);
         post.setFavoriteCount(0);
@@ -124,9 +140,12 @@ public class PostService {
         post.setModerationStatus(decision.getStatus());
         post.setModerationReason(decision.getReason());
         postMapper.insert(post);
-
         userMapper.adjustPostCount(userId, 1);
-        return getPostDetail(post.getId());
+        
+        return PostDTO.builder()
+                .id(post.getId())
+                .moderationStatus(post.getModerationStatus())
+                .build();
     }
 
     @Transactional

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.JwtTokenProvider;
+import com.buyershow.common.security.LoginRateLimiter;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
 import com.buyershow.dto.response.TokenPair;
@@ -23,6 +24,7 @@ public class AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final LoginRateLimiter loginRateLimiter;
 
     public TokenPair register(RegisterRequest request) {
         String username = request.getUsername().trim();
@@ -75,8 +77,13 @@ public class AuthService {
         return buildTokenPair(user);
     }
 
-    public TokenPair login(LoginRequest request) {
-        User user = resolveByLoginIdentifier(request.getUsername().trim());
+    public TokenPair login(LoginRequest request, String clientIp) {
+        String identifier = request.getUsername().trim();
+        
+        // 限流检查
+        loginRateLimiter.checkRateLimit(identifier, clientIp);
+
+        User user = resolveByLoginIdentifier(identifier);
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw new BusinessException(ErrorCode.AUTH_FAILED);
         }
@@ -87,6 +94,9 @@ public class AuthService {
         if (user.getStatus() == 2) {
             throw new BusinessException(ErrorCode.ACCOUNT_DELETED);
         }
+
+        // 登录成功，清除计数
+        loginRateLimiter.clearAttempts(identifier, clientIp);
 
         return buildTokenPair(user);
     }

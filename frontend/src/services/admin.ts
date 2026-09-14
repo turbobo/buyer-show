@@ -1,62 +1,62 @@
+import type { ApiComment } from './comments'
 import { request } from './http'
+import type { ApiPost } from './posts'
 
-export interface PageResult<T> {
-  records: T[]
-  current: number
-  size: number
-  total: number
+export interface PendingPost extends ApiPost {
+  moderationReason?: string
 }
 
-export interface PendingPost {
-  id: number
-  userId: number
-  title: string
-  content: string
-  images: string[]
+export interface PendingComment extends ApiComment {
   moderationReason?: string
-  createdAt: string
-}
-
-export interface PendingComment {
-  id: number
-  postId: number
-  userId: number
-  parentId: number | null
-  content: string
-  moderationReason?: string
-  createdAt: string
 }
 
 export interface ContentReport {
   id: number
-  reporterId: number
-  contentType: number
+  contentType: 'POST' | 'COMMENT'
   contentId: number
   reason: string
-  description?: string
+  status: number
   createdAt: string
+  postTitle?: string
+  commentContent?: string
 }
 
-export function getPendingPosts(): Promise<PageResult<PendingPost>> {
-  return request<PageResult<PendingPost>>('/admin/moderation/posts?page=1&size=50')
+export interface PageResult<T> {
+  list: T[]
+  total: number
+  page: number
+  size: number
 }
 
-export function getPendingComments(): Promise<PageResult<PendingComment>> {
-  return request<PageResult<PendingComment>>('/admin/moderation/comments?page=1&size=50')
+export function getPendingPosts(page = 1, size = 50): Promise<PageResult<PendingPost>> {
+  return request<PageResult<PendingPost>>(`/admin/moderation/posts?page=${page}&size=${size}`)
 }
 
-export function getPendingReports(): Promise<PageResult<ContentReport>> {
-  return request<PageResult<ContentReport>>('/admin/reports?page=1&size=50')
+export function getPendingComments(page = 1, size = 50): Promise<PageResult<PendingComment>> {
+  return request<PageResult<PendingComment>>(`/admin/moderation/comments?page=${page}&size=${size}`)
 }
 
-export function moderatePost(id: number, action: 'APPROVE' | 'REJECT', reason?: string): Promise<void> {
-  return request<void>(`/admin/moderation/posts/${id}`, { method: 'POST', body: JSON.stringify({ action, reason }) })
+export function getPendingReports(page = 1, size = 50): Promise<PageResult<ContentReport>> {
+  return request<PageResult<ContentReport>>(`/admin/reports?page=${page}&size=${size}`)
 }
 
-export function moderateComment(id: number, action: 'APPROVE' | 'REJECT', reason?: string): Promise<void> {
-  return request<void>(`/admin/moderation/comments/${id}`, { method: 'POST', body: JSON.stringify({ action, reason }) })
+export function moderatePost(postId: number, status: number, reason?: string): Promise<void> {
+  return request<void>(`/admin/moderation/posts/${postId}`, {
+    method: 'POST',
+    body: JSON.stringify({ status, reason }),
+  })
 }
 
-export function handleReport(id: number, action: 'ACCEPT' | 'DISMISS'): Promise<void> {
-  return request<void>(`/admin/reports/${id}`, { method: 'POST', body: JSON.stringify({ action }) })
+export function moderateComment(commentId: number, status: number, reason?: string): Promise<void> {
+  return request<void>(`/admin/moderation/comments/${commentId}`, {
+    method: 'POST',
+    body: JSON.stringify({ status, reason }),
+  })
+}
+
+export function handleReport(reportId: number, action: 'ACCEPT' | 'REJECT', reason?: string): Promise<void> {
+  return request<void>(`/admin/reports/${reportId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action, reason }),
+  })
 }
