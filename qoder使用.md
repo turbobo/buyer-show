@@ -117,9 +117,13 @@ buyer-show/
 - 后端：Controller（参数校验 JSR 380）→ Service（业务 + 事务）→ Mapper；统一响应 `R<T>`，业务异常抛 `BusinessException`
 - 命名：动词 + 名词（`getFeed` / `createPost` / `toggleLike`）
 
-### 5.4 内容宽度
+### 5.4 内容宽度与对齐
 
-PC 端内容容器统一 `mx-auto` 居中：常规页面 `max-w-3xl`，宽布局（审核台等）`max-w-5xl`。
+PC 端内容容器统一 `mx-auto max-w-* px-4`，且 **`px-4` 必须放在 `max-w` 容器内部**（顶部导航 / 筛选栏 / 主内容左边缘才会对齐）：
+
+- `max-w-7xl`：首页 Feed、消息页
+- `max-w-5xl`：帖子详情、管理员审核台
+- `max-w-3xl`：发布、登录等表单页
 
 ### 5.5 Tailwind grid + divide 分割线
 

@@ -85,7 +85,7 @@ export default function HomeFeedScreen() {
         </div>
       </nav>
 
-      <div className="sticky top-16 z-40 border-b border-border bg-white/80 px-4 py-3 backdrop-blur-sm"><div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto">{mockTags.map((tag) => <button type="button" key={tag.name} onClick={() => setActiveTag(tag.name)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium ${activeTag === tag.name ? 'bg-coral text-white' : 'bg-muted text-muted-foreground'}`}>{tag.name}</button>)}</div></div>
+      <div className="sticky top-16 z-40 border-b border-border bg-white/80 py-3 backdrop-blur-sm"><div className="mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4">{mockTags.map((tag) => <button type="button" key={tag.name} onClick={() => setActiveTag(tag.name)} className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium ${activeTag === tag.name ? 'bg-coral text-white' : 'bg-muted text-muted-foreground'}`}>{tag.name}</button>)}</div></div>
 
       <main className="mx-auto max-w-7xl px-4 py-6">
         <div className="mb-4 flex items-center gap-2"><Badge variant="secondary" className="border-0 bg-coral-light text-coral">{posts.length} 篇分享</Badge><span className="text-xs text-muted-foreground">{activeTag}</span></div>
