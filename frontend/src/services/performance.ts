@@ -1,4 +1,4 @@
-import { onCLS, onFID, onLCP, onTTFB, onINP } from 'web-vitals'
+import { onCLS, onLCP, onTTFB, onINP } from 'web-vitals'
 import { request } from './http'
 
 interface PerformanceMetrics {
@@ -27,13 +27,6 @@ export function initPerformanceMonitoring() {
   onCLS((metric) => {
     metrics.cls = metric.value
     console.log('[Performance] CLS:', metric.value)
-    reportMetrics(metrics)
-  })
-
-  // First Input Delay (FID) - 首次输入延迟
-  onFID((metric) => {
-    metrics.fid = metric.value
-    console.log('[Performance] FID:', metric.value, 'ms')
     reportMetrics(metrics)
   })
 

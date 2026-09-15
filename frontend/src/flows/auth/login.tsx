@@ -88,7 +88,14 @@ export default function LoginScreen() {
         </div>
 
         {/* 表单 */}
-        <div className="space-y-3">
+        <form
+          className="space-y-6"
+          onSubmit={(event) => {
+            event.preventDefault()
+            void handleSubmit()
+          }}
+        >
+          <div className="space-y-3">
           <Input
             aria-label="账号"
             value={account}

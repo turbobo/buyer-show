@@ -41,6 +41,8 @@ export default function AdminModerationScreen() {
   const [reason, setReason] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [confirmAction, setConfirmAction] = useState<{ type: 'post' | 'comment'; id: number; action: 'REJECT' } | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const isAdmin = getTokenRole() === 'ADMIN'
 
   const load = useCallback(async () => {
@@ -82,6 +84,14 @@ export default function AdminModerationScreen() {
     } catch (requestError) {
       toast('error', requestError instanceof Error ? requestError.message : '处理举报失败')
     }
+  }
+
+  const handleConfirmReject = async () => {
+    if (!confirmAction) return
+    setIsSubmitting(true)
+    await moderate(confirmAction.type, confirmAction.id, confirmAction.action)
+    setIsSubmitting(false)
+    setConfirmAction(null)
   }
 
   return (
@@ -214,6 +224,22 @@ export default function AdminModerationScreen() {
           </div>
         )}
       </section>
+
+      {/* ─── 驳回二次确认 ─── */}
+      {confirmAction && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="dialog" aria-modal="true" aria-label="确认驳回">
+          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
+            <h3 className="text-lg font-bold">确认驳回？</h3>
+            <p className="mt-2 text-sm text-muted-foreground">驳回后该内容将从公开范围移除，操作不可撤销。</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" disabled={isSubmitting} onClick={() => setConfirmAction(null)}>取消</Button>
+              <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleConfirmReject()}>
+                {isSubmitting ? '处理中...' : '确认驳回'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

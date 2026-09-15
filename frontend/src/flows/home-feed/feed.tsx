@@ -145,6 +145,7 @@ export default function HomeFeedScreen() {
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
+  const loadMoreRef = useRef<HTMLDivElement>(null)
   const [activeTag, setActiveTag] = useState('全部')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -175,6 +176,22 @@ export default function HomeFeedScreen() {
   }, [activeTag, feedSort])
 
   useEffect(() => { void loadFeed() }, [loadFeed])
+
+  // 触底自动加载更多
+  useEffect(() => {
+    const el = loadMoreRef.current
+    if (!el || !hasMore) return
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isLoading && cursor) {
+          void loadFeed(cursor, true)
+        }
+      },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [hasMore, isLoading, cursor, loadFeed])
 
   useEffect(() => {
     getCurrentUserProfile()

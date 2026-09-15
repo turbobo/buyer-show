@@ -73,10 +73,10 @@ export function ImageFullscreenViewer({ images, initialIndex, onClose }: ImageFu
     try {
       await navigator.clipboard.writeText(imageUrl)
       setIsCopied(true)
-      toast({ title: '图片链接已复制', variant: 'success' })
+      toast('success', '图片链接已复制')
       setTimeout(() => setIsCopied(false), 2000)
     } catch (err) {
-      toast({ title: '复制失败', variant: 'destructive' })
+      toast('error', '复制失败')
     }
   }
 
