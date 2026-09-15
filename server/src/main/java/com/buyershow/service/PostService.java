@@ -23,8 +23,11 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -191,6 +194,74 @@ public class PostService {
                 .id(post.getId())
                 .moderationStatus(post.getModerationStatus())
                 .build();
+    }
+
+    /**
+     * 编辑帖子：仅作者本人可编辑，保存后重新过审。
+     * 图片支持混合提交：原帖已有图片（完整 URL，需与帖内图片一致）与新上传图片（pending objectName）。
+     *
+     * @param postId 帖子ID
+     * @param request 编辑请求（字段与发布一致）
+     * @return 更新后的帖子详情
+     */
+    @Transactional
+    public PostDTO updatePost(Long postId, CreatePostRequest request) {
+        Long userId = requireCurrentUserId();
+        Post post = postMapper.selectById(postId);
+        if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (!post.getUserId().equals(userId)) {
+            throw new BusinessException(ErrorCode.POST_NO_EDIT);
+        }
+
+        List<String> requestImages = request.getImages();
+        List<String> pendingImages = new ArrayList<>();
+        for (String image : requestImages) {
+            if (image != null && image.startsWith("pending/" + userId + "/")) {
+                pendingImages.add(image);
+            } else if (image == null || post.getImages() == null || !post.getImages().contains(image)) {
+                throw new BusinessException(ErrorCode.NO_PERMISSION, "图片不属于当前帖子");
+            }
+        }
+        uploadService.validatePendingImages(userId, pendingImages);
+
+        String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
+        ModerationDecision decision = contentModerationService.evaluate(
+                request.getTitle(), request.getContent(), request.getProductName(),
+                request.getProductSource(), tagsText);
+        if (decision.getStatus() == ModerationStatus.REJECTED) {
+            uploadService.deletePendingImages(userId, pendingImages);
+            throw new BusinessException(ErrorCode.CONTENT_REJECTED, decision.getReason());
+        }
+
+        List<String> finalImages = requestImages;
+        if (decision.getStatus() == ModerationStatus.APPROVED && !pendingImages.isEmpty()) {
+            List<String> published = uploadService.publishImages(userId, pendingImages);
+            Map<String, String> pendingToPublished = new HashMap<>();
+            for (int i = 0; i < pendingImages.size(); i++) {
+                pendingToPublished.put(pendingImages.get(i), published.get(i));
+            }
+            finalImages = requestImages.stream()
+                    .map(image -> pendingToPublished.getOrDefault(image, image))
+                    .toList();
+        }
+
+        post.setTitle(request.getTitle().trim());
+        post.setContent(request.getContent().trim());
+        post.setImages(finalImages);
+        post.setTags(request.getTags() == null ? Collections.emptyList() : request.getTags());
+        post.setProductName(request.getProductName());
+        post.setProductPrice(request.getProductPrice());
+        post.setProductSource(request.getProductSource());
+        post.setProductRating(request.getProductRating());
+        post.setModerationStatus(decision.getStatus().getValue());
+        post.setModerationReason(decision.getReason());
+        postMapper.updateById(post);
+        // updateById 忽略 null 字段，人工审核审计信息需显式清空
+        postMapper.clearModerationAudit(postId);
+
+        return getPostDetail(postId);
     }
 
     @Transactional

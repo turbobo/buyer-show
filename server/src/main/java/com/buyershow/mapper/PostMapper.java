@@ -101,6 +101,9 @@ public interface PostMapper extends BaseMapper<Post> {
     @Update("UPDATE posts SET status = 2 WHERE id = #{postId} AND status <> 2")
     int softDeleteAsAdmin(@Param("postId") Long postId);
 
+    @Update("UPDATE posts SET moderated_by = NULL, moderated_at = NULL WHERE id = #{postId}")
+    int clearModerationAudit(@Param("postId") Long postId);
+
     @Update("UPDATE posts SET like_count = GREATEST(like_count + #{delta}, 0) "
             + "WHERE id = #{postId} AND status = 0 AND moderation_status = 0")
     int adjustLikeCount(@Param("postId") Long postId, @Param("delta") int delta);

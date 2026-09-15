@@ -60,6 +60,10 @@ export function createPost(payload: CreatePostPayload): Promise<ApiPost> {
   return request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(payload) })
 }
 
+export function updatePost(postId: string, payload: CreatePostPayload): Promise<ApiPost> {
+  return request<ApiPost>(`/posts/${postId}`, { method: 'PUT', body: JSON.stringify(payload) })
+}
+
 export function toggleLike(postId: string): Promise<{ liked: boolean }> {
   return request<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' })
 }

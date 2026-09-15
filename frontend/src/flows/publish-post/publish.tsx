@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { ArrowLeft, Check, ImagePlus, Star, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
-import { createPost } from '@/services/posts'
-import { trackPostCreate } from '@/services/analytics'
+import { createPost, getPost, updatePost } from '@/services/posts'
 import { deleteUploadedImage, uploadImage, validateImageFile } from '@/services/uploads'
 import { useToast } from '@/components/ui/toast'
 import { mockTags } from '../shared/mock-data'
@@ -16,13 +16,25 @@ const SOURCES = ['天猫', '京东', '拼多多', '线下门店', '海淘', '其
 const MAX_IMAGES = 9
 
 interface ImageItem {
-  file: File
+  /** 唯一标识：新上传用本地预览地址，已有图用其 URL */
+  key: string
+  /** 展示地址（objectURL 或完整 URL） */
   preview: string
+  /** 新选择的本地文件（编辑模式加载的已有图没有该字段） */
+  file?: File
+  /** 已有图片的存储 URL（编辑模式） */
+  url?: string
 }
 
+/**
+ * 发布 / 编辑分享页。
+ * 路由 `/publish` 为发布模式；`/posts/:postId/edit` 为编辑模式（回填原帖内容）。
+ */
 export default function PublishScreen() {
   const navigate = useNavigate()
+  const { postId } = useParams<{ postId: string }>()
   const { toast } = useToast()
+  const isEdit = Boolean(postId)
   const [images, setImages] = useState<ImageItem[]>([])
   const [productName, setProductName] = useState('')
   const [source, setSource] = useState(SOURCES[0])
@@ -32,6 +44,7 @@ export default function PublishScreen() {
   const [content, setContent] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(isEdit)
   const [publishStage, setPublishStage] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -50,6 +63,34 @@ export default function PublishScreen() {
       window.clearTimeout(navigateTimerRef.current)
     }
   }, [])
+
+  // 编辑模式：加载原帖并回填
+  useEffect(() => {
+    if (!postId) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const post = await getPost(postId)
+        if (cancelled) return
+        setTitle(post.title)
+        setContent(post.content)
+        setSelectedTags(post.tags ?? [])
+        setProductName(post.productName ?? '')
+        setPrice(post.productPrice != null ? String(post.productPrice) : '')
+        setSource(post.productSource ?? SOURCES[0])
+        setRating(post.productRating ?? 5)
+        setImages((post.images ?? []).map((url) => ({ key: url, preview: url, url })))
+      } catch (requestError) {
+        if (!cancelled) {
+          toast('error', requestError instanceof Error ? requestError.message : '加载帖子失败')
+          navigate('/')
+        }
+      } finally {
+        if (!cancelled) setIsInitializing(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [postId, navigate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? [])
@@ -74,7 +115,7 @@ export default function PublishScreen() {
       }
       const preview = URL.createObjectURL(file)
       previewUrlsRef.current.push(preview)
-      newItems.push({ file, preview })
+      newItems.push({ key: preview, preview, file })
     }
 
     setError(null)
@@ -85,7 +126,7 @@ export default function PublishScreen() {
   const handleRemoveImage = useCallback((index: number) => {
     setImages((prev) => {
       const item = prev[index]
-      if (item) {
+      if (item?.file) {
         URL.revokeObjectURL(item.preview)
         previewUrlsRef.current = previewUrlsRef.current.filter((url) => url !== item.preview)
       }
@@ -93,7 +134,7 @@ export default function PublishScreen() {
     })
   }, [])
 
-  const handlePublish = async () => {
+  const handleSubmit = async () => {
     const trimmedTitle = title.trim()
     const trimmedContent = content.trim()
     if (images.length === 0 || !trimmedTitle || !trimmedContent) {
@@ -111,38 +152,55 @@ export default function PublishScreen() {
 
     setIsPublishing(true)
     setError(null)
-    setPublishStage(`正在上传图片（0/${images.length}）...`)
+    const filesToUpload = images.filter((item) => item.file)
+    setPublishStage(`正在上传图片（0/${filesToUpload.length}）...`)
 
     const uploadedObjectNames: string[] = []
     try {
-      for (let i = 0; i < images.length; i++) {
-        setPublishStage(`正在上传图片（${i + 1}/${images.length}）...`)
-        const result = await uploadImage(images[i].file)
-        uploadedObjectNames.push(result.objectName)
+      for (let i = 0; i < filesToUpload.length; i++) {
+        setPublishStage(`正在上传图片（${i + 1}/${filesToUpload.length}）...`)
+        const uploaded = await uploadImage(filesToUpload[i].file as File)
+        uploadedObjectNames.push(uploaded.objectName)
       }
 
-      setPublishStage('图片上传完成，正在发布内容...')
-      const post = await createPost({
+      // 保序组装：已有图沿用原 URL，新图使用 pending objectName
+      let uploadIndex = 0
+      const payloadImages = images.map((item) => {
+        if (item.file) {
+          return uploadedObjectNames[uploadIndex++]
+        }
+        return item.url ?? item.preview
+      })
+
+      setPublishStage(isEdit ? '正在保存修改...' : '图片上传完成，正在发布内容...')
+      const payload = {
         title: trimmedTitle,
         content: trimmedContent,
-        images: uploadedObjectNames,
+        images: payloadImages,
         tags: selectedTags,
         productName: productName.trim() || undefined,
         productPrice: price ? Number(price) : undefined,
         productSource: source,
         productRating: rating,
-      })
-      setResult(post.moderationStatus === 1 ? '内容已提交，正在等待人工审核' : '发布成功，即将跳转详情页')
-      navigateTimerRef.current = window.setTimeout(
-        () => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`),
-        1200,
-      )
+      }
+      const post = isEdit && postId ? await updatePost(postId, payload) : await createPost(payload)
+
+      if (isEdit) {
+        setResult('保存成功，即将返回详情页')
+        navigateTimerRef.current = window.setTimeout(() => navigate(`/posts/${postId}`), 1200)
+      } else {
+        setResult(post.moderationStatus === 1 ? '内容已提交，正在等待人工审核' : '发布成功，即将跳转详情页')
+        navigateTimerRef.current = window.setTimeout(
+          () => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`),
+          1200,
+        )
+      }
     } catch (requestError) {
-      // 回滚已上传的图片
+      // 回滚本次新上传的图片
       for (const name of uploadedObjectNames) {
         await deleteUploadedImage(name).catch(() => undefined)
       }
-      setError(requestError instanceof Error ? requestError.message : '发布失败')
+      setError(requestError instanceof Error ? requestError.message : isEdit ? '保存失败' : '发布失败')
     } finally {
       setIsPublishing(false)
       setPublishStage(null)
@@ -162,6 +220,27 @@ export default function PublishScreen() {
     )
   }
 
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-background">
+        <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
+          <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+            <Button variant="ghost" onClick={() => smartBack()}>
+              <ArrowLeft className="mr-1 h-4 w-4" />取消
+            </Button>
+            <h1 className="font-semibold">编辑分享</h1>
+            <div className="w-16" />
+          </div>
+        </nav>
+        <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <Skeleton key={index} className="h-40 rounded-2xl" />
+          ))}
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* ─── 顶部导航 ─── */}
@@ -170,13 +249,13 @@ export default function PublishScreen() {
           <Button variant="ghost" onClick={() => smartBack()}>
             <ArrowLeft className="mr-1 h-4 w-4" />取消
           </Button>
-          <h1 className="font-semibold">发布分享</h1>
+          <h1 className="font-semibold">{isEdit ? '编辑分享' : '发布分享'}</h1>
           <Button
             disabled={isPublishing}
-            onClick={() => void handlePublish()}
+            onClick={() => void handleSubmit()}
             className="bg-coral text-white hover:bg-coral-dark"
           >
-            {isPublishing ? '发布中...' : '发布'}
+            {isPublishing ? (isEdit ? '保存中...' : '发布中...') : (isEdit ? '保存' : '发布')}
           </Button>
         </div>
       </nav>
@@ -218,10 +297,10 @@ export default function PublishScreen() {
             {/* 图片预览网格 */}
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {images.map((img, index) => (
-                <div key={img.preview} className="group relative aspect-square overflow-hidden rounded-xl border border-border/60">
+                <div key={img.key} className="group relative aspect-square overflow-hidden rounded-xl border border-border/60">
                   <img
                     src={img.preview}
-                    alt={`待上传图片 ${index + 1}`}
+                    alt={`图片 ${index + 1}`}
                     className="h-full w-full object-cover"
                   />
                   <button
@@ -334,7 +413,7 @@ export default function PublishScreen() {
           <div className="flex items-center justify-between gap-3 rounded-lg bg-destructive/10 p-3">
             <p className="text-sm text-destructive">{error}</p>
             {images.length > 0 && (
-              <Button size="sm" variant="outline" disabled={isPublishing} onClick={() => void handlePublish()}>
+              <Button size="sm" variant="outline" disabled={isPublishing} onClick={() => void handleSubmit()}>
                 重试
               </Button>
             )}

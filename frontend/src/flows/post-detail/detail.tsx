@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, MessageCircle, Send } from 'lucide-react'
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, MessageCircle, Pencil, Send } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { createComment, getComments, type ApiComment } from '@/services/comments'
-import { ApiError } from '@/services/http'
+import { ApiError, getTokenUserId } from '@/services/http'
 import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
@@ -346,6 +346,11 @@ export default function PostDetailScreen() {
             </Avatar>
             <span className="text-sm font-medium">{post.userNickname}</span>
           </button>
+          {post.userId === getTokenUserId() && (
+            <Button aria-label="编辑帖子" variant="ghost" size="icon" onClick={() => navigate(`/posts/${post.id}/edit`)}>
+              <Pencil className="h-5 w-5" />
+            </Button>
+          )}
           {post.moderationStatus === 0 && (
             <Button aria-label="举报帖子" variant="ghost" size="icon" onClick={() => void handleReport('POST', post.id)}>
               <Flag className="h-5 w-5" />

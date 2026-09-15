@@ -45,6 +45,12 @@ public class PostController {
         return R.ok();
     }
 
+    @PutMapping("/{id}")
+    @RateLimit(key = "post:edit", limit = 10, windowSeconds = 60)
+    public R<PostDTO> updatePost(@PathVariable Long id, @Valid @RequestBody CreatePostRequest request) {
+        return R.ok(postService.updatePost(id, request));
+    }
+
     @PostMapping("/{id}/like")
     public R<Map<String, Boolean>> toggleLike(@PathVariable Long id) {
         boolean liked = postService.toggleLike(id);

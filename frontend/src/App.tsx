@@ -51,6 +51,7 @@ function AnimatedRoutes() {
           <Route path="/" element={<HomeFeedScreen />} />
           <Route path="/posts/:postId" element={<PostDetailScreen />} />
           <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
+          <Route path="/posts/:postId/edit" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/user/:userId" element={<ProfileScreen />} />
           <Route path="/profile" element={<ProtectedRoute><ProfileScreen self /></ProtectedRoute>} />

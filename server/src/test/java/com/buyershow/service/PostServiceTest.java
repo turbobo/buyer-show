@@ -1,17 +1,22 @@
 package com.buyershow.service;
 
 import com.buyershow.common.ErrorCode;
+import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.util.CursorUtils;
+import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.PostQueryRow;
+import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.FavoriteMapper;
 import com.buyershow.mapper.LikeMapper;
 import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
@@ -21,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -75,6 +81,97 @@ class PostServiceTest {
 
         assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), exception.getCode());
         verify(postMapper, never()).selectUserFeedRows(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void testUpdatePostPublishesNewImagesAndResetsModeration() {
+        loginAs(10L);
+        when(postMapper.selectById(50L)).thenReturn(ownedPost());
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(uploadService.publishImages(eq(10L), anyList()))
+                .thenReturn(List.of("http://cdn/published/b.jpg"));
+        when(postMapper.selectPostDetailRow(50L, 10L)).thenReturn(row(50L));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())
+                        .moderationStatus(ModerationStatus.APPROVED.getValue())
+                        .build());
+
+        PostDTO dto = postService.updatePost(50L,
+                editRequest(List.of("http://cdn/published/a.jpg", "pending/10/b.jpg")));
+
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postMapper).updateById(captor.capture());
+        assertEquals(List.of("http://cdn/published/a.jpg", "http://cdn/published/b.jpg"),
+                captor.getValue().getImages());
+        assertEquals(ModerationStatus.APPROVED.getValue(), captor.getValue().getModerationStatus());
+        assertEquals("编辑后的标题", captor.getValue().getTitle());
+        verify(postMapper).clearModerationAudit(50L);
+        assertEquals(50L, dto.getId());
+    }
+
+    @Test
+    void testUpdatePostRejectsOthersPost() {
+        loginAs(20L);
+        when(postMapper.selectById(50L)).thenReturn(ownedPost());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.updatePost(50L, editRequest(List.of("http://cdn/published/a.jpg"))));
+
+        assertEquals(ErrorCode.POST_NO_EDIT.getCode(), exception.getCode());
+        verify(postMapper, never()).updateById(any(Post.class));
+    }
+
+    @Test
+    void testUpdatePostRejectedCleansPendingImages() {
+        loginAs(10L);
+        when(postMapper.selectById(50L)).thenReturn(ownedPost());
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.REJECTED, "含违规信息"));
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> postService.updatePost(50L,
+                editRequest(List.of("http://cdn/published/a.jpg", "pending/10/b.jpg"))));
+
+        assertEquals(ErrorCode.CONTENT_REJECTED.getCode(), exception.getCode());
+        verify(uploadService).deletePendingImages(10L, List.of("pending/10/b.jpg"));
+        verify(postMapper, never()).updateById(any(Post.class));
+    }
+
+    @Test
+    void testUpdatePostRejectsForeignImage() {
+        loginAs(10L);
+        when(postMapper.selectById(50L)).thenReturn(ownedPost());
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.updatePost(50L, editRequest(List.of("http://cdn/published/other.jpg"))));
+
+        assertEquals(ErrorCode.NO_PERMISSION.getCode(), exception.getCode());
+        verify(postMapper, never()).updateById(any(Post.class));
+    }
+
+    private void loginAs(Long userId) {
+        User user = new User();
+        user.setId(userId);
+        user.setStatus(0);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null, List.of()));
+    }
+
+    private Post ownedPost() {
+        Post post = new Post();
+        post.setId(50L);
+        post.setUserId(10L);
+        post.setStatus(0);
+        post.setImages(List.of("http://cdn/published/a.jpg"));
+        return post;
+    }
+
+    private CreatePostRequest editRequest(List<String> images) {
+        CreatePostRequest request = new CreatePostRequest();
+        request.setTitle("编辑后的标题");
+        request.setContent("编辑后的正文内容");
+        request.setImages(images);
+        return request;
     }
 
     private User activeUser(Long id) {
