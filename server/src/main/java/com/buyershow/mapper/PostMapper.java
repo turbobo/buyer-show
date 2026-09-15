@@ -161,16 +161,16 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("limit") int limit,
             @Param("currentUserId") Long currentUserId);
 
-    @Select("SELECT DISTINCT JSON_UNQUOTE(tag) AS tag " +
+    @Select("SELECT jt.tag AS tag " +
             "FROM posts, JSON_TABLE(tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt " +
-            "WHERE status = 0 AND moderation_status = 0 " +
-            "GROUP BY tag ORDER BY COUNT(*) DESC LIMIT #{limit}")
+            "WHERE posts.status = 0 AND posts.moderation_status = 0 " +
+            "GROUP BY jt.tag ORDER BY COUNT(*) DESC LIMIT #{limit}")
     List<String> selectHotTags(@Param("limit") int limit);
 
-    @Select("SELECT DISTINCT JSON_UNQUOTE(tag) AS tag " +
+    @Select("SELECT jt.tag AS tag " +
             "FROM posts, JSON_TABLE(tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt " +
-            "WHERE status = 0 AND moderation_status = 0 AND tag LIKE CONCAT(#{prefix}, '%') " +
-            "GROUP BY tag ORDER BY COUNT(*) DESC LIMIT #{limit}")
+            "WHERE posts.status = 0 AND posts.moderation_status = 0 AND jt.tag LIKE CONCAT(#{prefix}, '%') " +
+            "GROUP BY jt.tag LIMIT #{limit}")
     List<String> suggestTags(@Param("prefix") String prefix, @Param("limit") int limit);
 
 
