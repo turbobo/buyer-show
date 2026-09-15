@@ -28,8 +28,9 @@ class CommentServiceTest {
     private final PostMapper postMapper = mock(PostMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final ContentModerationService moderationService = mock(ContentModerationService.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
     private final CommentService service = new CommentService(
-            commentMapper, postMapper, userMapper, moderationService);
+            commentMapper, postMapper, userMapper, moderationService, notificationService);
 
     @AfterEach
     void tearDown() {

@@ -243,7 +243,6 @@ public class PostService {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
     }
-}
 
     public List<PostDTO> searchPosts(String keyword, int limit) {
         Long currentUserId = SecurityUtils.getCurrentUserId();
@@ -256,3 +255,4 @@ public class PostService {
     public boolean isDuplicateContent(Long userId, String title, String content) {
         return postMapper.countRecentDuplicates(userId, title, content) > 0;
     }
+}

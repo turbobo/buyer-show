@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.method.HandlerMethod;
 import org.springframework.web.servlet.HandlerInterceptor;
@@ -61,9 +62,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         if (count != null && count > rateLimit.limit()) {
             log.warn("Rate limit exceeded: {} ({} > {})", key, count, rateLimit.limit());
             response.setContentType("application/json;charset=UTF-8");
-            response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
             response.getWriter().write(objectMapper.writeValueAsString(
-                    R.error(ErrorCode.RATE_LIMITED)));
+                    R.fail(ErrorCode.RATE_LIMITED)));
             return false;
         }
 

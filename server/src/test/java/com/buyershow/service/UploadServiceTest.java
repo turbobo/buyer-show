@@ -22,7 +22,7 @@ class UploadServiceTest {
 
     private final MinioClient minioClient = mock(MinioClient.class);
     private final UploadService uploadService = new UploadService(
-            minioClient, "http://localhost:9000", "buyershow-images");
+            minioClient, "http://localhost:9000", "", "buyershow-images");
 
     @AfterEach
     void tearDown() {
@@ -71,7 +71,7 @@ class UploadServiceTest {
 
         assertEquals("image/png", response.getContentType());
         assertTrue(response.getObjectName().startsWith("pending/100/"));
-        assertNull(response.getUrl());
+        assertTrue(response.getUrl().startsWith("http://localhost:9000/buyershow-images/pending/100/"));
         verify(minioClient).putObject(any());
     }
 

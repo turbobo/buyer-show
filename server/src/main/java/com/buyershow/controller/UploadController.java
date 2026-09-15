@@ -38,7 +38,7 @@ public class UploadController {
 
     @DeleteMapping("/image")
     public R<Void> deleteImage(@RequestParam("objectName") String objectName) {
-        uploadService.deleteOwnImage(objectName);
+        uploadService.cancelPendingUpload(objectName);
         return R.ok();
     }
 }

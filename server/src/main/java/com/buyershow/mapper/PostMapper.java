@@ -117,7 +117,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
             "  AND p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
-            "<if test='tag != null and tag != ""'>",
+            "<if test=\"tag != null and tag != ''\">",
             "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
             "</if>",
             "ORDER BY (p.like_count * 3 + p.comment_count * 5 + p.favorite_count * 2) DESC, p.id DESC",
@@ -158,7 +158,8 @@ public interface PostMapper extends BaseMapper<Post> {
     })
     List<PostQueryRow> searchPosts(
             @Param("keyword") String keyword,
-            @Param("limit") int limit);
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
 
     @Select("SELECT DISTINCT JSON_UNQUOTE(tag) AS tag " +
             "FROM posts, JSON_TABLE(tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt " +
@@ -182,32 +183,3 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("content") String content);
 
 }
-
-    @Select("SELECT p.*, u.nickname as userNickname, u.avatar_url as userAvatarUrl, " +
-            "(SELECT COUNT(*) FROM likes WHERE post_id = p.id) as likeCount, " +
-            "(SELECT COUNT(*) FROM favorites WHERE post_id = p.id) as favoriteCount, " +
-            "(SELECT COUNT(*) FROM comments WHERE post_id = p.id AND status = 0) as commentCount, " +
-            "EXISTS(SELECT 1 FROM likes WHERE post_id = p.id AND user_id = #{currentUserId}) as isLiked, " +
-            "EXISTS(SELECT 1 FROM favorites WHERE post_id = p.id AND user_id = #{currentUserId}) as isFavorited " +
-            "FROM posts p JOIN users u ON p.user_id = u.id " +
-            "WHERE p.status = 0 AND p.moderation_status = 0 " +
-            "AND (p.title LIKE CONCAT('%', #{keyword}, '%') OR p.content LIKE CONCAT('%', #{keyword}, '%')) " +
-            "ORDER BY p.created_at DESC LIMIT #{limit}")
-    List<PostQueryRow> searchPosts(@Param("keyword") String keyword, @Param("limit") int limit, @Param("currentUserId") Long currentUserId);
-
-    @Select("SELECT tag FROM (SELECT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', idx, ']'))) as tag " +
-            "FROM posts, JSON_TABLE(ROW_NUMBER() OVER () - 1, '$[0]' COLUMNS(idx FOR ORDINALITY)) as idx " +
-            "WHERE status = 0 AND moderation_status = 0 AND tags IS NOT NULL AND tags != '[]') t " +
-            "WHERE tag IS NOT NULL GROUP BY tag ORDER BY COUNT(*) DESC LIMIT #{limit}")
-    List<String> selectHotTags(@Param("limit") int limit);
-
-    @Select("SELECT DISTINCT JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', idx, ']'))) as tag " +
-            "FROM posts, JSON_TABLE(ROW_NUMBER() OVER () - 1, '$[0]' COLUMNS(idx FOR ORDINALITY)) as idx " +
-            "WHERE status = 0 AND moderation_status = 0 AND tags IS NOT NULL " +
-            "AND JSON_UNQUOTE(JSON_EXTRACT(tags, CONCAT('$[', idx, ']'))) LIKE CONCAT(#{prefix}, '%') " +
-            "LIMIT #{limit}")
-    List<String> suggestTags(@Param("prefix") String prefix, @Param("limit") int limit);
-
-    @Select("SELECT COUNT(*) FROM posts WHERE user_id = #{userId} AND status = 0 " +
-            "AND title = #{title} AND content = #{content} AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)")
-    int countRecentDuplicates(@Param("userId") Long userId, @Param("title") String title, @Param("content") String content);

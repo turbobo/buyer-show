@@ -3,6 +3,7 @@ package com.buyershow.service;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.JwtTokenProvider;
+import com.buyershow.common.security.LoginRateLimiter;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
 import com.buyershow.dto.response.TokenPair;
@@ -35,13 +36,20 @@ class AuthServiceTest {
     private final UserMapper userMapper = mock(UserMapper.class);
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final JwtTokenProvider jwtTokenProvider = mock(JwtTokenProvider.class);
-    private final AuthService authService = new AuthService(userMapper, passwordEncoder, jwtTokenProvider);
+    private final LoginRateLimiter loginRateLimiter = mock(LoginRateLimiter.class);
+    private final AuthService authService = new AuthService(
+            userMapper, passwordEncoder, jwtTokenProvider, loginRateLimiter);
 
     @Test
     void testRegisterBindsOptionalPhoneAndEmail() {
         RegisterRequest request = registerRequest("lisi", "13800138000", "lisi@example.com");
         when(userMapper.selectCount(any())).thenReturn(0L);
         when(passwordEncoder.encode("secret123")).thenReturn("hashed");
+        when(userMapper.insert(any(User.class))).thenAnswer(invocation -> {
+            User inserted = invocation.getArgument(0);
+            inserted.setId(7L);
+            return 1;
+        });
         stubTokens();
 
         TokenPair tokens = authService.register(request);
@@ -71,7 +79,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("secret123", "hashed")).thenReturn(true);
         stubTokens();
 
-        TokenPair tokens = authService.login(loginRequest("13800138000"));
+        TokenPair tokens = authService.login(loginRequest("13800138000"), "127.0.0.1");
 
         assertEquals("token-access", tokens.getAccessToken());
         assertEquals(Long.valueOf(7L), tokens.getUserId());
@@ -85,7 +93,7 @@ class AuthServiceTest {
         when(passwordEncoder.matches("secret123", "hashed")).thenReturn(true);
         stubTokens();
 
-        TokenPair tokens = authService.login(loginRequest("lisi@example.com"));
+        TokenPair tokens = authService.login(loginRequest("lisi@example.com"), "127.0.0.1");
 
         assertEquals(Long.valueOf(7L), tokens.getUserId());
     }
@@ -95,7 +103,7 @@ class AuthServiceTest {
         when(userMapper.selectList(any())).thenReturn(List.of());
 
         BusinessException exception = assertThrows(BusinessException.class,
-                () -> authService.login(loginRequest("nobody")));
+                () -> authService.login(loginRequest("nobody"), "127.0.0.1"));
 
         assertEquals(ErrorCode.AUTH_FAILED.getCode(), exception.getCode());
     }
