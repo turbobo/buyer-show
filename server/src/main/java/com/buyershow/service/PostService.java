@@ -3,6 +3,7 @@ package com.buyershow.service;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.PostStatus;
+import com.buyershow.common.UserStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.common.util.CursorUtils;
@@ -11,6 +12,7 @@ import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.PostQueryRow;
 import com.buyershow.entity.Post;
+import com.buyershow.entity.User;
 import com.buyershow.mapper.FavoriteMapper;
 import com.buyershow.mapper.LikeMapper;
 import com.buyershow.mapper.PostMapper;
@@ -65,6 +67,43 @@ public class PostService {
         if (hasMore && !visibleRows.isEmpty()) {
             PostQueryRow lastRow = visibleRows.get(visibleRows.size() - 1);
             nextCursor = CursorUtils.encode(lastRow.getId());
+        }
+
+        return CursorPage.<PostDTO>builder()
+                .list(posts)
+                .nextCursor(nextCursor)
+                .hasMore(hasMore)
+                .build();
+    }
+
+    /**
+     * 查询指定用户的公开帖子（游标分页）。
+     *
+     * @param userId 目标用户ID
+     * @param cursor 游标（上一页最后一条帖子ID的编码）
+     * @param requestedLimit 每页数量
+     * @return 帖子游标页
+     */
+    public CursorPage<PostDTO> listUserPosts(Long userId, String cursor, int requestedLimit) {
+        User author = userMapper.selectById(userId);
+        if (author == null || author.getStatus() != UserStatus.ACTIVE.getValue()) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+
+        int limit = normalizePageSize(requestedLimit);
+        Long cursorId = CursorUtils.decode(cursor);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<PostQueryRow> rows = postMapper.selectUserFeedRows(userId, cursorId, limit + 1, currentUserId);
+
+        boolean hasMore = rows.size() > limit;
+        List<PostQueryRow> visibleRows = hasMore ? rows.subList(0, limit) : rows;
+        List<PostDTO> posts = visibleRows.stream()
+                .map(postAssembler::toPostDTO)
+                .toList();
+
+        String nextCursor = null;
+        if (hasMore && !visibleRows.isEmpty()) {
+            nextCursor = CursorUtils.encode(visibleRows.get(visibleRows.size() - 1).getId());
         }
 
         return CursorPage.<PostDTO>builder()

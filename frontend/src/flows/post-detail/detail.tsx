@@ -333,12 +333,19 @@ export default function PostDetailScreen() {
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-7 w-7">
-            <AvatarFallback className="bg-coral-light text-[10px] text-coral">
-              {post.userNickname?.[0] ?? '?'}
-            </AvatarFallback>
-          </Avatar>
-          <span className="flex-1 text-sm font-medium">{post.userNickname}</span>
+          <button
+            type="button"
+            aria-label={`${post.userNickname} 的主页`}
+            className="flex flex-1 items-center gap-3 text-left hover:opacity-80"
+            onClick={() => navigate(`/user/${post.userId}`)}
+          >
+            <Avatar className="h-7 w-7">
+              <AvatarFallback className="bg-coral-light text-[10px] text-coral">
+                {post.userNickname?.[0] ?? '?'}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-sm font-medium">{post.userNickname}</span>
+          </button>
           {post.moderationStatus === 0 && (
             <Button aria-label="举报帖子" variant="ghost" size="icon" onClick={() => void handleReport('POST', post.id)}>
               <Flag className="h-5 w-5" />

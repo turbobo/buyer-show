@@ -49,7 +49,14 @@ function PostCard({ post }: { post: ApiPostSummary }) {
           <p className="mb-2 truncate text-xs text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? post.productName}</p>
         )}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+          <div
+            role="link"
+            tabIndex={0}
+            aria-label={`${post.userNickname} 的主页`}
+            className="flex cursor-pointer items-center gap-1.5 hover:opacity-80"
+            onClick={(event) => { event.stopPropagation(); navigate(`/user/${post.userId}`) }}
+            onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); navigate(`/user/${post.userId}`) } }}
+          >
             <Avatar className="h-5 w-5"><AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral">{post.userNickname[0]}</AvatarFallback></Avatar>
             <span className="max-w-20 truncate text-xs text-muted-foreground">{post.userNickname}</span>
           </div>
@@ -208,6 +215,7 @@ export default function HomeFeedScreen() {
     setActiveTab(tab)
     if (tab === 'publish') navigate('/publish')
     else if (tab === 'messages') navigate('/messages')
+    else if (tab === 'profile') navigate('/profile')
     else if (tab === 'search') {
       setIsSearchFocused(true)
       // 滚动到搜索框

@@ -51,12 +51,12 @@ export function getAccessToken(): string | null {
   return localStorage.getItem(ACCESS_TOKEN_KEY)
 }
 
-function decodeTokenPayload(token: string): { role?: string; exp?: number } | null {
+function decodeTokenPayload(token: string): { role?: string; exp?: number; sub?: string } | null {
   try {
     const payload = token.split('.')[1]
     if (!payload) return null
     const padded = payload.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(payload.length / 4) * 4, '=')
-    return JSON.parse(atob(padded)) as { role?: string; exp?: number }
+    return JSON.parse(atob(padded)) as { role?: string; exp?: number; sub?: string }
   } catch {
     return null
   }
@@ -65,6 +65,12 @@ function decodeTokenPayload(token: string): { role?: string; exp?: number } | nu
 export function getTokenRole(): string | null {
   const token = getAccessToken()
   return token ? decodeTokenPayload(token)?.role ?? null : null
+}
+
+export function getTokenUserId(): number | null {
+  const token = getAccessToken()
+  const sub = token ? decodeTokenPayload(token)?.sub : null
+  return sub ? Number(sub) : null
 }
 
 function shouldRefresh(token: string): boolean {

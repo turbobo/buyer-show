@@ -2,7 +2,10 @@ package com.buyershow.controller;
 
 import com.buyershow.common.R;
 import com.buyershow.dto.request.UpdateProfileRequest;
+import com.buyershow.dto.response.CursorPage;
+import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.UserDTO;
+import com.buyershow.service.PostService;
 import com.buyershow.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,11 +17,21 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final PostService postService;
 
     /** 获取指定用户公开资料。 */
     @GetMapping("/{userId}")
     public R<UserDTO> getUserProfile(@PathVariable Long userId) {
         return R.ok(userService.getUserProfile(userId));
+    }
+
+    /** 获取指定用户的公开帖子（游标分页）。 */
+    @GetMapping("/{userId}/posts")
+    public R<CursorPage<PostDTO>> getUserPosts(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(postService.listUserPosts(userId, cursor, size));
     }
 
     /** 获取当前登录用户资料。 */
