@@ -284,6 +284,9 @@ export default function PostDetailScreen() {
   const { postId } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
+  // U23 详情浮层：从浏览列表（Feed/搜索/主页）点击进入时以浮层展示，直链/刷新仍为整页
+  const isModal = (location.state as { modal?: boolean } | null)?.modal === true
+  const closeModal = useCallback(() => navigate(-1), [navigate])
   const { toast } = useToast()
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
@@ -504,7 +507,19 @@ export default function PostDetailScreen() {
     }
   }
 
-  if (isLoading) return (
+  if (isLoading) return (isModal ? (
+    <div
+      className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 md:p-6"
+      onClick={(event) => { if (event.target === event.currentTarget) closeModal() }}
+    >
+      <div className="mx-auto w-full max-w-2xl bg-background p-6 shadow-xl md:my-6 md:rounded-2xl">
+        <Skeleton className="mb-4 aspect-[4/3] w-full rounded-2xl" />
+        <Skeleton className="mb-2 h-6 w-3/4" />
+        <Skeleton className="mb-4 h-4 w-1/2" />
+        <Skeleton className="h-20 w-full" />
+      </div>
+    </div>
+  ) : (
     <div className="min-h-screen bg-background">
       <div className="sticky top-0 z-50 border-b border-border bg-card/95 md:top-14">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
@@ -520,9 +535,23 @@ export default function PostDetailScreen() {
         <Skeleton className="h-20 w-full" />
       </div>
     </div>
-  )
+  ))
   if (!post || loadError) {
-    return (
+    return isModal ? (
+      <div
+        className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 md:p-6"
+        onClick={(event) => { if (event.target === event.currentTarget) closeModal() }}
+      >
+        <div className="mx-auto mt-16 w-full max-w-md bg-background p-8 text-center shadow-xl md:rounded-2xl">
+          <p className="mb-2 text-lg font-semibold text-foreground">{loadError ? '加载失败' : '帖子不存在'}</p>
+          <p className="mb-6 text-sm text-muted-foreground">{loadError ?? '该帖子可能已被删除或无权查看'}</p>
+          <div className="flex justify-center gap-3">
+            <Button variant="outline" onClick={() => void load()}>重新加载</Button>
+            <Button onClick={closeModal} className="bg-coral text-white hover:bg-coral-dark">关闭</Button>
+          </div>
+        </div>
+      </div>
+    ) : (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-8">
         <p className="mb-2 text-lg font-semibold text-foreground">{loadError ? '加载失败' : '帖子不存在'}</p>
         <p className="mb-6 text-sm text-muted-foreground">{loadError ?? '该帖子可能已被删除或无权查看'}</p>
@@ -556,12 +585,16 @@ export default function PostDetailScreen() {
   const displayImages = post.images.length > 0 ? post.images : fallbackImages
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div
+      className={isModal ? 'fixed inset-0 z-[60] overflow-y-auto bg-black/50 md:p-6' : 'min-h-screen bg-background pb-24'}
+      onClick={isModal ? (event) => { if (event.target === event.currentTarget) closeModal() } : undefined}
+    >
+      <div className={isModal ? 'mx-auto w-full max-w-2xl bg-background shadow-xl md:my-6 md:overflow-hidden md:rounded-2xl' : ''}>
       {/* ─── 结构化数据 ─── */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ─── 顶部导航 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 md:top-14">
+      <nav className={`sticky top-0 z-50 border-b border-border bg-card/95 ${isModal ? 'md:top-0' : 'md:top-14'}`}>
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
@@ -792,6 +825,7 @@ export default function PostDetailScreen() {
           </div>
         </div>
       )}
+    </div>
     </div>
   )
 }

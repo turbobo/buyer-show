@@ -40,7 +40,7 @@ function PostGridItem({ post, manageable, onDeleteRequest, onAppealRequest }: {
     <div className="relative">
       <button
         type="button"
-        onClick={() => navigate(`/posts/${post.id}`)}
+        onClick={() => navigate(`/posts/${post.id}`, { state: { modal: true } })}
         className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
       >
         <div className="relative aspect-[3/4] bg-muted">

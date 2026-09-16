@@ -175,7 +175,7 @@ export default function SearchScreen() {
                 <button
                   key={post.id}
                   type="button"
-                  onClick={() => navigate(`/posts/${post.id}`)}
+                  onClick={() => navigate(`/posts/${post.id}`, { state: { modal: true } })}
                   className="flex w-full gap-3 rounded-xl border border-border/60 bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-sm"
                 >
                   {cover ? (
