@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { getAccessToken, getTokenRole } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
+import { AppTabBar } from './components/layout/app-tabbar'
 import { Skeleton } from './components/ui/skeleton'
 
 // 路由级懒加载 — 首页 Feed 立即加载，其余按需
@@ -126,6 +127,7 @@ function AnimatedRoutes() {
           <Route path="*" element={<NotFoundScreen />} />
         </Routes>
       </Suspense>
+      <AppTabBar />
     </div>
   )
 }

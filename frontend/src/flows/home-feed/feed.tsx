@@ -281,12 +281,23 @@ export default function HomeFeedScreen() {
     if (tab === 'publish') navigate('/publish')
     else if (tab === 'messages') navigate('/messages')
     else if (tab === 'profile') navigate('/profile')
+    else if (tab === 'home') window.scrollTo({ top: 0, behavior: 'smooth' })
     else if (tab === 'search') {
       setIsSearchFocused(true)
       // 滚动到搜索框
       document.getElementById('search-input')?.focus()
     }
   }
+
+  // 从其他页 TabBar「搜索」进入：自动聚焦搜索框并清除参数
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('focus') === 'search') {
+      setIsSearchFocused(true)
+      document.getElementById('search-input')?.focus()
+      navigate('/', { replace: true })
+    }
+  }, [location.search, navigate])
 
   const handleSearchSubmit = () => {
     if (searchQuery.trim()) {
