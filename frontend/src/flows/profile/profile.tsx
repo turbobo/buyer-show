@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Heart, Loader2, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Heart, Home, Loader2, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -248,9 +248,14 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-        <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-1 -ml-3">
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Home className="h-5 w-5" />
+          </Button>
+        </div>
         <h1 className="text-lg font-bold text-foreground">{self ? '我的主页' : '个人主页'}</h1>
       </div>
     </nav>

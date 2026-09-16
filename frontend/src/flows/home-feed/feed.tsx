@@ -55,9 +55,7 @@ function distributePosts(posts: ApiPostSummary[], columnCount: number): ApiPostS
 function useColumnCount(): number {
   const calc = () => {
     if (typeof window === 'undefined') return 2
-    if (window.innerWidth >= 1280) return 4
-    if (window.innerWidth >= 768) return 3
-    return 2
+    return window.innerWidth >= 768 ? 3 : 2
   }
   const [count, setCount] = useState(calc)
   useEffect(() => {
@@ -301,7 +299,7 @@ export default function HomeFeedScreen() {
     <div className="min-h-screen bg-background pb-20">
       {/* ─── 顶部导航栏 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-16 max-w-5xl items-center gap-4 px-4">
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="h-8 w-8" />
             <span className="hidden text-lg font-bold sm:block">买家说</span>
@@ -380,7 +378,7 @@ export default function HomeFeedScreen() {
 
       {/* ─── 标签筛选栏 ─── */}
       <div className="sticky top-16 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4">
+        <div className="mx-auto flex max-w-5xl items-center gap-2 px-4">
           <div className="flex flex-1 gap-2 overflow-x-auto">
             {mockTags.map((tag) => (
               <button
@@ -410,7 +408,7 @@ export default function HomeFeedScreen() {
       </div>
 
       {/* ─── 主内容区 ─── */}
-      <main className="mx-auto max-w-7xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         <div className="mb-4 flex items-center gap-2">
           <Badge variant="secondary" className="border-0 bg-coral-light text-coral">{posts.length} 篇分享</Badge>
           <span className="text-xs text-muted-foreground">{activeTag}</span>

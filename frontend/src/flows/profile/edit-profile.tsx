@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { ArrowLeft, Camera, Loader2 } from 'lucide-react'
+import { ArrowLeft, Camera, Home, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -136,9 +136,14 @@ export default function EditProfileScreen() {
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-        <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={handleBack}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-1 -ml-3">
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={handleBack}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Home className="h-5 w-5" />
+          </Button>
+        </div>
         <h1 className="flex-1 truncate text-lg font-bold text-foreground">编辑资料</h1>
         <Button
           disabled={isSaving || isLoading || isUploadingAvatar}

@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Heart, MessageCircle, UserPlus, Bell, CheckCheck, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, Heart, Home, MessageCircle, UserPlus, Bell, CheckCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getNotifications, markAllAsRead, type Notification } from '@/services/notifications'
@@ -95,6 +95,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
 }
 
 export function NotificationsScreen() {
+  const navigate = useNavigate()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [hasUnread, setHasUnread] = useState(false)
@@ -129,9 +130,14 @@ export function NotificationsScreen() {
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-        <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-1 -ml-3">
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <Home className="h-5 w-5" />
+          </Button>
+        </div>
         <h1 className="flex-1 truncate text-lg font-bold text-foreground">通知</h1>
         {hasUnread && (
           <Button

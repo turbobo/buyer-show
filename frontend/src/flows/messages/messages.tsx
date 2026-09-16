@@ -1,7 +1,8 @@
 // FLOW: Messages & Notifications
 // SCREEN 1 of 2: Messages Center | PLATFORM: Web (responsive) | ENTRY: /messages | EXIT: Chat
 import { useState } from 'react'
-import { ArrowLeft, Search, MessageCircle, Send, Image, Mic, MoreVertical, Phone, Video } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { ArrowLeft, Home, Search, MessageCircle, Send, Image, Mic, MoreVertical, Phone, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -86,6 +87,7 @@ function NotificationItem({ notif }: { notif: Notification }) {
 // MAIN EXPORT: Messages Screen
 // ═══════════════════════════════════
 export default function MessagesScreen({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<'dm' | 'notifications'>('dm')
   const [activeConv, setActiveConv] = useState<Conversation | null>(null)
   const [messageText, setMessageText] = useState('')
@@ -98,15 +100,21 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
       {/* Top Nav */}
       <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="-ml-3"
-            aria-label={showChat ? '返回对话列表' : '返回上一页'}
-            onClick={showChat ? () => setActiveConv(null) : onBack}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1 -ml-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={showChat ? '返回对话列表' : '返回上一页'}
+              onClick={showChat ? () => setActiveConv(null) : onBack}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            {!showChat && (
+              <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <Home className="h-5 w-5" />
+              </Button>
+            )}
+          </div>
           <h1 className="flex-1 truncate text-lg font-bold text-foreground">
             {showChat ? activeConv?.user.nickname ?? "消息" : '消息'}
           </h1>

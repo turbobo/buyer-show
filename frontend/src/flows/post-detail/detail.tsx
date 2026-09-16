@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, MessageCircle, Pencil, Send } from 'lucide-react'
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Home, MessageCircle, Pencil, Send } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -350,9 +350,14 @@ export default function PostDetailScreen() {
       {/* ─── 顶部导航 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1 -ml-3">
+            <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <Home className="h-5 w-5" />
+            </Button>
+          </div>
           <button
             type="button"
             aria-label={`${post.userNickname} 的主页`}

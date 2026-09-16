@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { ArrowLeft, Check, ImagePlus, Star, X } from 'lucide-react'
+import { ArrowLeft, Check, Home, ImagePlus, Star, X } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
@@ -230,9 +230,14 @@ export default function PublishScreen() {
       <div className="min-h-screen bg-background">
         <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
           <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-            <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-1 -ml-3">
+              <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <Home className="h-5 w-5" />
+              </Button>
+            </div>
             <h1 className="flex-1 truncate text-lg font-bold text-foreground">编辑分享</h1>
           </div>
         </nav>
@@ -250,9 +255,14 @@ export default function PublishScreen() {
       {/* ─── 顶部导航 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-1 -ml-3">
+            <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+              <Home className="h-5 w-5" />
+            </Button>
+          </div>
           <h1 className="flex-1 truncate text-lg font-bold text-foreground">{isEdit ? '编辑分享' : '发布分享'}</h1>
           <Button
             disabled={isPublishing}
