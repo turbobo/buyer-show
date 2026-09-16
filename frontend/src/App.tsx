@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, type ReactElement } from 'react'
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { getAccessToken, getTokenRole } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
 import { Skeleton } from './components/ui/skeleton'
@@ -52,9 +52,48 @@ function AdminRoute({ children }: { children: ReactElement }) {
   return children
 }
 
-function ScrollToTop() {
-  const { pathname } = useLocation()
-  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+// 滚动位置恢复：前进（PUSH）回顶；后退（POP，如详情→Feed）恢复离开前位置
+const scrollPositions = new Map<string, number>()
+
+function ScrollRestoration() {
+  const { pathname, key } = useLocation()
+  const navigationType = useNavigationType()
+
+  useEffect(() => {
+    if (navigationType === 'POP') {
+      const saved = scrollPositions.get(key)
+      if (saved != null && saved > 1) {
+        // 返回的列表数据可能尚未加载完成（高度不足），短轮询重试恢复
+        let tries = 0
+        const restore = () => {
+          window.scrollTo(0, saved)
+          if (Math.abs(window.scrollY - saved) > 1 && tries < 20) {
+            tries += 1
+            window.setTimeout(restore, 60)
+          }
+        }
+        const raf = requestAnimationFrame(restore)
+        return () => window.cancelAnimationFrame(raf)
+      }
+    }
+    window.scrollTo(0, 0)
+  }, [pathname, key, navigationType])
+
+  useEffect(() => {
+    // 滚动过程中实时记录当前位置（离开前最后位置天然已保存）
+    const save = () => {
+      if (scrollPositions.size > 200) {
+        const oldest = scrollPositions.keys().next().value
+        if (oldest !== undefined) {
+          scrollPositions.delete(oldest)
+        }
+      }
+      scrollPositions.set(key, window.scrollY)
+    }
+    window.addEventListener('scroll', save, { passive: true })
+    return () => window.removeEventListener('scroll', save)
+  }, [key])
+
   return null
 }
 
@@ -62,7 +101,7 @@ function AnimatedRoutes() {
   const location = useLocation()
   return (
     <div key={location.pathname} className="page-transition">
-      <ScrollToTop />
+      <ScrollRestoration />
       <Suspense fallback={<RouteFallback />}>
         <Routes location={location}>
           <Route path="/" element={<HomeFeedScreen />} />
