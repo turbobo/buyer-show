@@ -5,11 +5,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
+import { Textarea } from '@/components/ui/textarea'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
 import { smartBack } from '@/lib/smart-back'
-import { deletePost, type ApiPostSummary } from '@/services/posts'
+import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
 type ProfileTab = 'posts' | 'favorites' | 'likes'
 
@@ -19,18 +20,20 @@ const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'likes', label: '赞过' },
 ]
 
-/** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标） */
-function PostGridItem({ post, manageable, onDeleteRequest }: {
+/** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标；已封禁帖子提供申诉入口） */
+function PostGridItem({ post, manageable, onDeleteRequest, onAppealRequest }: {
   post: ApiPostSummary
   manageable: boolean
   onDeleteRequest: (post: ApiPostSummary) => void
+  onAppealRequest: (post: ApiPostSummary) => void
 }) {
   const navigate = useNavigate()
   const cover = post.thumbnails?.[0] ?? post.images[0]
+  const isBanned = post.moderationStatus === 2
   const statusBadge = post.moderationStatus === 1
     ? { text: '审核中', className: 'bg-yellow-500/90' }
-    : post.moderationStatus === 2
-      ? { text: '未通过', className: 'bg-destructive/90' }
+    : isBanned
+      ? { text: '已下架', className: 'bg-destructive/90' }
       : null
   return (
     <div className="relative">
@@ -59,14 +62,29 @@ function PostGridItem({ post, manageable, onDeleteRequest }: {
       </button>
       {manageable && (
         <div className="absolute right-1.5 top-1.5 flex gap-1">
-          <button
-            type="button"
-            aria-label="编辑帖子"
-            onClick={() => navigate(`/posts/${post.id}/edit`)}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
-          >
-            <Pencil className="h-3 w-3" />
-          </button>
+          {isBanned ? (
+            post.appealStatus === 0 ? (
+              <span className="flex h-6 items-center rounded-full bg-black/60 px-2 text-[10px] text-white">申诉中</span>
+            ) : (
+              <button
+                type="button"
+                aria-label="发起申诉"
+                onClick={() => onAppealRequest(post)}
+                className="flex h-6 items-center justify-center rounded-full bg-black/60 px-2 text-[10px] text-white transition-colors hover:bg-coral"
+              >
+                申诉
+              </button>
+            )
+          ) : (
+            <button
+              type="button"
+              aria-label="编辑帖子"
+              onClick={() => navigate(`/posts/${post.id}/edit`)}
+              className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+          )}
           <button
             type="button"
             aria-label="删除帖子"
@@ -97,6 +115,9 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ApiPostSummary | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [appealTarget, setAppealTarget] = useState<ApiPostSummary | null>(null)
+  const [appealReason, setAppealReason] = useState('')
+  const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const profileRef = useRef<UserProfile | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -197,6 +218,24 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       toast('error', requestError instanceof Error ? requestError.message : '删除失败')
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleSubmitAppeal = async () => {
+    if (!appealTarget) return
+    setIsAppealSubmitting(true)
+    try {
+      await createPostAppeal(String(appealTarget.id), appealReason.trim())
+      toast('success', '申诉已提交，等待管理员处理')
+      setPosts((current) => current.map((item) => (
+        item.id === appealTarget.id ? { ...item, appealStatus: 0 } : item
+      )))
+      setAppealTarget(null)
+      setAppealReason('')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '提交申诉失败')
+    } finally {
+      setIsAppealSubmitting(false)
     }
   }
 
@@ -329,7 +368,12 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
               <div className="columns-2 gap-3 space-y-3 md:columns-3">
                 {posts.map((post) => (
                   <div key={post.id} className="break-inside-avoid">
-                    <PostGridItem post={post} manageable={isOwn && activeTab === 'posts'} onDeleteRequest={setPendingDelete} />
+                    <PostGridItem
+                      post={post}
+                      manageable={isOwn && activeTab === 'posts'}
+                      onDeleteRequest={setPendingDelete}
+                      onAppealRequest={setAppealTarget}
+                    />
                   </div>
                 ))}
               </div>
@@ -362,6 +406,42 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                 onClick={() => void handleConfirmDelete()}
               >
                 {isDeleting ? '删除中...' : '删除'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {appealTarget && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="发起申诉"
+        >
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
+            <h3 className="text-lg font-bold text-foreground">发起申诉</h3>
+            <p className="text-sm text-muted-foreground">
+              「{appealTarget.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。
+            </p>
+            <Textarea
+              value={appealReason}
+              maxLength={500}
+              onChange={(event) => setAppealReason(event.target.value)}
+              className="min-h-24"
+              placeholder="申诉理由（必填，最多500字）"
+              aria-label="申诉理由"
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" disabled={isAppealSubmitting} onClick={() => { setAppealTarget(null); setAppealReason('') }}>
+                取消
+              </Button>
+              <Button
+                className="bg-coral text-white hover:bg-coral-dark"
+                disabled={isAppealSubmitting || !appealReason.trim()}
+                onClick={() => void handleSubmitAppeal()}
+              >
+                {isAppealSubmitting ? '提交中...' : '提交申诉'}
               </Button>
             </div>
           </div>

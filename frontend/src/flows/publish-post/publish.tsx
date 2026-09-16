@@ -72,6 +72,11 @@ export default function PublishScreen() {
       try {
         const post = await getPost(postId)
         if (cancelled) return
+        if (post.moderationStatus === 2) {
+          toast('error', '帖子已被下架，无法编辑，可在个人主页发起申诉')
+          navigate(`/posts/${postId}`, { replace: true })
+          return
+        }
         setTitle(post.title)
         setContent(post.content)
         setSelectedTags(post.tags ?? [])

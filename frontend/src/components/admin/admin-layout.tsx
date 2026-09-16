@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ArrowLeft, BarChart3, FileCheck2, Flag, Menu, ScrollText, ShieldCheck, Tags, Users } from 'lucide-react'
+import { ArrowLeft, BarChart3, FileCheck2, Flag, Gavel, Menu, ScrollText, ShieldCheck, Tags, Users } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface NavItem {
@@ -14,6 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/analytics', label: '数据看板', icon: BarChart3, enabled: true },
   { to: '/admin/moderation', label: '内容审核', icon: FileCheck2, enabled: true },
   { to: '/admin/reports', label: '举报中心', icon: Flag, enabled: true },
+  { to: '/admin/appeals', label: '申诉处理', icon: Gavel, enabled: true },
   { to: '/admin/users', label: '用户管理', icon: Users, enabled: true },
   { to: '/admin/tags', label: '标签管理', icon: Tags, enabled: false },
   { to: '/admin/audit-log', label: '审计日志', icon: ScrollText, enabled: false },

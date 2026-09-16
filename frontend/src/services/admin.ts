@@ -190,3 +190,32 @@ export function banAdminPost(postId: number, reason?: string): Promise<void> {
 export function unbanAdminPost(postId: number): Promise<void> {
   return request<void>(`/admin/posts/${postId}/unban`, { method: 'POST' })
 }
+
+// ─── 帖子申诉处理 ─────────────────────────────────────────────
+
+export interface AppealItem {
+  id: number
+  postId: number
+  postTitle: string | null
+  userId: number
+  userNickname: string | null
+  reason: string
+  /** 0 待处理 / 1 已通过 / 2 已驳回 */
+  status: number
+  handleReason: string | null
+  createdAt: string
+  handledAt: string | null
+}
+
+export function getAppeals(page = 1, size = 20, status?: number): Promise<PageResult<AppealItem>> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (status !== undefined) params.set('status', String(status))
+  return requestPage<AppealItem>(`/admin/appeals?${params.toString()}`)
+}
+
+export function handleAppeal(appealId: number, action: 'APPROVE' | 'REJECT', reason?: string): Promise<void> {
+  return request<void>(`/admin/appeals/${appealId}`, {
+    method: 'POST',
+    body: JSON.stringify({ action, reason }),
+  })
+}

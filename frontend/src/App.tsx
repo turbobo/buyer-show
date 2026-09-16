@@ -17,6 +17,7 @@ const FollowListScreen = lazy(() => import('./flows/profile/follow-list'))
 const AdminLayout = lazy(() => import('./components/admin/admin-layout'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
 const AdminReportsScreen = lazy(() => import('./flows/admin/reports'))
+const AdminAppealsScreen = lazy(() => import('./flows/admin/appeals'))
 const AdminUsersScreen = lazy(() => import('./flows/admin/users'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
@@ -78,6 +79,7 @@ function AnimatedRoutes() {
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="moderation" element={<AdminModerationScreen />} />
             <Route path="reports" element={<AdminReportsScreen />} />
+            <Route path="appeals" element={<AdminAppealsScreen />} />
             <Route path="users" element={<AdminUsersScreen />} />
           </Route>
           <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />

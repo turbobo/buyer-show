@@ -6,10 +6,11 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { createComment, getComments, type ApiComment } from '@/services/comments'
 import { ApiError, getTokenUserId } from '@/services/http'
-import { getPost, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
+import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
 import { PostStructuredData } from '@/components/structured-data'
@@ -176,6 +177,25 @@ export default function PostDetailScreen() {
   const [isFavoriteSubmitting, setIsFavoriteSubmitting] = useState(false)
   const [showFullscreen, setShowFullscreen] = useState(false)
   const [fullscreenIndex, setFullscreenIndex] = useState(0)
+  const [isAppealOpen, setIsAppealOpen] = useState(false)
+  const [appealReason, setAppealReason] = useState('')
+  const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
+
+  const handleSubmitAppeal = async () => {
+    if (!post) return
+    setIsAppealSubmitting(true)
+    try {
+      await createPostAppeal(String(post.id), appealReason.trim())
+      toast('success', '申诉已提交，等待管理员处理')
+      setPost((current) => (current ? { ...current, appealStatus: 0 } : current))
+      setIsAppealOpen(false)
+      setAppealReason('')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '提交申诉失败')
+    } finally {
+      setIsAppealSubmitting(false)
+    }
+  }
 
   const redirectToLogin = useCallback(() => {
     navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`)
@@ -346,7 +366,7 @@ export default function PostDetailScreen() {
             </Avatar>
             <span className="text-sm font-medium">{post.userNickname}</span>
           </button>
-          {post.userId === getTokenUserId() && (
+          {post.userId === getTokenUserId() && post.moderationStatus !== 2 && (
             <Button aria-label="编辑帖子" variant="ghost" size="icon" onClick={() => navigate(`/posts/${post.id}/edit`)}>
               <Pencil className="h-5 w-5" />
             </Button>
@@ -362,6 +382,16 @@ export default function PostDetailScreen() {
       <main className="mx-auto max-w-5xl px-4 py-6">
         {post.moderationStatus === 1 && (
           <p className="mb-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-700">该帖子正在审核，仅作者可见。</p>
+        )}
+        {post.moderationStatus === 2 && post.userId === getTokenUserId() && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+            <p className="text-sm text-destructive">该帖子已被下架，无法修改。如有异议可发起申诉，由管理员复核。</p>
+            {post.appealStatus === 0 ? (
+              <span className="text-xs text-muted-foreground">申诉处理中</span>
+            ) : (
+              <Button size="sm" variant="outline" onClick={() => setIsAppealOpen(true)}>发起申诉</Button>
+            )}
+          </div>
         )}
 
         {/* ─── 移动端：图片全宽展示 ─── */}
@@ -463,6 +493,46 @@ export default function PostDetailScreen() {
           initialIndex={fullscreenIndex}
           onClose={() => setShowFullscreen(false)}
         />
+      )}
+
+      {isAppealOpen && post && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="发起申诉"
+        >
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
+            <h3 className="text-lg font-bold text-foreground">发起申诉</h3>
+            <p className="text-sm text-muted-foreground">
+              「{post.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。
+            </p>
+            <Textarea
+              value={appealReason}
+              maxLength={500}
+              onChange={(event) => setAppealReason(event.target.value)}
+              className="min-h-24"
+              placeholder="申诉理由（必填，最多500字）"
+              aria-label="申诉理由"
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                disabled={isAppealSubmitting}
+                onClick={() => { setIsAppealOpen(false); setAppealReason('') }}
+              >
+                取消
+              </Button>
+              <Button
+                className="bg-coral text-white hover:bg-coral-dark"
+                disabled={isAppealSubmitting || !appealReason.trim()}
+                onClick={() => void handleSubmitAppeal()}
+              >
+                {isAppealSubmitting ? '提交中...' : '提交申诉'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

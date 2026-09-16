@@ -16,6 +16,8 @@ export interface ApiPost {
   commentCount: number
   favoriteCount: number
   moderationStatus: number
+  /** 最近一次申诉状态（仅"我的帖子"列表与作者查看详情时返回；0 待处理 / 1 已通过 / 2 已驳回） */
+  appealStatus?: number | null
   isLiked: boolean
   isFavorited: boolean
   createdAt: string
@@ -66,6 +68,11 @@ export function updatePost(postId: string, payload: CreatePostPayload): Promise<
 
 export function deletePost(postId: string): Promise<void> {
   return request<void>(`/posts/${postId}`, { method: 'DELETE' })
+}
+
+/** 发起申诉（仅已下架帖子的作者） */
+export function createPostAppeal(postId: string, reason: string): Promise<void> {
+  return request<void>(`/posts/${postId}/appeal`, { method: 'POST', body: JSON.stringify({ reason }) })
 }
 
 export function toggleLike(postId: string): Promise<{ liked: boolean }> {
