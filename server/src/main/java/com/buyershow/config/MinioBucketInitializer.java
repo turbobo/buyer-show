@@ -34,6 +34,7 @@ public class MinioBucketInitializer {
     private String publicReadPolicy() {
         return "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\","
                 + "\"Principal\":{\"AWS\":[\"*\"]},\"Action\":[\"s3:GetObject\"],"
-                + "\"Resource\":[\"arn:aws:s3:::" + bucketName + "/published/*\"]}]}";
+                + "\"Resource\":[\"arn:aws:s3:::" + bucketName + "/published/*\","
+                + "\"arn:aws:s3:::" + bucketName + "/thumbnails/*\"]}]}";
     }
 }
