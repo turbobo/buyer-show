@@ -223,13 +223,12 @@ export default function PublishScreen() {
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-background">
-        <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
-          <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-            <Button variant="ghost" onClick={() => smartBack()}>
-              <ArrowLeft className="mr-1 h-4 w-4" />取消
+        <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+          <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+            <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="font-semibold">编辑分享</h1>
-            <div className="w-16" />
+            <h1 className="flex-1 truncate text-lg font-bold text-foreground">编辑分享</h1>
           </div>
         </nav>
         <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
@@ -244,12 +243,12 @@ export default function PublishScreen() {
   return (
     <div className="min-h-screen bg-background">
       {/* ─── 顶部导航 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
-        <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
-          <Button variant="ghost" onClick={() => smartBack()}>
-            <ArrowLeft className="mr-1 h-4 w-4" />取消
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="font-semibold">{isEdit ? '编辑分享' : '发布分享'}</h1>
+          <h1 className="flex-1 truncate text-lg font-bold text-foreground">{isEdit ? '编辑分享' : '发布分享'}</h1>
           <Button
             disabled={isPublishing}
             onClick={() => void handleSubmit()}

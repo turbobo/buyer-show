@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, UserPlus, Bell, CheckCheck } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, UserPlus, Bell, CheckCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getNotifications, markAllAsRead, type Notification } from '@/services/notifications'
+import { smartBack } from '@/lib/smart-back'
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -120,18 +121,13 @@ export function NotificationsScreen() {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">加载中...</div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex-1 flex flex-col">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border/60">
-        <h1 className="text-lg font-bold text-foreground">通知</h1>
+  const navBar = (
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+        <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <h1 className="flex-1 truncate text-lg font-bold text-foreground">通知</h1>
         {hasUnread && (
           <Button
             variant="ghost"
@@ -139,13 +135,27 @@ export function NotificationsScreen() {
             onClick={handleMarkAllRead}
             className="text-xs text-coral hover:text-coral/80"
           >
-            <CheckCheck className="w-4 h-4 mr-1" />
+            <CheckCheck className="mr-1 h-4 w-4" />
             全部已读
           </Button>
         )}
       </div>
+    </nav>
+  )
 
-      <div className="flex-1 overflow-y-auto">
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        {navBar}
+        <div className="flex items-center justify-center py-24 text-muted-foreground">加载中...</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {navBar}
+      <div className="mx-auto max-w-5xl px-4 py-4">
         {notifications.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Bell className="w-12 h-12 mb-3 opacity-30" />

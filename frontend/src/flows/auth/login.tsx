@@ -66,15 +66,14 @@ export default function LoginScreen() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
-      {/* 返回首页（登录页不拦截浏览，游客可随时回首页） */}
-      <Button
-        variant="ghost"
-        aria-label="返回首页"
-        onClick={() => navigate('/')}
-        className="absolute left-4 top-4 z-20"
-      >
-        <ArrowLeft className="mr-1 h-4 w-4" />返回首页
-      </Button>
+      {/* 返回首页（登录页不拦截浏览，游客可随时回首页；几何与全局 Stack 导航一致） */}
+      <div className="absolute inset-x-0 top-0 z-20">
+        <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
+          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+        </div>
+      </div>
 
       {/* 背景装饰 */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">

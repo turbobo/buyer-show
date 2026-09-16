@@ -97,11 +97,16 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     <div className="flex h-screen flex-col bg-background">
       {/* Top Nav */}
       <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={showChat ? () => setActiveConv(null) : onBack}>
-            <ArrowLeft className="w-5 h-5" />
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={showChat ? '返回对话列表' : '返回上一页'}
+            onClick={showChat ? () => setActiveConv(null) : onBack}
+          >
+            <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-bold text-foreground">
+          <h1 className="flex-1 truncate text-lg font-bold text-foreground">
             {showChat ? activeConv?.user.nickname ?? "消息" : '消息'}
           </h1>
           {showChat && (
@@ -121,13 +126,13 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
       </nav>
 
       {/* 静态数据提示 */}
-      <div className="mx-auto max-w-7xl px-4 pt-3">
+      <div className="mx-auto max-w-5xl px-4 pt-3">
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-700">
           ⚠️ 当前为静态演示数据，消息服务开发中
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-7xl flex-1 overflow-hidden">
+      <div className="mx-auto flex max-w-5xl flex-1 overflow-hidden">
         {/* Left Panel: Conversations + Notifications */}
         <div className={`${showChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-96 shrink-0 border-r border-border/60 bg-card`}>
           {/* Tabs */}
