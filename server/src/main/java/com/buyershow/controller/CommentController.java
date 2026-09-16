@@ -3,6 +3,7 @@ package com.buyershow.controller;
 import com.buyershow.common.R;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.CommentLikeResult;
 import com.buyershow.service.CommentService;
 import com.buyershow.common.security.RateLimit;
 import jakarta.validation.Valid;
@@ -35,13 +36,15 @@ public class CommentController {
      * 获取帖子的公开评论树。
      *
      * @param postId 帖子ID
+     * @param sort 排序方式（latest 最新 / hot 最热）
      * @return 评论树
      */
     @GetMapping("/posts/{postId}/comments")
     public R<List<CommentDTO>> listComments(
             @PathVariable Long postId,
-            @RequestParam(defaultValue = "50") int limit) {
-        return R.ok(commentService.listComments(postId, limit));
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(defaultValue = "latest") String sort) {
+        return R.ok(commentService.listComments(postId, limit, sort));
     }
 
     /**
@@ -68,5 +71,16 @@ public class CommentController {
     public R<Void> deleteComment(@PathVariable Long commentId) {
         commentService.deleteComment(commentId);
         return R.ok();
+    }
+
+    /**
+     * 点赞/取消点赞评论（幂等切换）。
+     *
+     * @param commentId 评论ID
+     * @return 最新点赞状态与计数
+     */
+    @PostMapping("/comments/{commentId}/like")
+    public R<CommentLikeResult> toggleCommentLike(@PathVariable Long commentId) {
+        return R.ok(commentService.toggleCommentLike(commentId));
     }
 }

@@ -1,5 +1,6 @@
 package com.buyershow.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.buyershow.common.CommentStatus;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
@@ -9,15 +10,19 @@ import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.CommentLikeResult;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.entity.Comment;
+import com.buyershow.entity.CommentLike;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
+import com.buyershow.mapper.CommentLikeMapper;
 import com.buyershow.mapper.CommentMapper;
 import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,28 +39,43 @@ public class CommentService {
     private static final int MAX_ROOT_LIMIT = 100;
 
     private final CommentMapper commentMapper;
+    private final CommentLikeMapper commentLikeMapper;
     private final PostMapper postMapper;
     private final UserMapper userMapper;
     private final ContentModerationService contentModerationService;
     private final NotificationService notificationService;
 
     public List<CommentDTO> listComments(Long postId, int requestedLimit) {
+        return listComments(postId, requestedLimit, "latest");
+    }
+
+    /**
+     * 按排序方式查询顶级评论与一级回复（树形组装）。
+     *
+     * @param postId 帖子ID
+     * @param requestedLimit 顶级评论数量上限
+     * @param sort 排序方式（latest 最新 / hot 最热）
+     * @return 树形评论列表
+     */
+    public List<CommentDTO> listComments(Long postId, int requestedLimit, String sort) {
         requireVisiblePost(postId);
         int limit = Math.min(Math.max(requestedLimit, 1), MAX_ROOT_LIMIT);
-        List<CommentDTO> roots = commentMapper.selectVisibleRoots(postId, limit);
+        Long viewerId = SecurityUtils.getCurrentUserId();
+        boolean hot = "hot".equalsIgnoreCase(sort);
+        List<CommentDTO> roots = hot
+                ? commentMapper.selectHotVisibleRoots(postId, viewerId, limit)
+                : commentMapper.selectVisibleRoots(postId, viewerId, limit);
         if (roots.isEmpty()) {
             return roots;
         }
 
         Map<Long, CommentDTO> rootMap = new LinkedHashMap<>();
         for (CommentDTO root : roots) {
-            root.setIsLiked(false);
             root.setReplies(new ArrayList<>());
             rootMap.put(root.getId(), root);
         }
-        List<CommentDTO> replies = commentMapper.selectVisibleReplies(new ArrayList<>(rootMap.keySet()));
+        List<CommentDTO> replies = commentMapper.selectVisibleReplies(new ArrayList<>(rootMap.keySet()), viewerId);
         for (CommentDTO reply : replies) {
-            reply.setIsLiked(false);
             reply.setReplies(new ArrayList<>());
             CommentDTO parent = rootMap.get(reply.getParentId());
             if (parent != null) {
@@ -94,6 +114,46 @@ public class CommentService {
                 .nextCursor(nextCursor)
                 .hasMore(hasMore)
                 .build();
+    }
+
+    /**
+     * 点赞/取消点赞评论（幂等切换），返回最新状态与计数。
+     *
+     * @param commentId 评论ID
+     * @return 点赞结果
+     */
+    @Transactional
+    public CommentLikeResult toggleCommentLike(Long commentId) {
+        Long userId = requireCurrentUserId();
+        Comment comment = commentMapper.selectById(commentId);
+        if (comment == null || comment.getStatus() != CommentStatus.ACTIVE.getValue()
+                || comment.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+        CommentLike existing = commentLikeMapper.selectOne(
+                Wrappers.<CommentLike>lambdaQuery()
+                        .eq(CommentLike::getCommentId, commentId)
+                        .eq(CommentLike::getUserId, userId));
+        boolean liked;
+        if (existing != null) {
+            commentLikeMapper.deleteById(existing.getId());
+            commentMapper.adjustCommentLikeCount(commentId, -1);
+            liked = false;
+        } else {
+            CommentLike like = new CommentLike();
+            like.setCommentId(commentId);
+            like.setUserId(userId);
+            try {
+                commentLikeMapper.insert(like);
+                commentMapper.adjustCommentLikeCount(commentId, 1);
+            } catch (DuplicateKeyException exception) {
+                // 并发重复点赞：幂等处理，不重复计数
+            }
+            liked = true;
+        }
+        Comment updated = commentMapper.selectById(commentId);
+        int likeCount = updated != null && updated.getLikeCount() != null ? updated.getLikeCount() : 0;
+        return new CommentLikeResult(liked, likeCount);
     }
 
     @Transactional

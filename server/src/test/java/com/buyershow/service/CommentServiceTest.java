@@ -6,11 +6,14 @@ import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.CommentLikeResult;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.entity.Comment;
+import com.buyershow.entity.CommentLike;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
+import com.buyershow.mapper.CommentLikeMapper;
 import com.buyershow.mapper.CommentMapper;
 import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
@@ -28,12 +31,33 @@ import static org.mockito.Mockito.*;
 class CommentServiceTest {
 
     private final CommentMapper commentMapper = mock(CommentMapper.class);
+    private final CommentLikeMapper commentLikeMapper = mock(CommentLikeMapper.class);
     private final PostMapper postMapper = mock(PostMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final ContentModerationService moderationService = mock(ContentModerationService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final CommentService service = new CommentService(
-            commentMapper, postMapper, userMapper, moderationService, notificationService);
+            commentMapper, commentLikeMapper, postMapper, userMapper, moderationService, notificationService);
+
+    @Test
+    void togglesCommentLikeAndAdjustsCount() {
+        authenticate(1L);
+        Comment comment = new Comment();
+        comment.setId(20L);
+        comment.setStatus(0);
+        comment.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        Comment after = new Comment();
+        after.setLikeCount(3);
+        when(commentMapper.selectById(20L)).thenReturn(comment, after);
+        when(commentLikeMapper.selectOne(any())).thenReturn(null);
+
+        CommentLikeResult result = service.toggleCommentLike(20L);
+
+        assertTrue(result.isLiked());
+        assertEquals(3, result.getLikeCount());
+        verify(commentLikeMapper).insert(any(CommentLike.class));
+        verify(commentMapper).adjustCommentLikeCount(20L, 1);
+    }
 
     @Test
     void listsMyCommentsWithCursor() {
@@ -121,14 +145,14 @@ class CommentServiceTest {
         when(postMapper.selectById(10L)).thenReturn(approvedPost(10L));
         CommentDTO root = CommentDTO.builder().id(20L).parentId(null).replies(List.of()).build();
         CommentDTO reply = CommentDTO.builder().id(21L).parentId(20L).replies(List.of()).build();
-        when(commentMapper.selectVisibleRoots(10L, 100)).thenReturn(List.of(root));
-        when(commentMapper.selectVisibleReplies(List.of(20L))).thenReturn(List.of(reply));
+        when(commentMapper.selectVisibleRoots(10L, null, 100)).thenReturn(List.of(root));
+        when(commentMapper.selectVisibleReplies(List.of(20L), null)).thenReturn(List.of(reply));
 
         List<CommentDTO> result = service.listComments(10L, 500);
 
         assertEquals(1, result.size());
         assertEquals(1, result.getFirst().getReplies().size());
-        verify(commentMapper).selectVisibleRoots(10L, 100);
+        verify(commentMapper).selectVisibleRoots(10L, null, 100);
     }
 
     private Post approvedPost(Long id) {

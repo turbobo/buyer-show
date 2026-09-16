@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
-import { createComment, getComments, type ApiComment } from '@/services/comments'
+import { createComment, getComments, toggleCommentLike, type ApiComment } from '@/services/comments'
 import { ApiError, getTokenUserId } from '@/services/http'
 import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
@@ -114,9 +114,23 @@ interface CommentItemProps {
   comment: ApiComment
   onReply: (comment: ApiComment) => void
   onReport: (commentId: number) => void
+  onLike: (comment: ApiComment) => void
 }
 
-function CommentItem({ comment, onReply, onReport }: CommentItemProps) {
+/** 在评论树中定位并更新指定评论（含嵌套回复）。 */
+function updateCommentTree(list: ApiComment[], commentId: number, updater: (comment: ApiComment) => ApiComment): ApiComment[] {
+  return list.map((comment) => {
+    if (comment.id === commentId) {
+      return updater(comment)
+    }
+    if (comment.replies.length > 0) {
+      return { ...comment, replies: updateCommentTree(comment.replies, commentId, updater) }
+    }
+    return comment
+  })
+}
+
+function CommentItem({ comment, onReply, onReport, onLike }: CommentItemProps) {
   const isRoot = comment.parentId == null
   return (
     <div className="flex gap-3">
@@ -134,7 +148,18 @@ function CommentItem({ comment, onReply, onReport }: CommentItemProps) {
           )}
         </div>
         <p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{comment.content}</p>
-        <div className="mt-1.5 flex gap-4">
+        <div className="mt-1.5 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => onLike(comment)}
+            aria-label={comment.isLiked ? '取消点赞' : '点赞'}
+            className={`flex items-center gap-1 text-xs transition-colors ${
+              comment.isLiked ? 'text-coral' : 'text-muted-foreground hover:text-coral'
+            }`}
+          >
+            <Heart className={`h-3.5 w-3.5 ${comment.isLiked ? 'fill-coral' : ''}`} />
+            {comment.likeCount > 0 ? comment.likeCount : '赞'}
+          </button>
           {isRoot && (
             <button type="button" onClick={() => onReply(comment)} className="text-xs text-muted-foreground hover:text-coral">
               回复
@@ -147,7 +172,7 @@ function CommentItem({ comment, onReply, onReport }: CommentItemProps) {
         {comment.replies.length > 0 && (
           <div className="mt-3 space-y-3 border-l-2 border-border/60 pl-4">
             {comment.replies.map((reply) => (
-              <CommentItem key={reply.id} comment={reply} onReply={onReply} onReport={onReport} />
+              <CommentItem key={reply.id} comment={reply} onReply={onReply} onReport={onReport} onLike={onLike} />
             ))}
           </div>
         )}
@@ -168,6 +193,8 @@ export default function PostDetailScreen() {
   const { toast } = useToast()
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
+  const [commentSort, setCommentSort] = useState<'latest' | 'hot'>('latest')
+  const [commentLikeSubmitting, setCommentLikeSubmitting] = useState<Set<number>>(new Set())
   const [commentText, setCommentText] = useState('')
   const [replyTarget, setReplyTarget] = useState<ApiComment | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -298,6 +325,37 @@ export default function PostDetailScreen() {
       toast('success', '链接已复制')
     } catch {
       toast('error', '复制失败，请手动复制')
+    }
+  }
+
+  const handleSortChange = async (sort: 'latest' | 'hot') => {
+    if (sort === commentSort || !postId) return
+    setCommentSort(sort)
+    try {
+      setComments(await getComments(postId, sort))
+    } catch (requestError) {
+      handleActionError(requestError, '评论加载失败')
+    }
+  }
+
+  const handleCommentLike = async (comment: ApiComment) => {
+    if (commentLikeSubmitting.has(comment.id)) return
+    setCommentLikeSubmitting((current) => new Set(current).add(comment.id))
+    try {
+      const result = await toggleCommentLike(comment.id)
+      setComments((current) => updateCommentTree(current, comment.id, (item) => ({
+        ...item,
+        isLiked: result.liked,
+        likeCount: result.likeCount,
+      })))
+    } catch (requestError) {
+      handleActionError(requestError, '点赞失败')
+    } finally {
+      setCommentLikeSubmitting((current) => {
+        const next = new Set(current)
+        next.delete(comment.id)
+        return next
+      })
     }
   }
 
@@ -445,6 +503,26 @@ export default function PostDetailScreen() {
             <div className="mb-4 flex items-center gap-2">
               <MessageCircle className="h-5 w-5 text-foreground" />
               <h2 className="font-semibold">评论 ({comments.length})</h2>
+              <div className="ml-auto flex items-center gap-1 rounded-full bg-muted/50 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => void handleSortChange('latest')}
+                  className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                    commentSort === 'latest' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                  }`}
+                >
+                  最新
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSortChange('hot')}
+                  className={`rounded-full px-2.5 py-1 text-xs transition-colors ${
+                    commentSort === 'hot' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                  }`}
+                >
+                  最热
+                </button>
+              </div>
             </div>
             {comments.length === 0 ? (
               <div className="py-8 text-center">
@@ -459,6 +537,7 @@ export default function PostDetailScreen() {
                     comment={comment}
                     onReply={setReplyTarget}
                     onReport={(commentId) => void handleReport('COMMENT', commentId)}
+                    onLike={(item) => void handleCommentLike(item)}
                   />
                 ))}
               </div>

@@ -17,8 +17,8 @@ export interface ApiComment {
   replies: ApiComment[]
 }
 
-export function getComments(postId: string): Promise<ApiComment[]> {
-  return request<ApiComment[]>(`/posts/${postId}/comments`)
+export function getComments(postId: string, sort: 'latest' | 'hot' = 'latest'): Promise<ApiComment[]> {
+  return request<ApiComment[]>(`/posts/${postId}/comments?sort=${sort}`)
 }
 
 export function createComment(postId: string, content: string, parentId?: number): Promise<ApiComment> {
@@ -30,6 +30,16 @@ export function createComment(postId: string, content: string, parentId?: number
 
 export function deleteComment(commentId: number): Promise<void> {
   return request<void>(`/comments/${commentId}`, { method: 'DELETE' })
+}
+
+export interface CommentLikeResult {
+  liked: boolean
+  likeCount: number
+}
+
+/** 点赞/取消点赞评论（幂等切换）。 */
+export function toggleCommentLike(commentId: number): Promise<CommentLikeResult> {
+  return request<CommentLikeResult>(`/comments/${commentId}/like`, { method: 'POST' })
 }
 
 export interface UserComment {
