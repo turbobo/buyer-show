@@ -29,4 +29,6 @@ public class PostQueryRow {
     private LocalDateTime createdAt;
     private String userNickname;
     private String userAvatarUrl;
+    /** 关系表游标键（收藏/点赞列表按关系表 ID 排序时使用；为空时游标取帖子 ID） */
+    private Long cursorKey;
 }

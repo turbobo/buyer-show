@@ -7,9 +7,17 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
-import { getMyPosts, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
+import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
 import { smartBack } from '@/lib/smart-back'
 import { deletePost, type ApiPostSummary } from '@/services/posts'
+
+type ProfileTab = 'posts' | 'favorites' | 'likes'
+
+const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
+  { key: 'posts', label: '分享' },
+  { key: 'favorites', label: '收藏' },
+  { key: 'likes', label: '赞过' },
+]
 
 /** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标） */
 function PostGridItem({ post, manageable, onDeleteRequest }: {
@@ -84,6 +92,8 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [isListLoading, setIsListLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ApiPostSummary | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -95,15 +105,24 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
 
   const loadPage = useCallback(async (nextCursor?: string, append = false) => {
     if (!self && !params.userId) return
-    if (append) setIsLoadingMore(true)
-    else {
-      setIsLoading(true)
+    if (append) {
+      setIsLoadingMore(true)
+    } else {
       setError(null)
+      if (profileRef.current == null) {
+        setIsLoading(true)
+      } else {
+        setIsListLoading(true)
+      }
     }
     try {
       const targetProfile = profileRef.current
         ?? (self ? await getCurrentUserProfile() : await getUserProfile(params.userId ?? ''))
-      const page = self ? await getMyPosts(nextCursor) : await getUserPosts(targetProfile.id, nextCursor)
+      const page = activeTab === 'favorites'
+        ? await getUserFavorites(targetProfile.id, nextCursor)
+        : activeTab === 'likes'
+          ? await getUserLikes(targetProfile.id, nextCursor)
+          : self ? await getMyPosts(nextCursor) : await getUserPosts(targetProfile.id, nextCursor)
       profileRef.current = targetProfile
       setProfile(targetProfile)
       setPosts((current) => (append ? [...current, ...page.list] : page.list))
@@ -113,9 +132,10 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       setError(requestError instanceof Error ? requestError.message : '加载失败，请稍后重试')
     } finally {
       setIsLoading(false)
+      setIsListLoading(false)
       setIsLoadingMore(false)
     }
-  }, [self, params.userId])
+  }, [self, params.userId, activeTab])
 
   useEffect(() => { void loadPage() }, [loadPage])
 
@@ -180,6 +200,12 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     }
   }
 
+  const emptyText = activeTab === 'favorites'
+    ? '还没有收藏'
+    : activeTab === 'likes'
+      ? '还没有点赞'
+      : isOwn ? '还没有发布分享' : '还没有公开分享'
+
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
@@ -191,7 +217,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     </nav>
   )
 
-  if (isLoading) {
+  if (isLoading && !profile) {
     return (
       <div className="min-h-screen bg-background">
         {navBar}
@@ -265,19 +291,44 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         </section>
 
         <section className="mt-6">
-          <h3 className="mb-3 text-lg font-bold text-foreground">分享</h3>
-          {posts.length === 0 && (
-            <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">
-              {isOwn ? '还没有发布分享' : '还没有公开分享'}
-            </p>
-          )}
-          <div className="columns-2 gap-3 space-y-3 md:columns-3">
-            {posts.map((post) => (
-              <div key={post.id} className="break-inside-avoid">
-                <PostGridItem post={post} manageable={isOwn} onDeleteRequest={setPendingDelete} />
-              </div>
+          <div role="tablist" aria-label="帖子分类" className="mb-4 flex border-b border-border">
+            {PROFILE_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 border-b-2 px-3 pb-2 pt-1 text-sm font-medium transition-colors ${
+                  activeTab === tab.key
+                    ? 'border-coral text-coral'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tab.label}
+              </button>
             ))}
           </div>
+          {isListLoading ? (
+            <div className="columns-2 gap-3 space-y-3 md:columns-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <Skeleton key={index} className="aspect-[3/4] break-inside-avoid rounded-xl" />
+              ))}
+            </div>
+          ) : (
+            <>
+              {posts.length === 0 && (
+                <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">{emptyText}</p>
+              )}
+              <div className="columns-2 gap-3 space-y-3 md:columns-3">
+                {posts.map((post) => (
+                  <div key={post.id} className="break-inside-avoid">
+                    <PostGridItem post={post} manageable={isOwn && activeTab === 'posts'} onDeleteRequest={setPendingDelete} />
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
           <div ref={loadMoreRef} className="py-8 text-center">
             {isLoadingMore && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
             {!hasMore && posts.length > 0 && <span className="text-xs text-muted-foreground">已经到底啦</span>}

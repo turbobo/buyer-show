@@ -165,6 +165,43 @@ class PostServiceTest {
         verify(postMapper, never()).updateById(any(Post.class));
     }
 
+    @Test
+    void testListUserFavoritesUsesRelationCursor() {
+        SecurityContextHolder.clearContext();
+        when(userMapper.selectById(10L)).thenReturn(activeUser(10L));
+        when(postMapper.selectUserFavoriteRows(eq(10L), isNull(), eq(3), isNull()))
+                .thenReturn(List.of(cursorRow(100L, 501L), cursorRow(99L, 499L), cursorRow(98L, 497L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.listUserFavorites(10L, null, 2);
+
+        assertEquals(2, page.getList().size());
+        assertTrue(page.isHasMore());
+        assertEquals(CursorUtils.encode(499L), page.getNextCursor());
+    }
+
+    @Test
+    void testListUserLikedPostsReturnsPage() {
+        SecurityContextHolder.clearContext();
+        when(userMapper.selectById(10L)).thenReturn(activeUser(10L));
+        when(postMapper.selectUserLikeRows(eq(10L), isNull(), eq(21), isNull()))
+                .thenReturn(List.of(row(100L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.listUserLikedPosts(10L, null, 20);
+
+        assertEquals(1, page.getList().size());
+        assertFalse(page.isHasMore());
+    }
+
+    private PostQueryRow cursorRow(Long id, Long cursorKey) {
+        PostQueryRow row = row(id);
+        row.setCursorKey(cursorKey);
+        return row;
+    }
+
     private void loginAs(Long userId) {
         User user = new User();
         user.setId(userId);

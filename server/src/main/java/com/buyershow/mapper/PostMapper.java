@@ -101,6 +101,66 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("currentUserId") Long currentUserId);
 
     @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited,",
+            "       fav.id AS cursorKey",
+            "FROM favorites fav",
+            "JOIN posts p ON p.id = fav.post_id",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE fav.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
+            "<if test='cursorId != null'>",
+            "  AND fav.id &lt; #{cursorId}",
+            "</if>",
+            "ORDER BY fav.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectUserFavoriteRows(
+            @Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
+
+    @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited,",
+            "       lk.id AS cursorKey",
+            "FROM likes lk",
+            "JOIN posts p ON p.id = lk.post_id",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE lk.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
+            "<if test='cursorId != null'>",
+            "  AND lk.id &lt; #{cursorId}",
+            "</if>",
+            "ORDER BY lk.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectUserLikeRows(
+            @Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
+
+    @Select({
             "SELECT p.id, p.user_id AS userId, p.title, p.content,",
             "       CAST(p.images AS CHAR) AS imagesJson,",
             "       CAST(p.tags AS CHAR) AS tagsJson,",

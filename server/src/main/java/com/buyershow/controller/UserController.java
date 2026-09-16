@@ -34,6 +34,24 @@ public class UserController {
         return R.ok(postService.listUserPosts(userId, cursor, size));
     }
 
+    /** 获取指定用户收藏的公开帖子（游标分页）。 */
+    @GetMapping("/{userId}/favorites")
+    public R<CursorPage<PostDTO>> getUserFavorites(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(postService.listUserFavorites(userId, cursor, size));
+    }
+
+    /** 获取指定用户点赞过的公开帖子（游标分页）。 */
+    @GetMapping("/{userId}/likes")
+    public R<CursorPage<PostDTO>> getUserLikes(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(postService.listUserLikedPosts(userId, cursor, size));
+    }
+
     /** 获取当前用户自己的全部帖子（含待审/未通过）。 */
     @GetMapping("/me/posts")
     public R<CursorPage<PostDTO>> getMyPosts(

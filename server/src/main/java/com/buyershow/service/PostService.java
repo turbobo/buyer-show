@@ -72,10 +72,7 @@ public class PostService {
      * @return 帖子游标页
      */
     public CursorPage<PostDTO> listUserPosts(Long userId, String cursor, int requestedLimit) {
-        User author = userMapper.selectById(userId);
-        if (author == null || author.getStatus() != UserStatus.ACTIVE.getValue()) {
-            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
-        }
+        requireActiveUser(userId);
 
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
@@ -101,6 +98,49 @@ public class PostService {
         return toCursorPage(rows, limit);
     }
 
+    /**
+     * 查询指定用户收藏的公开帖子（按收藏时间倒序，游标分页）。
+     *
+     * @param userId 目标用户ID
+     * @param cursor 游标（上一页最后一条收藏关系的ID编码）
+     * @param requestedLimit 每页数量
+     * @return 帖子游标页
+     */
+    public CursorPage<PostDTO> listUserFavorites(Long userId, String cursor, int requestedLimit) {
+        requireActiveUser(userId);
+        int limit = normalizePageSize(requestedLimit);
+        Long cursorId = CursorUtils.decode(cursor);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<PostQueryRow> rows = postMapper.selectUserFavoriteRows(userId, cursorId, limit + 1, currentUserId);
+
+        return toCursorPage(rows, limit);
+    }
+
+    /**
+     * 查询指定用户点赞过的公开帖子（按点赞时间倒序，游标分页）。
+     *
+     * @param userId 目标用户ID
+     * @param cursor 游标（上一页最后一条点赞关系的ID编码）
+     * @param requestedLimit 每页数量
+     * @return 帖子游标页
+     */
+    public CursorPage<PostDTO> listUserLikedPosts(Long userId, String cursor, int requestedLimit) {
+        requireActiveUser(userId);
+        int limit = normalizePageSize(requestedLimit);
+        Long cursorId = CursorUtils.decode(cursor);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        List<PostQueryRow> rows = postMapper.selectUserLikeRows(userId, cursorId, limit + 1, currentUserId);
+
+        return toCursorPage(rows, limit);
+    }
+
+    private void requireActiveUser(Long userId) {
+        User user = userMapper.selectById(userId);
+        if (user == null || user.getStatus() != UserStatus.ACTIVE.getValue()) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
     private CursorPage<PostDTO> toCursorPage(List<PostQueryRow> rows, int limit) {
         boolean hasMore = rows.size() > limit;
         List<PostQueryRow> visibleRows = hasMore ? rows.subList(0, limit) : rows;
@@ -110,7 +150,9 @@ public class PostService {
 
         String nextCursor = null;
         if (hasMore && !visibleRows.isEmpty()) {
-            nextCursor = CursorUtils.encode(visibleRows.get(visibleRows.size() - 1).getId());
+            PostQueryRow lastRow = visibleRows.get(visibleRows.size() - 1);
+            Long cursorValue = lastRow.getCursorKey() != null ? lastRow.getCursorKey() : lastRow.getId();
+            nextCursor = CursorUtils.encode(cursorValue);
         }
 
         return CursorPage.<PostDTO>builder()
