@@ -19,12 +19,16 @@ export function DesktopHeader() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
+  // 登录态同步：随路由变化重新获取（Header 常驻 App 层，登录/登出后不会重新挂载）
   useEffect(() => {
-    if (!getAccessToken()) return
+    if (!getAccessToken()) {
+      setCurrentUser(null)
+      return
+    }
     getCurrentUserProfile()
       .then(setCurrentUser)
-      .catch(() => { /* 未登录或请求失败，保持 null */ })
-  }, [])
+      .catch(() => setCurrentUser(null))
+  }, [pathname])
 
   // 登出确认弹窗：Esc 关闭
   useEffect(() => {
