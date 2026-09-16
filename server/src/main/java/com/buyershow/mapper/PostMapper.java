@@ -1,10 +1,14 @@
 package com.buyershow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
 import com.buyershow.dto.response.PostQueryRow;
+import com.buyershow.dto.response.TagStatDTO;
 import com.buyershow.entity.Post;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Result;
+import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -261,6 +265,32 @@ public interface PostMapper extends BaseMapper<Post> {
 
     @Select("SELECT id, created_at FROM posts WHERE status = 0 AND moderation_status = 0 ORDER BY id DESC LIMIT 1000")
     List<Post> selectPublicPosts();
+
+    @Update("UPDATE posts SET tags = #{tagsJson} WHERE id = #{id}")
+    int updatePostTags(@Param("id") Long id, @Param("tagsJson") String tagsJson);
+
+    /** 含指定标签的未删除帖子（仅 id 与 tags 字段）。 */
+    @Select("SELECT id, tags FROM posts WHERE status = 0 AND JSON_CONTAINS(tags, JSON_QUOTE(#{tag}))")
+    @Results({
+            @Result(column = "id", property = "id"),
+            @Result(column = "tags", property = "tags", typeHandler = JacksonTypeHandler.class)
+    })
+    List<Post> selectPostsWithTag(@Param("tag") String tag);
+
+    /** 标签聚合统计（未删除帖，按使用量倒序，可按关键词过滤）。 */
+    @Select({
+            "<script>",
+            "SELECT jt.tag AS tag, COUNT(*) AS postCount",
+            "FROM posts p",
+            "JOIN JSON_TABLE(p.tags, '$[*]' COLUMNS (tag VARCHAR(50) PATH '$')) jt",
+            "WHERE p.status = 0",
+            "<if test='keyword != null'> AND jt.tag LIKE CONCAT('%', #{keyword}, '%') </if>",
+            "GROUP BY jt.tag",
+            "ORDER BY postCount DESC, jt.tag",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<TagStatDTO> selectTagStats(@Param("keyword") String keyword, @Param("limit") int limit);
 
 
     @Select({

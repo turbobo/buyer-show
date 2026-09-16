@@ -88,6 +88,39 @@ export function getAuditLogs(page = 1, size = 20, actions?: string): Promise<Pag
   return requestPage<AuditLogItem>(`/admin/audit-logs?${params.toString()}`)
 }
 
+export interface TagStat {
+  tag: string
+  postCount: number
+}
+
+/** 标签聚合统计（按使用量倒序，可按关键词过滤）。 */
+export function getTags(keyword?: string, limit = 100): Promise<TagStat[]> {
+  const params = new URLSearchParams({ limit: String(limit) })
+  if (keyword) params.set('keyword', keyword)
+  return request<TagStat[]>(`/admin/tags?${params.toString()}`)
+}
+
+export function renameTag(source: string, target: string): Promise<{ affected: number }> {
+  return request<{ affected: number }>('/admin/tags/rename', {
+    method: 'POST',
+    body: JSON.stringify({ source, target }),
+  })
+}
+
+export function mergeTag(source: string, target: string): Promise<{ affected: number }> {
+  return request<{ affected: number }>('/admin/tags/merge', {
+    method: 'POST',
+    body: JSON.stringify({ source, target }),
+  })
+}
+
+export function deleteTag(source: string): Promise<{ affected: number }> {
+  return request<{ affected: number }>('/admin/tags/delete', {
+    method: 'POST',
+    body: JSON.stringify({ source }),
+  })
+}
+
 export function moderatePost(postId: number, status: number, reason?: string): Promise<void> {
   return request<void>(`/admin/moderation/posts/${postId}`, {
     method: 'POST',

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAuditLogs, type AuditLogItem } from '@/services/admin'
 
-type FilterKey = 'all' | 'moderation' | 'user' | 'post' | 'report' | 'appeal'
+type FilterKey = 'all' | 'moderation' | 'user' | 'post' | 'report' | 'appeal' | 'tag'
 
 const FILTERS: { key: FilterKey; label: string; actions?: string }[] = [
   { key: 'all', label: '全部' },
@@ -13,6 +13,7 @@ const FILTERS: { key: FilterKey; label: string; actions?: string }[] = [
   { key: 'post', label: '帖子管理', actions: 'BAN_POST,UNBAN_POST' },
   { key: 'report', label: '举报处置', actions: 'HANDLE_REPORT' },
   { key: 'appeal', label: '申诉处理', actions: 'HANDLE_APPEAL' },
+  { key: 'tag', label: '标签管理', actions: 'RENAME_TAG,MERGE_TAG,DELETE_TAG' },
 ]
 
 const ACTION_LABELS: Record<string, { text: string; className: string }> = {
@@ -24,6 +25,9 @@ const ACTION_LABELS: Record<string, { text: string; className: string }> = {
   UNBAN_POST: { text: '解封帖子', className: 'bg-green-600/90' },
   HANDLE_REPORT: { text: '举报处置', className: 'bg-amber-600/90' },
   HANDLE_APPEAL: { text: '申诉处理', className: 'bg-purple-500/90' },
+  RENAME_TAG: { text: '重命名标签', className: 'bg-teal-600/90' },
+  MERGE_TAG: { text: '合并标签', className: 'bg-teal-600/90' },
+  DELETE_TAG: { text: '删除标签', className: 'bg-destructive/90' },
 }
 
 const TARGET_LABELS: Record<string, string> = {
@@ -32,6 +36,7 @@ const TARGET_LABELS: Record<string, string> = {
   USER: '用户',
   REPORT: '举报',
   APPEAL: '申诉',
+  TAG: '标签',
 }
 
 const PAGE_SIZE = 20
