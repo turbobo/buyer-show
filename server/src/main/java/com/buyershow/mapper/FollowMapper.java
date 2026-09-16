@@ -12,6 +12,11 @@ import java.util.List;
 @Mapper
 public interface FollowMapper extends BaseMapper<Follow> {
 
+    /** 单对关注关系判断（follower 是否关注 following）。 */
+    @Select("SELECT COUNT(*) FROM follows WHERE follower_id = #{followerId} AND following_id = #{followingId}")
+    int countFollow(@Param("followerId") Long followerId, @Param("followingId") Long followingId);
+
+
     @Select({
             "<script>",
             "SELECT u.id, u.nickname, u.avatar_url AS avatarUrl, u.bio,",

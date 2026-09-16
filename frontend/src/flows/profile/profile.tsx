@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Heart, Home, Loader2, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Heart, Home, Loader2, MessageSquare, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
+import { startConversation } from '@/services/messages'
 import { smartBack } from '@/lib/smart-back'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
@@ -119,6 +120,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [isListLoading, setIsListLoading] = useState(false)
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts')
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false)
+  const [isStartingChat, setIsStartingChat] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ApiPostSummary | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [appealTarget, setAppealTarget] = useState<ApiPostSummary | null>(null)
@@ -203,6 +205,19 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       toast('error', requestError instanceof Error ? requestError.message : '操作失败')
     } finally {
       setIsFollowSubmitting(false)
+    }
+  }
+
+  const handleStartChat = async () => {
+    if (!profile) return
+    setIsStartingChat(true)
+    try {
+      const conversation = await startConversation(profile.id)
+      navigate(`/messages?c=${conversation.id}`)
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '无法发起私信')
+    } finally {
+      setIsStartingChat(false)
     }
   }
 
@@ -331,16 +346,26 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
               {isOwn ? (
                 <Button variant="outline" onClick={() => navigate('/profile/edit')}>编辑资料</Button>
               ) : (
-                <Button
-                  variant={profile.isFollowing ? 'outline' : 'default'}
-                  className={profile.isFollowing ? '' : 'bg-coral text-white hover:bg-coral-dark'}
-                  disabled={isFollowSubmitting}
-                  onClick={() => void handleFollow()}
-                >
-                  {profile.isFollowing
-                    ? <><UserCheck className="mr-1 h-4 w-4" />已关注</>
-                    : <><UserPlus className="mr-1 h-4 w-4" />关注</>}
-                </Button>
+                <>
+                  <Button
+                    variant={profile.isFollowing ? 'outline' : 'default'}
+                    className={profile.isFollowing ? '' : 'bg-coral text-white hover:bg-coral-dark'}
+                    disabled={isFollowSubmitting}
+                    onClick={() => void handleFollow()}
+                  >
+                    {profile.isFollowing
+                      ? <><UserCheck className="mr-1 h-4 w-4" />已关注</>
+                      : <><UserPlus className="mr-1 h-4 w-4" />关注</>}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    disabled={isStartingChat}
+                    onClick={() => void handleStartChat()}
+                  >
+                    <MessageSquare className="mr-1 h-4 w-4" />
+                    私信
+                  </Button>
+                </>
               )}
             </div>
           </div>
