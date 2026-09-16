@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Clock, Heart, Home, Loader2, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
+import { Clock, Heart, Home, Loader2, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { getFeed, type ApiPostSummary } from '@/services/posts'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
+import { UserMenu } from '@/components/layout/user-menu'
 import { useTheme } from '@/hooks/use-theme'
 import { Moon, Sun } from 'lucide-react'
 import { mockTags, hotSearchTags, searchHistory } from '../shared/mock-data'
@@ -419,30 +420,6 @@ export default function HomeFeedScreen() {
               审核台
             </Button>
           )}
-          {currentUser ? (
-            <div className="hidden items-center gap-2 sm:flex">
-              <button
-                type="button"
-                onClick={() => navigate('/profile')}
-                className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-muted/50"
-              >
-                <Avatar className="h-8 w-8">
-                  {currentUser.avatarUrl && <AvatarImage src={currentUser.avatarUrl} alt={currentUser.nickname} />}
-                  <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">
-                    {currentUser.nickname[0]}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="max-w-20 truncate text-sm font-medium">{currentUser.nickname}</span>
-              </button>
-              <Button aria-label="退出登录" variant="ghost" size="icon" onClick={() => setShowLogoutConfirm(true)}>
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/login')}>
-              登录
-            </Button>
-          )}
           <Button
             aria-label="发布分享"
             onClick={() => navigate('/publish')}
@@ -451,6 +428,15 @@ export default function HomeFeedScreen() {
             <Plus className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">发布</span>
           </Button>
+          {currentUser ? (
+            <div className="hidden sm:block">
+              <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
+            </div>
+          ) : (
+            <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/login')}>
+              登录
+            </Button>
+          )}
         </div>
       </nav>
 

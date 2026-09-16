@@ -1,10 +1,10 @@
 // PC 端全局顶部导航：Stack 页常驻（首页用 Feed 自带导航；登录/管理后台为独立体系，不显示）
-// 菜单规格与 Feed 顶部导航完全一致：logo · 🏠首页 · 💬消息 · 搜索 · 主题 · 审核台 · 用户区(头像+退出) · 发布
+// 菜单规格与 Feed 顶部导航完全一致：logo · 🏠首页 · 💬消息 · 搜索 · 主题 · 审核台 · 发布 · 用户区(头像下拉：我的主页/编辑资料/退出)
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, LogOut, MessageCircle, Moon, Plus, Search, Sun } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Home, MessageCircle, Moon, Plus, Search, Sun } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { UserMenu } from './user-menu'
 import { useTheme } from '@/hooks/use-theme'
 import { useToast } from '@/components/ui/toast'
 import { clearTokens, getAccessToken, getTokenRole } from '@/services/http'
@@ -96,30 +96,6 @@ export function DesktopHeader() {
                 审核台
               </Button>
             )}
-            {currentUser ? (
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => navigate('/profile')}
-                  className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 transition-colors hover:bg-muted/50"
-                >
-                  <Avatar className="h-8 w-8">
-                    {currentUser.avatarUrl && <AvatarImage src={currentUser.avatarUrl} alt={currentUser.nickname} />}
-                    <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">
-                      {currentUser.nickname[0]}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="max-w-20 truncate text-sm font-medium">{currentUser.nickname}</span>
-                </button>
-                <Button aria-label="退出登录" variant="ghost" size="icon" onClick={() => setShowLogoutConfirm(true)}>
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-                登录
-              </Button>
-            )}
             <Button
               aria-label="发布分享"
               onClick={() => navigate('/publish')}
@@ -128,6 +104,13 @@ export function DesktopHeader() {
               <Plus className="h-4 w-4 sm:mr-1" />
               <span>发布</span>
             </Button>
+            {currentUser ? (
+              <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
+            ) : (
+              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
+                登录
+              </Button>
+            )}
           </div>
         </div>
       </header>
