@@ -11,6 +11,7 @@ import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
 import { UserMenu } from '@/components/layout/user-menu'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useTheme } from '@/hooks/use-theme'
 import { Moon, Sun } from 'lucide-react'
 import { mockTags, hotSearchTags, searchHistory } from '../shared/mock-data'
@@ -219,6 +220,7 @@ export default function HomeFeedScreen() {
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
   const [activeTab, setActiveTab] = useState<TabKey>('home')
+  const unreadCount = useUnreadCount()
   const [searchQuery, setSearchQuery] = useState('')
   const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
@@ -378,9 +380,14 @@ export default function HomeFeedScreen() {
               <Home className="mr-1 h-4 w-4" />
               首页
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/messages')}>
+            <Button variant="ghost" size="sm" className="relative" onClick={() => navigate('/messages')}>
               <MessageCircle className="mr-1 h-4 w-4" />
               消息
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Button>
           </div>
           <div className="relative mx-auto max-w-xl flex-1">

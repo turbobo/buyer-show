@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { UserMenu } from './user-menu'
 import { useTheme } from '@/hooks/use-theme'
 import { useToast } from '@/components/ui/toast'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 import { clearTokens, getAccessToken, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 
@@ -41,6 +42,7 @@ export function DesktopHeader() {
   }, [showLogoutConfirm])
 
   const visible = pathname !== '/' && pathname !== '/login' && !pathname.startsWith('/admin')
+  const unreadCount = useUnreadCount()
   if (!visible) return null
 
   const isAdmin = getTokenRole() === 'ADMIN'
@@ -69,9 +71,14 @@ export function DesktopHeader() {
               <Home className="mr-1 h-4 w-4" />
               首页
             </Button>
-            <Button variant={onMessages ? 'secondary' : 'ghost'} size="sm" onClick={() => navigate('/messages')}>
+            <Button variant={onMessages ? 'secondary' : 'ghost'} size="sm" className="relative" onClick={() => navigate('/messages')}>
               <MessageCircle className="mr-1 h-4 w-4" />
               消息
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </Button>
           </nav>
           <button

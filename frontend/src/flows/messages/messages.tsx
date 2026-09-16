@@ -1,14 +1,16 @@
 // FLOW: Messages & Notifications
 // SCREEN 1 of 2: Messages Center | PLATFORM: Web (responsive) | ENTRY: /messages | EXIT: Chat
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Home, Search, MessageCircle, Send, Image, Mic, MoreVertical, Phone, Video } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Heart, Home, Loader2, MessageCircle, Search, Send, Image, Mic, MoreVertical, Phone, ShieldCheck, UserPlus, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { mockConversations, mockMessages, mockNotifications, mockCurrentUser } from '../shared/mock-data'
-import type { Conversation, Message, Notification } from '../shared/types'
+import { getNotifications, getUnreadCount, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
+import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
+import { mockConversations, mockMessages, mockCurrentUser } from '../shared/mock-data'
+import type { Conversation, Message } from '../shared/types'
 
 // ─── Conversation List Item ───
 function ConversationItem({ conv, isActive, onClick }: { conv: Conversation; isActive: boolean; onClick: () => void }) {
@@ -60,26 +62,61 @@ function MessageBubble({ msg, isSent }: { msg: Message; isSent: boolean }) {
   )
 }
 
-// ─── Notification Item ───
-function NotificationItem({ notif }: { notif: Notification }) {
-  const iconMap = { like: '❤️', comment: '💬', follow: '👤', system: '📢' }
-  const bgMap = { like: 'bg-red-50', comment: 'bg-blue-50', follow: 'bg-green-50', system: 'bg-coral-light' }
+// ─── Notification Item（真实数据） ───
+function notificationIcon(type: AppNotification['type']) {
+  switch (type) {
+    case 'like': return <Heart className="h-3 w-3 text-red-500" />
+    case 'comment': return <MessageCircle className="h-3 w-3 text-blue-500" />
+    case 'follow': return <UserPlus className="h-3 w-3 text-green-500" />
+    case 'system': return <ShieldCheck className="h-3 w-3 text-coral" />
+    default: return <MessageCircle className="h-3 w-3 text-muted-foreground" />
+  }
+}
+
+function notificationText(notification: AppNotification): string {
+  switch (notification.type) {
+    case 'like': return `赞了你的帖子${notification.content ? `「${notification.content}」` : ''}`
+    case 'comment': return `评论了你的帖子${notification.content ? `：${notification.content}` : ''}`
+    case 'follow': return '关注了你'
+    case 'system': return notification.content || '系统通知'
+    default: return notification.content || '新通知'
+  }
+}
+
+function formatNotificationTime(value: string): string {
+  const date = new Date(value.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
+function NotificationItem({ notification, onClick }: { notification: AppNotification; onClick: () => void }) {
+  const system = notification.type === 'system'
+  const displayName = system ? '系统通知' : notification.actorNickname
   return (
-    <div className={`flex items-start gap-3 p-3 rounded-xl transition-colors ${notif.isRead ? '' : 'bg-coral-light/30'}`}>
-      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${bgMap[notif.type]}`}>
-        {iconMap[notif.type]}
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted/50 ${
+        notification.isRead === 0 ? 'bg-coral-light/30' : ''
+      }`}
+    >
+      <div className="relative shrink-0">
+        <Avatar className="h-9 w-9">
+          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">{displayName?.[0] ?? '?'}</AvatarFallback>
+        </Avatar>
+        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-border/40 bg-card">
+          {notificationIcon(notification.type)}
+        </span>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm text-foreground leading-relaxed">
-          <span className="font-semibold">{notif.actor.nickname}</span>{' '}
-          <span className="text-foreground/70">{notif.content}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm leading-relaxed text-foreground">
+          <span className="font-semibold">{displayName}</span>{' '}
+          <span className="text-foreground/70">{notificationText(notification)}</span>
         </p>
-        <span className="text-xs text-muted-foreground">{notif.createdAt}</span>
+        <span className="text-xs text-muted-foreground">{formatNotificationTime(notification.createdAt)}</span>
       </div>
-      {notif.type === 'follow' && (
-        <Button variant="outline" size="sm" className="text-xs shrink-0 h-7 border-coral/30 text-coral">回关</Button>
-      )}
-    </div>
+      {notification.isRead === 0 && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-coral" />}
+    </button>
   )
 }
 
@@ -91,6 +128,40 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const [activeTab, setActiveTab] = useState<'dm' | 'notifications'>('dm')
   const [activeConv, setActiveConv] = useState<Conversation | null>(null)
   const [messageText, setMessageText] = useState('')
+  const [notifications, setNotifications] = useState<AppNotification[]>([])
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
+
+  // 进入消息页拉取未读数（徽标展示）
+  useEffect(() => {
+    getUnreadCount()
+      .then((data) => setUnreadCount(data.count ?? 0))
+      .catch(() => { /* 未登录/网络异常时保持 0 */ })
+  }, [])
+
+  // 切换到通知 Tab 时加载真实通知
+  useEffect(() => {
+    if (activeTab !== 'notifications') return
+    setIsLoadingNotifications(true)
+    getNotifications(50)
+      .then((items) => {
+        setNotifications(items)
+        setUnreadCount(items.filter((item) => item.isRead === 0).length)
+      })
+      .catch(() => { /* 保持现有列表 */ })
+      .finally(() => setIsLoadingNotifications(false))
+  }, [activeTab])
+
+  const handleMarkAllRead = async () => {
+    try {
+      await markAllAsRead()
+      setNotifications((current) => current.map((item) => ({ ...item, isRead: 1 })))
+      setUnreadCount(0)
+      window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT))
+    } catch {
+      /* 静默失败，下次进入重试 */
+    }
+  }
 
   // Desktop: split view. Mobile: full-screen switching.
   const showChat = activeConv !== null
@@ -134,12 +205,14 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
         </div>
       </nav>
 
-      {/* 静态数据提示 */}
-      <div className="mx-auto w-full max-w-5xl px-4 pt-3">
-        <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-700">
-          ⚠️ 当前为静态演示数据，消息服务开发中
+      {/* 静态数据提示（仅私信 Tab） */}
+      {activeTab === 'dm' && (
+        <div className="mx-auto w-full max-w-5xl px-4 pt-3">
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-700">
+            ⚠️ 私信功能开发中，敬请期待；互动通知已接入真实数据
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="mx-auto flex w-full max-w-5xl flex-1 overflow-hidden px-4">
         {/* Left Panel: Conversations + Notifications */}
@@ -152,7 +225,11 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               </button>
               <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 互动通知
-                <span className="w-4 h-4 bg-coral text-white text-[10px] rounded-full flex items-center justify-center font-bold">3</span>
+                {unreadCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -177,12 +254,39 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               </div>
             ) : (
               <div className="space-y-1">
-                <div className="flex justify-end px-2 mb-2">
-                  <button className="text-xs text-coral hover:underline">全部已读</button>
-                </div>
-                {mockNotifications.map(notif => (
-                  <NotificationItem key={notif.id} notif={notif} />
-                ))}
+                {unreadCount > 0 && (
+                  <div className="mb-2 flex justify-end px-2">
+                    <button
+                      type="button"
+                      onClick={() => void handleMarkAllRead()}
+                      className="flex items-center gap-1 text-xs text-coral hover:underline"
+                    >
+                      <CheckCheck className="h-3.5 w-3.5" />
+                      全部已读
+                    </button>
+                  </div>
+                )}
+                {isLoadingNotifications ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : notifications.length === 0 ? (
+                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">暂无通知</p>
+                ) : (
+                  notifications.map((item) => (
+                    <NotificationItem
+                      key={item.id}
+                      notification={item}
+                      onClick={() => {
+                        if (item.type === 'follow') {
+                          if (item.actorId != null) navigate(`/user/${item.actorId}`)
+                        } else if (item.targetType === 'post' && item.targetId != null) {
+                          navigate(`/posts/${item.targetId}`)
+                        }
+                      }}
+                    />
+                  ))
+                )}
               </div>
             )}
           </div>

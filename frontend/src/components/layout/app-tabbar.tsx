@@ -2,6 +2,7 @@
 // 显示于 Stack 页（主页/列表/消息等）；沉浸页与独立体系页隐藏（详情、发布、登录、管理后台）
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Home, MessageCircle, Plus, Search, User as UserIcon } from 'lucide-react'
+import { useUnreadCount } from '@/hooks/use-unread-count'
 
 const TABS = [
   { key: 'home', icon: Home, label: '首页' },
@@ -25,6 +26,7 @@ function resolveActive(pathname: string): TabKey | null {
 export function AppTabBar() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const unreadCount = useUnreadCount()
 
   const visible = pathname !== '/' && !HIDDEN_PREFIXES.some((prefix) => pathname.startsWith(prefix))
   if (!visible) return null
@@ -71,6 +73,11 @@ export function AppTabBar() {
                 <Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
               )}
               <span className={`text-[10px] ${isPublish ? 'text-coral font-medium' : ''}`}>{tab.label}</span>
+              {tab.key === 'messages' && unreadCount > 0 && (
+                <span className="absolute left-1/2 top-1.5 flex h-4 min-w-4 -translate-x-1 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
               {isActive && !isPublish && (
                 <span className="absolute bottom-1.5 h-0.5 w-5 rounded-full bg-coral" />
               )}
