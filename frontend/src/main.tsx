@@ -35,6 +35,16 @@ window.addEventListener('vite:preloadError', (event: Event) => {
   }
 })
 
+// Service Worker 新版本接管时自动刷新一次，避免已打开的旧页面长期停留在缓存版本
+if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+  let isRefreshing = false
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (isRefreshing) return
+    isRefreshing = true
+    window.location.reload()
+  })
+}
+
 createRoot(rootElement).render(
   <StrictMode>
     <ToastProvider>
