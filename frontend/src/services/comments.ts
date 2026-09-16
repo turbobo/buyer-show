@@ -1,4 +1,5 @@
 import { request } from './http'
+import type { CursorPage } from './posts'
 
 export interface ApiComment {
   id: number
@@ -29,4 +30,21 @@ export function createComment(postId: string, content: string, parentId?: number
 
 export function deleteComment(commentId: number): Promise<void> {
   return request<void>(`/comments/${commentId}`, { method: 'DELETE' })
+}
+
+export interface UserComment {
+  id: number
+  postId: number
+  postTitle: string
+  content: string
+  moderationStatus: number
+  createdAt: string
+}
+
+/** 当前用户的评论（含待审/未通过，仅本人可见，游标分页）。 */
+export function getUserComments(cursor?: string, size = 20): Promise<CursorPage<UserComment>> {
+  const params = new URLSearchParams()
+  if (cursor) params.set('cursor', cursor)
+  params.set('size', String(size))
+  return request<CursorPage<UserComment>>(`/users/me/comments?${params.toString()}`)
 }

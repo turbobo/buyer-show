@@ -6,8 +6,11 @@ import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.PostStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.CursorPage;
+import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.entity.Comment;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
@@ -64,6 +67,33 @@ public class CommentService {
 
     public List<CommentDTO> listComments(Long postId) {
         return listComments(postId, DEFAULT_ROOT_LIMIT);
+    }
+
+    /**
+     * 查询当前用户的评论（含待审/未通过状态，仅本人可见，游标分页）。
+     *
+     * @param cursor 游标（上一页最后一条评论ID的编码）
+     * @param requestedLimit 每页数量
+     * @return 评论游标页
+     */
+    public CursorPage<UserCommentRow> listMyComments(String cursor, int requestedLimit) {
+        Long userId = requireCurrentUserId();
+        int limit = Math.min(Math.max(requestedLimit, 1), MAX_ROOT_LIMIT);
+        Long cursorId = CursorUtils.decode(cursor);
+        List<UserCommentRow> rows = commentMapper.selectUserComments(userId, cursorId, limit + 1);
+
+        boolean hasMore = rows.size() > limit;
+        List<UserCommentRow> visible = hasMore ? rows.subList(0, limit) : rows;
+        String nextCursor = null;
+        if (hasMore && !visible.isEmpty()) {
+            nextCursor = CursorUtils.encode(visible.get(visible.size() - 1).getId());
+        }
+
+        return CursorPage.<UserCommentRow>builder()
+                .list(visible)
+                .nextCursor(nextCursor)
+                .hasMore(hasMore)
+                .build();
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package com.buyershow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.entity.Comment;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -40,6 +41,25 @@ public interface CommentMapper extends BaseMapper<Comment> {
             "</script>"
     })
     List<CommentDTO> selectVisibleReplies(@Param("parentIds") List<Long> parentIds);
+
+    /**
+     * 当前用户的评论（含待审/未通过状态，仅本人可见，ID 游标倒序）。
+     */
+    @Select({
+            "<script>",
+            "SELECT c.id, c.post_id AS postId, p.title AS postTitle, c.content,",
+            "       c.moderation_status AS moderationStatus, c.created_at AS createdAt",
+            "FROM comments c JOIN posts p ON p.id = c.post_id AND p.status = 0",
+            "WHERE c.user_id = #{userId} AND c.status = 0",
+            "<if test='cursorId != null'>",
+            "AND c.id &lt; #{cursorId}",
+            "</if>",
+            "ORDER BY c.id DESC LIMIT #{limit}",
+            "</script>"
+    })
+    List<UserCommentRow> selectUserComments(@Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            @Param("limit") int limit);
 
     @Update("UPDATE posts SET comment_count = GREATEST(comment_count + #{delta}, 0) "
             + "WHERE id = #{postId} AND status = 0 AND moderation_status = 0")

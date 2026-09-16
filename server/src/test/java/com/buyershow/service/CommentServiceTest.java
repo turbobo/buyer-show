@@ -3,8 +3,11 @@ package com.buyershow.service;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.exception.BusinessException;
+import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreateCommentRequest;
 import com.buyershow.dto.response.CommentDTO;
+import com.buyershow.dto.response.CursorPage;
+import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.entity.Comment;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
@@ -31,6 +34,24 @@ class CommentServiceTest {
     private final NotificationService notificationService = mock(NotificationService.class);
     private final CommentService service = new CommentService(
             commentMapper, postMapper, userMapper, moderationService, notificationService);
+
+    @Test
+    void listsMyCommentsWithCursor() {
+        authenticate(1L);
+        UserCommentRow first = new UserCommentRow();
+        first.setId(30L);
+        UserCommentRow second = new UserCommentRow();
+        second.setId(20L);
+        UserCommentRow extra = new UserCommentRow();
+        extra.setId(10L);
+        when(commentMapper.selectUserComments(eq(1L), isNull(), eq(3))).thenReturn(List.of(first, second, extra));
+
+        CursorPage<UserCommentRow> page = service.listMyComments(null, 2);
+
+        assertEquals(2, page.getList().size());
+        assertTrue(page.isHasMore());
+        assertEquals(CursorUtils.encode(20L), page.getNextCursor());
+    }
 
     @AfterEach
     void tearDown() {

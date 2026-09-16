@@ -26,6 +26,19 @@ interface ImageItem {
   url?: string
 }
 
+const DRAFT_KEY = 'buyer-show.post-draft'
+
+interface PostDraft {
+  title: string
+  content: string
+  productName: string
+  source: string
+  price: string
+  rating: number
+  tags: string[]
+  savedAt: number
+}
+
 /**
  * 发布 / 编辑分享页。
  * 路由 `/publish` 为发布模式；`/posts/:postId/edit` 为编辑模式（回填原帖内容）。
@@ -45,6 +58,7 @@ export default function PublishScreen() {
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
   const [isInitializing, setIsInitializing] = useState(isEdit)
+  const [draftPrompt, setDraftPrompt] = useState<PostDraft | null>(null)
   const [publishStage, setPublishStage] = useState<string | null>(null)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -139,6 +153,53 @@ export default function PublishScreen() {
     })
   }, [])
 
+  // 草稿恢复提示（仅发布模式；不自动覆盖，需用户确认）
+  useEffect(() => {
+    if (isEdit) return
+    try {
+      const raw = localStorage.getItem(DRAFT_KEY)
+      if (!raw) return
+      const draft = JSON.parse(raw) as PostDraft
+      if (draft && (draft.title || draft.content)) {
+        setDraftPrompt(draft)
+      }
+    } catch {
+      localStorage.removeItem(DRAFT_KEY)
+    }
+  }, [isEdit])
+
+  // 草稿自动保存（防抖 600ms；提示未处理时不覆盖）
+  useEffect(() => {
+    if (isEdit || draftPrompt) return
+    const hasContent = title.trim() || content.trim() || productName.trim() || price.trim() || selectedTags.length > 0
+    if (!hasContent) return
+    const timer = window.setTimeout(() => {
+      const draft: PostDraft = {
+        title, content, productName, source, price, rating, tags: selectedTags, savedAt: Date.now(),
+      }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
+    }, 600)
+    return () => window.clearTimeout(timer)
+  }, [isEdit, draftPrompt, title, content, productName, source, price, rating, selectedTags])
+
+  const applyDraft = () => {
+    if (!draftPrompt) return
+    setTitle(draftPrompt.title)
+    setContent(draftPrompt.content)
+    setProductName(draftPrompt.productName)
+    setSource(draftPrompt.source)
+    setPrice(draftPrompt.price)
+    setRating(draftPrompt.rating)
+    setSelectedTags(draftPrompt.tags)
+    setDraftPrompt(null)
+    toast('info', '草稿已恢复（图片需重新上传）')
+  }
+
+  const discardDraft = () => {
+    localStorage.removeItem(DRAFT_KEY)
+    setDraftPrompt(null)
+  }
+
   const handleSubmit = async () => {
     const trimmedTitle = title.trim()
     const trimmedContent = content.trim()
@@ -194,6 +255,7 @@ export default function PublishScreen() {
         setResult('保存成功，即将返回详情页')
         navigateTimerRef.current = window.setTimeout(() => navigate(`/posts/${postId}`), 1200)
       } else {
+        localStorage.removeItem(DRAFT_KEY)
         setResult(post.moderationStatus === 1 ? '内容已提交，正在等待人工审核' : '发布成功，即将跳转详情页')
         navigateTimerRef.current = window.setTimeout(
           () => navigate(post.moderationStatus === 1 ? '/' : `/posts/${post.id}`),
@@ -275,6 +337,21 @@ export default function PublishScreen() {
       </nav>
 
       <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
+        {/* ─── 草稿恢复提示 ─── */}
+        {draftPrompt && (
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+            <span className="flex-1">
+              发现 {new Date(draftPrompt.savedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 保存的草稿，是否恢复？
+            </span>
+            <Button size="sm" className="h-8 bg-coral text-white hover:bg-coral-dark" onClick={applyDraft}>
+              恢复草稿
+            </Button>
+            <Button size="sm" variant="ghost" className="h-8 text-amber-700" onClick={discardDraft}>
+              丢弃
+            </Button>
+          </div>
+        )}
+
         {/* ─── 分享内容 ─── */}
         <section className="space-y-4 rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="text-lg font-bold">分享内容</h2>

@@ -4,7 +4,9 @@ import com.buyershow.common.R;
 import com.buyershow.dto.request.UpdateProfileRequest;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
+import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.dto.response.UserDTO;
+import com.buyershow.service.CommentService;
 import com.buyershow.service.PostService;
 import com.buyershow.service.UserService;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ public class UserController {
 
     private final UserService userService;
     private final PostService postService;
+    private final CommentService commentService;
 
     /** 获取指定用户公开资料。 */
     @GetMapping("/{userId}")
@@ -58,6 +61,14 @@ public class UserController {
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
         return R.ok(postService.listOwnPosts(cursor, size));
+    }
+
+    /** 获取当前用户的评论（含待审/未通过，仅本人可见）。 */
+    @GetMapping("/me/comments")
+    public R<CursorPage<UserCommentRow>> getMyComments(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(commentService.listMyComments(cursor, size));
     }
 
     /** 获取当前登录用户资料。 */
