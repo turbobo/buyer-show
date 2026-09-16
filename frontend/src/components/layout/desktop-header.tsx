@@ -58,7 +58,7 @@ export function DesktopHeader() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 hidden border-b border-border bg-card/95 backdrop-blur-xl md:block">
+      <header className="sticky top-0 z-[55] hidden border-b border-border bg-card/95 backdrop-blur-xl md:block">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
           <button type="button" onClick={() => navigate('/')} className="flex shrink-0 items-center gap-2" aria-label="返回首页">
             <img src="/favicon.svg" alt="" className="h-8 w-8" />
