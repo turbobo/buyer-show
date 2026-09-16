@@ -96,7 +96,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const showChat = activeConv !== null
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-[calc(100dvh-3.5rem)]">
+    <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-[calc(100dvh-57px)]">
       {/* Top Nav */}
       <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border md:hidden">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
@@ -135,13 +135,13 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
       </nav>
 
       {/* 静态数据提示 */}
-      <div className="mx-auto max-w-5xl px-4 pt-3">
+      <div className="mx-auto w-full max-w-5xl px-4 pt-3">
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-700">
           ⚠️ 当前为静态演示数据，消息服务开发中
         </div>
       </div>
 
-      <div className="mx-auto flex max-w-5xl flex-1 overflow-hidden">
+      <div className="mx-auto flex w-full max-w-5xl flex-1 overflow-hidden px-4">
         {/* Left Panel: Conversations + Notifications */}
         <div className={`${showChat ? 'hidden md:flex' : 'flex'} flex-col w-full md:w-96 shrink-0 border-r border-border/60 bg-card`}>
           {/* Tabs */}
