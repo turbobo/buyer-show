@@ -42,10 +42,16 @@ function PostGridItem({ post, manageable, onDeleteRequest, onAppealRequest }: {
         onClick={() => navigate(`/posts/${post.id}`)}
         className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
       >
-        <div
-          className="relative aspect-[3/4] bg-muted"
-          style={cover?.startsWith('http') ? { background: `url(${cover}) center / cover` } : undefined}
-        >
+        <div className="relative aspect-[3/4] bg-muted">
+          {cover?.startsWith('http') && (
+            <img
+              src={cover}
+              alt={post.title}
+              loading="lazy"
+              className="h-full w-full object-cover"
+              onError={(event) => { event.currentTarget.style.display = 'none' }}
+            />
+          )}
           {statusBadge && (
             <span className={`absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] text-white ${statusBadge.className}`}>
               {statusBadge.text}
@@ -246,7 +252,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       : isOwn ? '还没有发布分享' : '还没有公开分享'
 
   const navBar = (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <div className="flex items-center gap-1 -ml-3">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>

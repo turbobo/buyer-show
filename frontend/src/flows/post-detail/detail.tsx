@@ -293,7 +293,7 @@ export default function PostDetailScreen() {
 
   if (isLoading) return (
     <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-50 border-b border-border bg-card/95">
+      <div className="sticky top-0 z-50 border-b border-border bg-card/95 md:top-14">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <Skeleton className="h-8 w-8 rounded-full" />
           <Skeleton className="h-7 w-7 rounded-full" />
@@ -348,7 +348,7 @@ export default function PostDetailScreen() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 
       {/* ─── 顶部导航 ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 md:top-14">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>

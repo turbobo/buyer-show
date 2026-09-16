@@ -93,7 +93,7 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Clock, Heart, Home, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
+import { Clock, Heart, Home, Loader2, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -66,6 +66,8 @@ function useColumnCount(): number {
   return count
 }
 
+const PULL_THRESHOLD = 56
+
 function postBackground(post: ApiPostSummary): string {
   const image = post.thumbnails?.[0] ?? post.images[0]
   if (image?.startsWith('http')) {
@@ -77,13 +79,28 @@ function postBackground(post: ApiPostSummary): string {
 
 function PostCard({ post }: { post: ApiPostSummary }) {
   const navigate = useNavigate()
+  const [imageFailed, setImageFailed] = useState(false)
+  const image = post.thumbnails?.[0] ?? post.images[0]
+  const hasImage = Boolean(image?.startsWith('http')) && !imageFailed
   return (
     <button
       type="button"
       onClick={() => navigate(`/posts/${post.id}`)}
       className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
     >
-      <div className={`bg-muted ${cardImageAspect(post.id).className}`} style={{ background: postBackground(post) }} />
+      <div className={`bg-muted ${cardImageAspect(post.id).className}`}>
+        {hasImage ? (
+          <img
+            src={image}
+            alt={post.title}
+            loading="lazy"
+            className="h-full w-full object-cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div className="h-full w-full" style={{ background: postBackground(post) }} />
+        )}
+      </div>
       <div className="p-3">
         <h3 className="mb-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
         {post.productName && (
@@ -205,6 +222,9 @@ export default function HomeFeedScreen() {
   const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
   const requestVersion = useRef(0)
+  const [pullY, setPullY] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const pullYRef = useRef(0)
 
   const loadFeed = useCallback(async (nextCursor?: string, append = false) => {
     const version = ++requestVersion.current
@@ -226,6 +246,43 @@ export default function HomeFeedScreen() {
   }, [activeTag, feedSort])
 
   useEffect(() => { void loadFeed() }, [loadFeed])
+
+  const refreshFeed = useCallback(async () => {
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    await loadFeed()
+    setIsRefreshing(false)
+  }, [isRefreshing, loadFeed])
+
+  // 下拉刷新（移动端触屏）：顶部下拉超过阈值后重新加载
+  useEffect(() => {
+    let startY: number | null = null
+    const onTouchStart = (event: TouchEvent) => {
+      startY = window.scrollY <= 0 ? event.touches[0].clientY : null
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      if (startY == null || window.scrollY > 0) return
+      const delta = event.touches[0].clientY - startY
+      if (delta <= 0) return
+      const next = Math.min(delta * 0.5, 80)
+      pullYRef.current = next
+      setPullY(next)
+    }
+    const onTouchEnd = () => {
+      if (pullYRef.current >= PULL_THRESHOLD) void refreshFeed()
+      pullYRef.current = 0
+      setPullY(0)
+      startY = null
+    }
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: true })
+    window.addEventListener('touchend', onTouchEnd)
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+    }
+  }, [refreshFeed])
 
   // 触底自动加载更多
   useEffect(() => {
@@ -417,6 +474,17 @@ export default function HomeFeedScreen() {
           </button>
         </div>
       </div>
+
+      {/* ─── 下拉刷新指示（移动端） ─── */}
+      {(pullY > 0 || isRefreshing) && (
+        <div
+          className="flex items-center justify-center gap-1.5 overflow-hidden text-xs text-muted-foreground"
+          style={{ height: isRefreshing ? 36 : pullY }}
+        >
+          <Loader2 className={`h-3.5 w-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? '刷新中...' : pullY >= PULL_THRESHOLD ? '松开刷新' : '下拉刷新'}
+        </div>
+      )}
 
       {/* ─── 主内容区 ─── */}
       <main className="mx-auto max-w-5xl px-4 py-6">

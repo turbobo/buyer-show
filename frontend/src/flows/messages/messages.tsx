@@ -96,9 +96,9 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const showChat = activeConv !== null
 
   return (
-    <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-screen">
+    <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-[calc(100dvh-3.5rem)]">
       {/* Top Nav */}
-      <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border">
+      <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border md:top-14">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button

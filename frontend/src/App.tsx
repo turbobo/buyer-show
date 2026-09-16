@@ -3,6 +3,8 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigationType 
 import { getAccessToken, getTokenRole } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
 import { AppTabBar } from './components/layout/app-tabbar'
+import { DesktopHeader } from './components/layout/desktop-header'
+import { smartBack } from './lib/smart-back'
 import { Skeleton } from './components/ui/skeleton'
 
 // 路由级懒加载 — 首页 Feed 立即加载，其余按需
@@ -98,11 +100,28 @@ function ScrollRestoration() {
   return null
 }
 
+// PC 键盘导航：Esc 返回上一页（弹窗打开时交由弹窗自行处理）
+function EscapeBack() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    const handler = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || pathname === '/') return
+      if (document.querySelector('[role="dialog"]')) return
+      smartBack()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [pathname])
+  return null
+}
+
 function AnimatedRoutes() {
   const location = useLocation()
   return (
     <div key={location.pathname} className="page-transition">
       <ScrollRestoration />
+      <EscapeBack />
+      <DesktopHeader />
       <Suspense fallback={<RouteFallback />}>
         <Routes location={location}>
           <Route path="/" element={<HomeFeedScreen />} />
