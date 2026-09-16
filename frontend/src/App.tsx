@@ -26,6 +26,7 @@ const AdminReportsScreen = lazy(() => import('./flows/admin/reports'))
 const AdminAppealsScreen = lazy(() => import('./flows/admin/appeals'))
 const AdminUsersScreen = lazy(() => import('./flows/admin/users'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
+const AdminAuditLogScreen = lazy(() => import('./flows/admin/audit-log'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
 
 function RouteFallback() {
@@ -144,6 +145,7 @@ function AnimatedRoutes() {
           <Route path="/profile/comments" element={<ProtectedRoute><MyCommentsScreen /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="audit-log" element={<AdminAuditLogScreen />} />
             <Route path="moderation" element={<AdminModerationScreen />} />
             <Route path="reports" element={<AdminReportsScreen />} />
             <Route path="appeals" element={<AdminAppealsScreen />} />

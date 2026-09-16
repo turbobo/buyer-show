@@ -40,6 +40,7 @@ public class AdminUserService {
 
     private final UserMapper userMapper;
     private final PostMapper postMapper;
+    private final AdminAuditService adminAuditService;
 
     /**
      * 用户列表（昵称/用户名模糊搜索 + 状态筛选 + 分页）。
@@ -81,6 +82,7 @@ public class AdminUserService {
         if (userMapper.banUser(userId) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可封禁正常状态的用户");
         }
+        adminAuditService.log(adminId, "BAN_USER", "USER", userId, trimToNull(reason));
         log.info("Admin ban user. adminId: {}, targetUserId: {}, reason: {}", adminId, userId, trimToNull(reason));
     }
 
@@ -96,6 +98,7 @@ public class AdminUserService {
         if (userMapper.unbanUser(userId) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可解封已封禁的用户");
         }
+        adminAuditService.log(adminId, "UNBAN_USER", "USER", userId, null);
         log.info("Admin unban user. adminId: {}, targetUserId: {}", adminId, userId);
     }
 
@@ -158,6 +161,7 @@ public class AdminUserService {
         if (affected == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可封禁公开中的帖子");
         }
+        adminAuditService.log(adminId, "BAN_POST", "POST", postId, finalReason);
         log.info("Admin ban post. adminId: {}, postId: {}, reason: {}", adminId, postId, finalReason);
     }
 
@@ -176,6 +180,7 @@ public class AdminUserService {
         if (postMapper.approveRejected(postId, adminId, LocalDateTime.now()) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可解封已封禁的帖子");
         }
+        adminAuditService.log(adminId, "UNBAN_POST", "POST", postId, null);
         log.info("Admin unban post. adminId: {}, postId: {}", adminId, postId);
     }
 

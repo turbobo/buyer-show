@@ -36,8 +36,10 @@ class AdminModerationServiceTest {
     private final UploadService uploadService = mock(UploadService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
     private final AdminUserService adminUserService = mock(AdminUserService.class);
+    private final AdminAuditService adminAuditService = mock(AdminAuditService.class);
     private final AdminModerationService service = new AdminModerationService(
-            postMapper, commentMapper, contentReportMapper, userMapper, uploadService, notificationService, adminUserService);
+            postMapper, commentMapper, contentReportMapper, userMapper, uploadService, notificationService,
+            adminUserService, adminAuditService);
 
     @AfterEach
     void tearDown() {

@@ -34,7 +34,8 @@ class AdminUserServiceTest {
 
     private final UserMapper userMapper = mock(UserMapper.class);
     private final PostMapper postMapper = mock(PostMapper.class);
-    private final AdminUserService service = new AdminUserService(userMapper, postMapper);
+    private final AdminAuditService adminAuditService = mock(AdminAuditService.class);
+    private final AdminUserService service = new AdminUserService(userMapper, postMapper, adminAuditService);
 
     @AfterEach
     void tearDown() {

@@ -37,8 +37,9 @@ class PostAppealServiceTest {
     private final PostMapper postMapper = mock(PostMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final AdminAuditService adminAuditService = mock(AdminAuditService.class);
     private final PostAppealService service = new PostAppealService(
-            postAppealMapper, postMapper, userMapper, notificationService);
+            postAppealMapper, postMapper, userMapper, notificationService, adminAuditService);
 
     @AfterEach
     void tearDown() {
@@ -110,6 +111,7 @@ class PostAppealServiceTest {
 
         verify(postMapper).approveRejected(eq(9L), eq(100L), any(LocalDateTime.class));
         verify(notificationService).notifySystem(eq(2L), org.mockito.ArgumentMatchers.contains("已恢复公开"), eq("post"), eq(9L));
+        verify(adminAuditService).log(eq(100L), eq("HANDLE_APPEAL"), eq("APPEAL"), eq(3L), any());
     }
 
     @Test

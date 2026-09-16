@@ -42,6 +42,7 @@ public class PostAppealService {
     private final PostMapper postMapper;
     private final UserMapper userMapper;
     private final NotificationService notificationService;
+    private final AdminAuditService adminAuditService;
 
     /**
      * 发起申诉：仅帖子作者、帖子处于已下架状态（驳回/封禁）、且无待处理申诉时可提交。
@@ -132,6 +133,8 @@ public class PostAppealService {
         }
         log.info("Post appeal handled. adminId: {}, appealId: {}, approved: {}, postId: {}",
                 adminId, appealId, approved, appeal.getPostId());
+        adminAuditService.log(adminId, "HANDLE_APPEAL", "APPEAL", appealId,
+                approved ? "申诉通过并解封" : (handleReason != null ? "申诉驳回：" + handleReason : "申诉驳回"));
     }
 
     private AppealDTO toAppealDTO(PostAppeal appeal) {

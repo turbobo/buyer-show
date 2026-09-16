@@ -46,6 +46,7 @@ public class AdminModerationService {
     private final UploadService uploadService;
     private final NotificationService notificationService;
     private final AdminUserService adminUserService;
+    private final AdminAuditService adminAuditService;
 
     public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
@@ -121,6 +122,10 @@ public class AdminModerationService {
                             reason != null ? "（" + reason + "）" : ""),
                     "post", postId);
         }
+        String auditDetail = newStatus == ModerationStatus.APPROVED.getValue()
+                ? "审核通过"
+                : (reason != null ? "审核驳回：" + reason : "审核驳回");
+        adminAuditService.log(adminId, "MODERATE_POST", "POST", postId, auditDetail);
     }
 
     @Transactional
@@ -157,6 +162,10 @@ public class AdminModerationService {
                     String.format("你的评论未通过审核%s", reason != null ? "（" + reason + "）" : ""),
                     "post", comment.getPostId());
         }
+        String auditDetail = newStatus == ModerationStatus.APPROVED
+                ? "审核通过"
+                : (reason != null ? "审核驳回：" + reason : "审核驳回");
+        adminAuditService.log(adminId, "MODERATE_COMMENT", "COMMENT", commentId, auditDetail);
     }
 
     @Transactional
@@ -179,6 +188,9 @@ public class AdminModerationService {
                 banReportedAuthor(report);
             }
         }
+        adminAuditService.log(adminId, "HANDLE_REPORT", "REPORT", reportId,
+                (accepted ? "采纳并下架" : "驳回举报")
+                        + (accepted && Boolean.TRUE.equals(request.getBanAuthor()) ? "，并封禁作者" : ""));
     }
 
     /**

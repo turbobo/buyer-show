@@ -70,6 +70,24 @@ export function getPendingReports(page = 1, size = 50): Promise<PageResult<Conte
   return requestPage<ContentReport>(`/admin/reports?page=${page}&size=${size}`)
 }
 
+export interface AuditLogItem {
+  id: number
+  adminId: number
+  adminNickname: string | null
+  action: string
+  targetType: string
+  targetId: number
+  detail: string | null
+  createdAt: string
+}
+
+/** 审计日志分页（actions 逗号分隔筛选，可空）。 */
+export function getAuditLogs(page = 1, size = 20, actions?: string): Promise<PageResult<AuditLogItem>> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (actions) params.set('actions', actions)
+  return requestPage<AuditLogItem>(`/admin/audit-logs?${params.toString()}`)
+}
+
 export function moderatePost(postId: number, status: number, reason?: string): Promise<void> {
   return request<void>(`/admin/moderation/posts/${postId}`, {
     method: 'POST',
