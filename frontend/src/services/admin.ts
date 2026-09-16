@@ -30,6 +30,24 @@ export interface PageResult<T> {
   size: number
 }
 
+interface RawPage<T> {
+  records?: T[]
+  total?: number
+  size?: number
+  current?: number
+}
+
+/** 后端 IPage 序列化为 records/current，这里统一归一化为 list/page */
+async function requestPage<T>(path: string): Promise<PageResult<T>> {
+  const raw = await request<RawPage<T>>(path)
+  return {
+    list: raw.records ?? [],
+    total: raw.total ?? 0,
+    page: raw.current ?? 1,
+    size: raw.size ?? 20,
+  }
+}
+
 export interface PendingCounts {
   pendingPosts: number
   pendingComments: number
@@ -41,15 +59,15 @@ export function getPendingCounts(): Promise<PendingCounts> {
 }
 
 export function getPendingPosts(page = 1, size = 50): Promise<PageResult<PendingPost>> {
-  return request<PageResult<PendingPost>>(`/admin/moderation/posts?page=${page}&size=${size}`)
+  return requestPage<PendingPost>(`/admin/moderation/posts?page=${page}&size=${size}`)
 }
 
 export function getPendingComments(page = 1, size = 50): Promise<PageResult<PendingComment>> {
-  return request<PageResult<PendingComment>>(`/admin/moderation/comments?page=${page}&size=${size}`)
+  return requestPage<PendingComment>(`/admin/moderation/comments?page=${page}&size=${size}`)
 }
 
 export function getPendingReports(page = 1, size = 50): Promise<PageResult<ContentReport>> {
-  return request<PageResult<ContentReport>>(`/admin/reports?page=${page}&size=${size}`)
+  return requestPage<ContentReport>(`/admin/reports?page=${page}&size=${size}`)
 }
 
 export function moderatePost(postId: number, status: number, reason?: string): Promise<void> {
@@ -71,4 +89,69 @@ export function handleReport(reportId: number, action: 'ACCEPT' | 'REJECT', reas
     method: 'POST',
     body: JSON.stringify({ action, reason }),
   })
+}
+
+// ─── 用户与内容管理（封禁/解封）─────────────────────────────────
+
+export interface AdminUser {
+  id: number
+  username: string
+  nickname: string
+  avatarUrl: string | null
+  email: string | null
+  phone: string | null
+  /** 角色：0 普通用户 / 1 管理员 */
+  role: number
+  /** 状态：0 正常 / 1 封禁 / 2 注销 */
+  status: number
+  postCount: number
+  createdAt: string
+}
+
+export interface AdminUserPost {
+  id: number
+  title: string
+  coverImage: string | null
+  /** 审核状态：0 公开 / 1 待审 / 2 已封禁 */
+  moderationStatus: number
+  status: number
+  createdAt: string
+}
+
+export function getAdminUsers(
+  page = 1,
+  size = 20,
+  search?: string,
+  status?: number,
+): Promise<PageResult<AdminUser>> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (search) params.set('search', search)
+  if (status !== undefined) params.set('status', String(status))
+  return requestPage<AdminUser>(`/admin/users?${params.toString()}`)
+}
+
+export function banUser(userId: number, reason?: string): Promise<void> {
+  return request<void>(`/admin/users/${userId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function unbanUser(userId: number): Promise<void> {
+  return request<void>(`/admin/users/${userId}/unban`, { method: 'POST' })
+}
+
+export function getAdminUserPosts(userId: number, page = 1, size = 20): Promise<PageResult<AdminUserPost>> {
+  return requestPage<AdminUserPost>(`/admin/users/${userId}/posts?page=${page}&size=${size}`)
+}
+
+export function banAdminPost(postId: number, reason?: string): Promise<void> {
+  return request<void>(`/admin/posts/${postId}/ban`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export function unbanAdminPost(postId: number): Promise<void> {
+  return request<void>(`/admin/posts/${postId}/unban`, { method: 'POST' })
 }

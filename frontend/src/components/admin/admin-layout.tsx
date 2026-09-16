@@ -14,7 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/admin/analytics', label: '数据看板', icon: BarChart3, enabled: true },
   { to: '/admin/moderation', label: '内容审核', icon: FileCheck2, enabled: true },
   { to: '/admin/reports', label: '举报中心', icon: Flag, enabled: true },
-  { to: '/admin/users', label: '用户管理', icon: Users, enabled: false },
+  { to: '/admin/users', label: '用户管理', icon: Users, enabled: true },
   { to: '/admin/tags', label: '标签管理', icon: Tags, enabled: false },
   { to: '/admin/audit-log', label: '审计日志', icon: ScrollText, enabled: false },
 ]
