@@ -1,6 +1,7 @@
 package com.buyershow.controller;
 
 import com.buyershow.common.R;
+import com.buyershow.dto.request.ChangePasswordRequest;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
 import com.buyershow.dto.response.TokenPair;
@@ -34,6 +35,12 @@ public class AuthController {
     public R<TokenPair> refresh(@RequestBody Map<String, String> body) {
         String refreshToken = body.get("refreshToken");
         return R.ok(authService.refresh(refreshToken));
+    }
+
+    @PostMapping("/change-password")
+    public R<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(request);
+        return R.ok();
     }
 
     private String getClientIp(HttpServletRequest request) {

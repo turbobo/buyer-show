@@ -84,10 +84,10 @@ export function moderateComment(commentId: number, status: number, reason?: stri
   })
 }
 
-export function handleReport(reportId: number, action: 'ACCEPT' | 'REJECT', reason?: string): Promise<void> {
+export function handleReport(reportId: number, action: 'ACCEPT' | 'DISMISS', reason?: string, banAuthor?: boolean): Promise<void> {
   return request<void>(`/admin/reports/${reportId}`, {
     method: 'POST',
-    body: JSON.stringify({ action, reason }),
+    body: JSON.stringify({ action, reason, banAuthor }),
   })
 }
 

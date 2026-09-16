@@ -18,6 +18,7 @@ import com.buyershow.entity.Comment;
 import com.buyershow.entity.ContentReport;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
+import lombok.extern.slf4j.Slf4j;
 import com.buyershow.mapper.CommentMapper;
 import com.buyershow.mapper.ContentReportMapper;
 import com.buyershow.mapper.PostMapper;
@@ -29,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.Map;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminModerationService {
@@ -43,6 +45,7 @@ public class AdminModerationService {
     private final UserMapper userMapper;
     private final UploadService uploadService;
     private final NotificationService notificationService;
+    private final AdminUserService adminUserService;
 
     public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
@@ -172,6 +175,31 @@ public class AdminModerationService {
         }
         if (accepted) {
             rejectReportedContent(report, adminId);
+            if (Boolean.TRUE.equals(request.getBanAuthor())) {
+                banReportedAuthor(report);
+            }
+        }
+    }
+
+    /**
+     * 采纳举报时联动封禁内容作者（作者为管理员/自己等不可封禁场景静默跳过，不阻断举报处置）。
+     */
+    private void banReportedAuthor(ContentReport report) {
+        Long authorId;
+        if (report.getContentType() == ContentReportService.TYPE_POST) {
+            Post post = postMapper.selectById(report.getContentId());
+            authorId = post != null ? post.getUserId() : null;
+        } else {
+            Comment comment = commentMapper.selectById(report.getContentId());
+            authorId = comment != null ? comment.getUserId() : null;
+        }
+        if (authorId == null) {
+            return;
+        }
+        try {
+            adminUserService.banUser(authorId, REPORT_REJECT_REASON);
+        } catch (BusinessException exception) {
+            log.warn("Ban reported author skipped. authorId: {}, reason: {}", authorId, exception.getMessage());
         }
     }
 

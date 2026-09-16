@@ -15,6 +15,7 @@ export default function AdminReportsScreen() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [confirmAccept, setConfirmAccept] = useState<ContentReport | null>(null)
+  const [banAuthor, setBanAuthor] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const load = useCallback(async () => {
@@ -31,9 +32,9 @@ export default function AdminReportsScreen() {
 
   useEffect(() => { void load() }, [load])
 
-  const processReport = async (id: number, action: 'ACCEPT' | 'REJECT') => {
+  const processReport = async (id: number, action: 'ACCEPT' | 'DISMISS', banAuthorOption?: boolean) => {
     try {
-      await handleReport(id, action, reason || undefined)
+      await handleReport(id, action, reason || undefined, banAuthorOption)
       setReason('')
       toast('success', action === 'ACCEPT' ? '已采纳并下架' : '已驳回举报')
       await load()
@@ -45,9 +46,10 @@ export default function AdminReportsScreen() {
   const handleConfirmAccept = async () => {
     if (!confirmAccept) return
     setIsSubmitting(true)
-    await processReport(confirmAccept.id, 'ACCEPT')
+    await processReport(confirmAccept.id, 'ACCEPT', banAuthor)
     setIsSubmitting(false)
     setConfirmAccept(null)
+    setBanAuthor(false)
   }
 
   return (
@@ -101,10 +103,10 @@ export default function AdminReportsScreen() {
               )}
               <p className="mt-2 text-xs text-muted-foreground">{report.createdAt}</p>
               <div className="mt-3 flex gap-2">
-                <Button size="sm" variant="destructive" onClick={() => setConfirmAccept(report)}>
+                <Button size="sm" variant="destructive" onClick={() => { setBanAuthor(false); setConfirmAccept(report) }}>
                   采纳并下架
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => void processReport(report.id, 'REJECT')}>
+                <Button size="sm" variant="outline" onClick={() => void processReport(report.id, 'DISMISS')}>
                   驳回举报
                 </Button>
               </div>
@@ -130,6 +132,15 @@ export default function AdminReportsScreen() {
             <p className="mt-2 text-sm text-muted-foreground">
               被举报的{confirmAccept.contentType === 'POST' ? '帖子' : '评论'}将从公开范围移除，操作不可撤销。
             </p>
+            <label className="mt-3 flex items-center gap-2 text-sm text-foreground">
+              <input
+                type="checkbox"
+                checked={banAuthor}
+                onChange={(event) => setBanAuthor(event.target.checked)}
+                className="h-4 w-4 accent-coral"
+              />
+              同时封禁作者账号（其全部内容将隐藏）
+            </label>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" disabled={isSubmitting} onClick={() => setConfirmAccept(null)}>
                 取消

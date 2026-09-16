@@ -4,13 +4,17 @@ import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.JwtTokenProvider;
 import com.buyershow.common.security.LoginRateLimiter;
+import com.buyershow.dto.request.ChangePasswordRequest;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
 import com.buyershow.dto.response.TokenPair;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.UserMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
@@ -39,6 +43,59 @@ class AuthServiceTest {
     private final LoginRateLimiter loginRateLimiter = mock(LoginRateLimiter.class);
     private final AuthService authService = new AuthService(
             userMapper, passwordEncoder, jwtTokenProvider, loginRateLimiter);
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void testChangePasswordRejectsWrongCurrentPassword() {
+        authenticate(1L);
+        User user = new User();
+        user.setId(1L);
+        user.setPasswordHash("hash-old");
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(passwordEncoder.matches("wrong-pass", "hash-old")).thenReturn(false);
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("wrong-pass");
+        request.setNewPassword("new-pass-123");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> authService.changePassword(request));
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exception.getCode());
+        verify(userMapper, never()).updateById(any(User.class));
+    }
+
+    @Test
+    void testChangePasswordUpdatesHashWhenValid() {
+        authenticate(1L);
+        User user = new User();
+        user.setId(1L);
+        user.setPasswordHash("hash-old");
+        when(userMapper.selectById(1L)).thenReturn(user);
+        when(passwordEncoder.matches("old-pass-123", "hash-old")).thenReturn(true);
+        when(passwordEncoder.matches("new-pass-456", "hash-old")).thenReturn(false);
+        when(passwordEncoder.encode("new-pass-456")).thenReturn("hash-new");
+
+        ChangePasswordRequest request = new ChangePasswordRequest();
+        request.setCurrentPassword("old-pass-123");
+        request.setNewPassword("new-pass-456");
+        authService.changePassword(request);
+
+        ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
+        verify(userMapper).updateById(captor.capture());
+        assertEquals(1L, captor.getValue().getId());
+        assertEquals("hash-new", captor.getValue().getPasswordHash());
+    }
+
+    private void authenticate(Long userId) {
+        User user = new User();
+        user.setId(userId);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(user, null));
+    }
 
     @Test
     void testRegisterBindsOptionalPhoneAndEmail() {

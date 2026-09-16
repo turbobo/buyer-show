@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Home, MessageCircle, Pencil, Send } from 'lucide-react'
+import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Home, MessageCircle, Pencil, Send, Share2 } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -282,6 +282,25 @@ export default function PostDetailScreen() {
     }
   }
 
+  const handleShare = async () => {
+    if (!post) return
+    const url = `${window.location.origin}/posts/${post.id}`
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: post.title, url })
+        return
+      } catch {
+        // 用户取消系统分享，回退复制链接
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      toast('success', '链接已复制')
+    } catch {
+      toast('error', '复制失败，请手动复制')
+    }
+  }
+
   const handleReport = async (contentType: 'POST' | 'COMMENT', contentId: number) => {
     try {
       await createContentReport(contentType, contentId, '用户举报')
@@ -477,6 +496,9 @@ export default function PostDetailScreen() {
             <Button aria-label={post.isFavorited ? '取消收藏' : '收藏'} disabled={isFavoriteSubmitting} variant="ghost" size="icon" onClick={() => void handleFavorite()}>
               <Bookmark className={`h-5 w-5 ${post.isFavorited ? 'fill-coral text-coral' : ''}`} />
             </Button>
+            <Button aria-label="分享" variant="ghost" size="icon" onClick={() => void handleShare()}>
+              <Share2 className="h-5 w-5" />
+            </Button>
           </div>
           {replyTarget && (
             <div className="mx-auto max-w-5xl px-4 pb-2">
@@ -545,6 +567,17 @@ export default function PostDetailScreen() {
 
 /* ─── 帖子内容子组件 ─── */
 function PostContent({ post }: { post: ApiPost }) {
+  const { toast } = useToast()
+
+  const copyText = async (text: string, successMessage: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      toast('success', successMessage)
+    } catch {
+      toast('error', '复制失败，请手动复制')
+    }
+  }
+
   return (
     <>
       <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
@@ -553,6 +586,29 @@ function PostContent({ post }: { post: ApiPost }) {
         <div className="mb-4 rounded-xl border border-border/60 bg-background p-4">
           <p className="font-semibold">{post.productName}</p>
           <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 text-xs"
+              onClick={() => void copyText(
+                [post.productName, post.productPrice != null ? `¥${post.productPrice}` : null, post.productSource]
+                  .filter(Boolean)
+                  .join(' · '),
+                `商品信息已复制，可在${post.productSource ?? '来源平台'}搜索`,
+              )}
+            >
+              复制商品信息
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-xs"
+              onClick={() => void copyText(`${window.location.origin}/posts/${post.id}`, '链接已复制')}
+            >
+              复制链接
+            </Button>
+          </div>
         </div>
       )}
       <div className="flex flex-wrap gap-2">

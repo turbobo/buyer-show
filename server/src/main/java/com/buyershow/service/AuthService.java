@@ -7,6 +7,8 @@ import com.buyershow.common.UserStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.JwtTokenProvider;
 import com.buyershow.common.security.LoginRateLimiter;
+import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.dto.request.ChangePasswordRequest;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
 import com.buyershow.dto.response.TokenPair;
@@ -79,6 +81,33 @@ public class AuthService {
         }
 
         return buildTokenPair(user);
+    }
+
+    /**
+     * 修改当前登录用户密码（校验旧密码；新密码不得与旧密码相同）。
+     *
+     * @param request 旧密码 / 新密码
+     */
+    public void changePassword(ChangePasswordRequest request) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (userId == null) {
+            throw new BusinessException(ErrorCode.TOKEN_INVALID);
+        }
+        User user = userMapper.selectById(userId);
+        if (user == null) {
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "当前密码不正确");
+        }
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPasswordHash())) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "新密码不能与当前密码相同");
+        }
+        User update = new User();
+        update.setId(userId);
+        update.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userMapper.updateById(update);
+        log.info("用户修改密码: userId={}", userId);
     }
 
     public TokenPair login(LoginRequest request, String clientIp) {

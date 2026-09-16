@@ -35,8 +35,9 @@ class AdminModerationServiceTest {
     private final UserMapper userMapper = mock(UserMapper.class);
     private final UploadService uploadService = mock(UploadService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final AdminUserService adminUserService = mock(AdminUserService.class);
     private final AdminModerationService service = new AdminModerationService(
-            postMapper, commentMapper, contentReportMapper, userMapper, uploadService, notificationService);
+            postMapper, commentMapper, contentReportMapper, userMapper, uploadService, notificationService, adminUserService);
 
     @AfterEach
     void tearDown() {
@@ -53,6 +54,29 @@ class AdminModerationServiceTest {
                 () -> service.handleReport(1L, request));
 
         assertEquals(ErrorCode.NO_PERMISSION.getCode(), exception.getCode());
+    }
+
+    @Test
+    void testHandleReportAcceptWithBanAuthor() {
+        authenticate(1);
+        ContentReport report = new ContentReport();
+        report.setId(5L);
+        report.setContentType(ContentReportService.TYPE_POST);
+        report.setContentId(9L);
+        when(contentReportMapper.selectById(5L)).thenReturn(report);
+        when(contentReportMapper.handlePending(eq(5L), eq(1), eq(100L), any(LocalDateTime.class))).thenReturn(1);
+        Post post = new Post();
+        post.setId(9L);
+        post.setUserId(77L);
+        when(postMapper.selectById(9L)).thenReturn(post);
+
+        HandleReportRequest request = new HandleReportRequest();
+        request.setAction("ACCEPT");
+        request.setBanAuthor(true);
+        service.handleReport(5L, request);
+
+        verify(postMapper).rejectApproved(eq(9L), anyString(), eq(100L), any(LocalDateTime.class));
+        verify(adminUserService).banUser(eq(77L), anyString());
     }
 
     @Test

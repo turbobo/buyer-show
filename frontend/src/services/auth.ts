@@ -35,6 +35,13 @@ export async function register(payload: RegisterPayload): Promise<void> {
   saveTokens(tokens.accessToken, tokens.refreshToken)
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await request<void>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+}
+
 export async function getCurrentUserProfile(): Promise<UserProfile> {
   return request<UserProfile>('/users/me')
 }

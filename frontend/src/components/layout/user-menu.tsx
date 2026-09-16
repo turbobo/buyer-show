@@ -2,7 +2,7 @@
 // 菜单项：我的主页 / 编辑资料 / 退出登录（退出走宿主二次确认）
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { LogOut, Pencil, UserRound } from 'lucide-react'
+import { KeyRound, LogOut, Pencil, UserRound } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { UserProfile } from '@/services/auth'
 
@@ -77,6 +77,15 @@ export function UserMenu({ user, onLogoutRequest }: { user: UserProfile; onLogou
           >
             <Pencil className="h-4 w-4 text-muted-foreground" />
             编辑资料
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => go('/profile/change-password')}
+            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/60"
+          >
+            <KeyRound className="h-4 w-4 text-muted-foreground" />
+            修改密码
           </button>
           <div className="my-1 h-px bg-border/60" />
           <button

@@ -51,7 +51,9 @@ function NotificationItem({ notification }: { notification: Notification }) {
         navigate(`/posts/${notification.targetId}`)
       }
     } else if (notification.type === 'follow') {
-      // Could navigate to user profile in future
+      if (notification.actorId != null) {
+        navigate(`/user/${notification.actorId}`)
+      }
     }
   }
 
