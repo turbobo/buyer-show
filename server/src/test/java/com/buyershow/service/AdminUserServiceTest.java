@@ -1,0 +1,142 @@
+package com.buyershow.service;
+
+import com.buyershow.common.ErrorCode;
+import com.buyershow.common.exception.BusinessException;
+import com.buyershow.entity.Post;
+import com.buyershow.entity.User;
+import com.buyershow.mapper.PostMapper;
+import com.buyershow.mapper.UserMapper;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+
+import java.time.LocalDateTime;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * 管理端用户/帖子封禁服务测试。
+ *
+ * @author Qoder
+ * @since 2026/09/16
+ */
+class AdminUserServiceTest {
+
+    private final UserMapper userMapper = mock(UserMapper.class);
+    private final PostMapper postMapper = mock(PostMapper.class);
+    private final AdminUserService service = new AdminUserService(userMapper, postMapper);
+
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void testBanUserSuccess() {
+        authenticate(1);
+        when(userMapper.selectById(5L)).thenReturn(user(5L, 0, 0));
+        when(userMapper.banUser(5L)).thenReturn(1);
+
+        service.banUser(5L, "发布违规内容");
+
+        verify(userMapper).banUser(5L);
+    }
+
+    @Test
+    void testBanUserRejectsSelf() {
+        authenticate(1);
+        when(userMapper.selectById(100L)).thenReturn(user(100L, 0, 1));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.banUser(100L, null));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exception.getCode());
+        assertEquals("不能封禁自己", exception.getMessage());
+        verify(userMapper, never()).banUser(any());
+    }
+
+    @Test
+    void testBanUserRejectsAdminTarget() {
+        authenticate(1);
+        when(userMapper.selectById(5L)).thenReturn(user(5L, 0, 1));
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.banUser(5L, null));
+
+        assertEquals("管理员账号不可封禁", exception.getMessage());
+        verify(userMapper, never()).banUser(any());
+    }
+
+    @Test
+    void testUnbanUserRequiresBannedState() {
+        authenticate(1);
+        when(userMapper.selectById(5L)).thenReturn(user(5L, 0, 0));
+        when(userMapper.unbanUser(5L)).thenReturn(0);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.unbanUser(5L));
+
+        assertEquals("仅可解封已封禁的用户", exception.getMessage());
+    }
+
+    @Test
+    void testBanPostUsesDefaultReason() {
+        authenticate(1);
+        Post post = post(9L);
+        when(postMapper.selectById(9L)).thenReturn(post);
+        when(postMapper.rejectApproved(eq(9L), anyString(), eq(100L), any(LocalDateTime.class)))
+                .thenReturn(1);
+
+        service.banPost(9L, null);
+
+        verify(postMapper).rejectApproved(eq(9L), eq("管理员封禁"), eq(100L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void testUnbanPostSuccess() {
+        authenticate(1);
+        Post post = post(9L);
+        when(postMapper.selectById(9L)).thenReturn(post);
+        when(postMapper.approveRejected(eq(9L), eq(100L), any(LocalDateTime.class))).thenReturn(1);
+
+        service.unbanPost(9L);
+
+        verify(postMapper).approveRejected(eq(9L), eq(100L), any(LocalDateTime.class));
+    }
+
+    private void authenticate(int role) {
+        User admin = new User();
+        admin.setId(100L);
+        admin.setRole(role);
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken(admin, null));
+    }
+
+    private User user(Long id, int status, int role) {
+        User user = new User();
+        user.setId(id);
+        user.setStatus(status);
+        user.setRole(role);
+        user.setNickname("用户" + id);
+        user.setUsername("user" + id);
+        return user;
+    }
+
+    private Post post(Long id) {
+        Post post = new Post();
+        post.setId(id);
+        post.setStatus(0);
+        post.setModerationStatus(0);
+        post.setUserId(5L);
+        return post;
+    }
+}

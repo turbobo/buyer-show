@@ -219,6 +219,14 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("adminId") Long adminId,
             @Param("moderatedAt") java.time.LocalDateTime moderatedAt);
 
+    @Update("UPDATE posts SET moderation_status = 0, moderation_reason = NULL, "
+            + "moderated_by = #{adminId}, moderated_at = #{moderatedAt} "
+            + "WHERE id = #{postId} AND status = 0 AND moderation_status = 2")
+    int approveRejected(
+            @Param("postId") Long postId,
+            @Param("adminId") Long adminId,
+            @Param("moderatedAt") java.time.LocalDateTime moderatedAt);
+
 
     @Select({
             "<script>",

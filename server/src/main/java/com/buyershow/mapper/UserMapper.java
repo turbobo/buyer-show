@@ -17,4 +17,10 @@ public interface UserMapper extends BaseMapper<User> {
 
     @Update("UPDATE users SET following_count = GREATEST(following_count + #{delta}, 0) WHERE id = #{userId} AND status = 0")
     int adjustFollowingCount(@Param("userId") Long userId, @Param("delta") int delta);
+
+    @Update("UPDATE users SET status = 1 WHERE id = #{userId} AND status = 0")
+    int banUser(@Param("userId") Long userId);
+
+    @Update("UPDATE users SET status = 0 WHERE id = #{userId} AND status = 1")
+    int unbanUser(@Param("userId") Long userId);
 }
