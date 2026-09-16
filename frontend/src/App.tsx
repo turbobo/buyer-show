@@ -118,12 +118,14 @@ function EscapeBack() {
 function AnimatedRoutes() {
   const location = useLocation()
   return (
-    <div key={location.pathname} className="page-transition">
+    <>
+      {/* 全局层（禁止放入 .page-transition：其 transform 动画会影响内部 fixed/sticky 定位） */}
       <ScrollRestoration />
       <EscapeBack />
       <DesktopHeader />
-      <Suspense fallback={<RouteFallback />}>
-        <Routes location={location}>
+      <div key={location.pathname} className="page-transition">
+        <Suspense fallback={<RouteFallback />}>
+          <Routes location={location}>
           <Route path="/" element={<HomeFeedScreen />} />
           <Route path="/posts/:postId" element={<PostDetailScreen />} />
           <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
@@ -145,9 +147,10 @@ function AnimatedRoutes() {
           <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
           <Route path="*" element={<NotFoundScreen />} />
         </Routes>
-      </Suspense>
+        </Suspense>
+      </div>
       <AppTabBar />
-    </div>
+    </>
   )
 }
 

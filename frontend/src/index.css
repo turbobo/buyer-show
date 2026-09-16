@@ -145,14 +145,13 @@
 }
 
 /* ─── 路由过渡动画 ─── */
+/* 注意：仅供 opacity 动画；禁止加 transform（会改变内部 fixed/sticky 的定位基准） */
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
