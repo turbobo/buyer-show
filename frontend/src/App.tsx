@@ -9,6 +9,7 @@ import { Skeleton } from './components/ui/skeleton'
 
 // 路由级懒加载 — 首页 Feed 立即加载，其余按需
 const HomeFeedScreen = lazy(() => import('./flows/home-feed/feed'))
+const SearchScreen = lazy(() => import('./flows/search/search'))
 const PostDetailScreen = lazy(() => import('./flows/post-detail/detail'))
 const PublishScreen = lazy(() => import('./flows/publish-post/publish'))
 const MessagesScreen = lazy(() => import('./flows/messages/messages'))
@@ -129,6 +130,7 @@ function AnimatedRoutes() {
         <Suspense fallback={<RouteFallback />}>
           <Routes location={location}>
           <Route path="/" element={<HomeFeedScreen />} />
+          <Route path="/search" element={<SearchScreen />} />
           <Route path="/posts/:postId" element={<PostDetailScreen />} />
           <Route path="/publish" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
           <Route path="/posts/:postId/edit" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
