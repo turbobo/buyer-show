@@ -215,6 +215,15 @@ public class AdminModerationService {
     private ReportDTO toReportDTO(ContentReport report) {
         User reporter = userMapper.selectById(report.getReporterId());
         String contentTypeStr = report.getContentType() == ContentReportService.TYPE_POST ? "POST" : "COMMENT";
+        String postTitle = null;
+        String commentContent = null;
+        if (report.getContentType() == ContentReportService.TYPE_POST) {
+            Post post = postMapper.selectById(report.getContentId());
+            postTitle = post != null ? post.getTitle() : null;
+        } else {
+            Comment comment = commentMapper.selectById(report.getContentId());
+            commentContent = comment != null ? comment.getContent() : null;
+        }
         return ReportDTO.builder()
                 .id(report.getId())
                 .contentType(contentTypeStr)
@@ -222,6 +231,8 @@ public class AdminModerationService {
                 .reporterId(report.getReporterId())
                 .reporterNickname(reporter != null ? reporter.getNickname() : null)
                 .reason(report.getReason())
+                .postTitle(postTitle)
+                .commentContent(commentContent)
                 .status(report.getStatus())
                 .handledBy(report.getHandledBy())
                 .createdAt(report.getCreatedAt())

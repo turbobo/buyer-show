@@ -1,8 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, TrendingUp, Users, Eye, FileText } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
-import { smartBack } from '@/lib/smart-back'
-import { Button } from '@/components/ui/button'
+import { TrendingUp, Users, Eye, FileText } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { request } from '@/services/http'
 
@@ -20,7 +17,6 @@ interface TopPost {
 }
 
 export default function AdminAnalytics() {
-  const navigate = useNavigate()
   const [overview, setOverview] = useState<OverviewData | null>(null)
   const [topPosts, setTopPosts] = useState<TopPost[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,26 +40,11 @@ export default function AdminAnalytics() {
   }, [])
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-muted-foreground">加载中...</div>
-      </div>
-    )
+    return <p className="rounded-xl bg-card p-8 text-center text-muted-foreground">加载中...</p>
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={() => smartBack()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-bold">数据分析</h1>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto max-w-5xl space-y-6">
         {/* Overview Cards */}
         <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
@@ -159,7 +140,6 @@ export default function AdminAnalytics() {
             </div>
           </CardContent>
         </Card>
-      </main>
     </div>
   )
 }

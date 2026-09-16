@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { getAccessToken } from './services/http'
+import { getAccessToken, getTokenRole } from './services/http'
 import { ErrorBoundary } from './components/error-boundary'
 import { Skeleton } from './components/ui/skeleton'
 
@@ -14,7 +14,9 @@ const LoginScreen = lazy(() => import('./flows/auth/login'))
 const ProfileScreen = lazy(() => import('./flows/profile/profile'))
 const EditProfileScreen = lazy(() => import('./flows/profile/edit-profile'))
 const FollowListScreen = lazy(() => import('./flows/profile/follow-list'))
+const AdminLayout = lazy(() => import('./components/admin/admin-layout'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
+const AdminReportsScreen = lazy(() => import('./flows/admin/reports'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
 
@@ -33,6 +35,17 @@ function ProtectedRoute({ children }: { children: ReactElement }) {
   const location = useLocation()
   if (!getAccessToken()) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
+  }
+  return children
+}
+
+function AdminRoute({ children }: { children: ReactElement }) {
+  const location = useLocation()
+  if (!getAccessToken()) {
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
+  }
+  if (getTokenRole() !== 'ADMIN') {
+    return <Navigate to="/" replace />
   }
   return children
 }
@@ -60,8 +73,11 @@ function AnimatedRoutes() {
           <Route path="/user/:userId/following" element={<FollowListScreen mode="following" />} />
           <Route path="/profile" element={<ProtectedRoute><ProfileScreen self /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfileScreen /></ProtectedRoute>} />
-          <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
-          <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route path="analytics" element={<AdminAnalytics />} />
+            <Route path="moderation" element={<AdminModerationScreen />} />
+            <Route path="reports" element={<AdminReportsScreen />} />
+          </Route>
           <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />
           <Route path="*" element={<NotFoundScreen />} />

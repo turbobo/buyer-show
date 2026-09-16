@@ -15,6 +15,8 @@ export interface ContentReport {
   contentType: 'POST' | 'COMMENT'
   contentId: number
   reason: string
+  reporterId?: number
+  reporterNickname?: string
   status: number
   createdAt: string
   postTitle?: string
