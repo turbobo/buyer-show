@@ -2,6 +2,7 @@ package com.buyershow.service;
 
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
+import com.buyershow.dto.response.ModerationPostDTO;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.PostMapper;
@@ -111,6 +112,36 @@ class AdminUserServiceTest {
         service.unbanPost(9L);
 
         verify(postMapper).approveRejected(eq(9L), eq(100L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void testGetPostDetailReturnsContent() {
+        authenticate(1);
+        Post post = post(9L);
+        post.setTitle("被举报的帖子");
+        post.setContent("正文内容");
+        post.setModerationStatus(2);
+        when(postMapper.selectById(9L)).thenReturn(post);
+        when(userMapper.selectById(5L)).thenReturn(user(5L, 0, 0));
+
+        ModerationPostDTO detail = service.getPostDetail(9L);
+
+        assertEquals(9L, detail.getId());
+        assertEquals("被举报的帖子", detail.getTitle());
+        assertEquals(2, detail.getModerationStatus());
+    }
+
+    @Test
+    void testGetPostDetailRejectsDeleted() {
+        authenticate(1);
+        Post post = post(9L);
+        post.setStatus(2);
+        when(postMapper.selectById(9L)).thenReturn(post);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.getPostDetail(9L));
+
+        assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), exception.getCode());
     }
 
     private void authenticate(int role) {

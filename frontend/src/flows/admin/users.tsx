@@ -9,10 +9,12 @@ import { useToast } from '@/components/ui/toast'
 import {
   banAdminPost,
   banUser,
+  getAdminPostDetail,
   getAdminUserPosts,
   getAdminUsers,
   unbanAdminPost,
   unbanUser,
+  type AdminPostDetail,
   type AdminUser,
   type AdminUserPost,
 } from '@/services/admin'
@@ -32,6 +34,13 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 ]
 
 const PAGE_SIZE = 20
+
+const POST_STATUS_FILTERS: { key: number | undefined; label: string }[] = [
+  { key: undefined, label: '全部' },
+  { key: 0, label: '公开中' },
+  { key: 2, label: '已封禁' },
+  { key: 1, label: '待审' },
+]
 
 function userStatusBadge(status: number) {
   if (status === 1) {
@@ -73,6 +82,11 @@ export default function AdminUsersScreen() {
   const [postsTotal, setPostsTotal] = useState(0)
   const [postsPage, setPostsPage] = useState(1)
   const [isPostsLoading, setIsPostsLoading] = useState(false)
+  const [postsSearch, setPostsSearch] = useState('')
+  const [postsKeyword, setPostsKeyword] = useState('')
+  const [postsStatusFilter, setPostsStatusFilter] = useState<number | undefined>(undefined)
+  const [previewPost, setPreviewPost] = useState<AdminPostDetail | null>(null)
+  const [previewLoadingId, setPreviewLoadingId] = useState<number | null>(null)
 
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
   const [reason, setReason] = useState('')
@@ -104,46 +118,74 @@ export default function AdminUsersScreen() {
 
   const handleSearch = () => setKeyword(searchInput.trim())
 
-  const toggleExpand = async (user: AdminUser) => {
+  const loadPosts = useCallback(async (targetPage: number) => {
+    if (expandedUserId == null) return
+    setIsPostsLoading(true)
+    try {
+      const result = await getAdminUserPosts(
+        expandedUserId,
+        targetPage,
+        PAGE_SIZE,
+        postsKeyword || undefined,
+        postsStatusFilter,
+      )
+      setUserPosts(result.list)
+      setPostsTotal(result.total)
+      setPostsPage(targetPage)
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '加载用户帖子失败')
+    } finally {
+      setIsPostsLoading(false)
+    }
+  }, [expandedUserId, postsKeyword, postsStatusFilter]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 展开用户 / 搜索 / 筛选变化时回到第 1 页（expandedUserId 为空时提前返回）
+  useEffect(() => { void loadPosts(1) }, [loadPosts])
+
+  const toggleExpand = (user: AdminUser) => {
     if (expandedUserId === user.id) {
       setExpandedUserId(null)
       return
     }
     setExpandedUserId(user.id)
     setUserPosts([])
+    setPostsTotal(0)
     setPostsPage(1)
-    setIsPostsLoading(true)
+    setPostsSearch('')
+    setPostsKeyword('')
+    setPostsStatusFilter(undefined)
+  }
+
+  const openPreview = async (post: AdminUserPost) => {
+    setPreviewLoadingId(post.id)
     try {
-      const result = await getAdminUserPosts(user.id, 1, PAGE_SIZE)
-      setUserPosts(result.list)
-      setPostsTotal(result.total)
+      setPreviewPost(await getAdminPostDetail(post.id))
     } catch (requestError) {
-      toast('error', requestError instanceof Error ? requestError.message : '加载用户帖子失败')
+      toast('error', requestError instanceof Error ? requestError.message : '加载帖子详情失败')
     } finally {
-      setIsPostsLoading(false)
+      setPreviewLoadingId(null)
     }
   }
 
-  const loadMorePosts = async () => {
-    if (expandedUserId == null) return
-    setIsPostsLoading(true)
-    try {
-      const nextPage = postsPage + 1
-      const result = await getAdminUserPosts(expandedUserId, nextPage, PAGE_SIZE)
-      setUserPosts((current) => [...current, ...result.list])
-      setPostsPage(nextPage)
-    } catch (requestError) {
-      toast('error', requestError instanceof Error ? requestError.message : '加载更多失败')
-    } finally {
-      setIsPostsLoading(false)
-    }
-  }
+  const toPostBrief = (detail: AdminPostDetail): AdminUserPost => ({
+    id: detail.id,
+    title: detail.title,
+    coverImage: detail.images?.[0] ?? null,
+    moderationStatus: detail.moderationStatus,
+    status: detail.status,
+    createdAt: detail.createdAt,
+  })
 
-  const reloadUserPosts = async () => {
-    if (expandedUserId == null) return
-    const result = await getAdminUserPosts(expandedUserId, 1, Math.max(postsPage, 1) * PAGE_SIZE)
-    setUserPosts(result.list)
-    setPostsTotal(result.total)
+  const refreshAfterPostAction = async (postId: number) => {
+    await loadPosts(postsPage)
+    if (previewPost?.id === postId) {
+      try {
+        setPreviewPost(await getAdminPostDetail(postId))
+      } catch {
+        // 刷新失败（如帖子被删除）时直接关闭预览
+        setPreviewPost(null)
+      }
+    }
   }
 
   const handleConfirm = async () => {
@@ -161,11 +203,11 @@ export default function AdminUsersScreen() {
       } else if (confirm.kind === 'banPost') {
         await banAdminPost(confirm.post.id, reason.trim() || undefined)
         toast('success', '已封禁帖子')
-        await reloadUserPosts()
+        await refreshAfterPostAction(confirm.post.id)
       } else {
         await unbanAdminPost(confirm.post.id)
         toast('success', '已解封帖子')
-        await reloadUserPosts()
+        await refreshAfterPostAction(confirm.post.id)
       }
       setConfirm(null)
       setReason('')
@@ -298,6 +340,37 @@ export default function AdminUsersScreen() {
 
               {isExpanded && (
                 <div className="border-t border-border/60 p-3">
+                  {/* 搜索与状态筛选 */}
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <div className="relative min-w-0 flex-1 sm:max-w-52">
+                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        value={postsSearch}
+                        onChange={(event) => setPostsSearch(event.target.value)}
+                        onKeyDown={(event) => { if (event.key === 'Enter') setPostsKeyword(postsSearch.trim()) }}
+                        placeholder="搜索帖子标题"
+                        className="h-8 pl-8 text-xs"
+                        aria-label="搜索该用户帖子"
+                      />
+                    </div>
+                    <Button size="sm" variant="outline" className="h-8" onClick={() => setPostsKeyword(postsSearch.trim())}>
+                      搜索
+                    </Button>
+                    <div className="flex gap-1">
+                      {POST_STATUS_FILTERS.map((item) => (
+                        <Button
+                          key={item.label}
+                          size="sm"
+                          variant={postsStatusFilter === item.key ? 'default' : 'outline'}
+                          className={`h-8 ${postsStatusFilter === item.key ? 'bg-coral text-white hover:bg-coral-dark' : ''}`}
+                          onClick={() => setPostsStatusFilter(item.key)}
+                        >
+                          {item.label}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
                   {isPostsLoading && userPosts.length === 0 ? (
                     <div className="space-y-2">
                       {Array.from({ length: 3 }).map((_, index) => (
@@ -305,7 +378,9 @@ export default function AdminUsersScreen() {
                       ))}
                     </div>
                   ) : userPosts.length === 0 ? (
-                    <p className="py-4 text-center text-xs text-muted-foreground">该用户暂无帖子</p>
+                    <p className="py-4 text-center text-xs text-muted-foreground">
+                      {postsKeyword || postsStatusFilter !== undefined ? '没有符合条件的帖子' : '该用户暂无帖子'}
+                    </p>
                   ) : (
                     <div className="space-y-2">
                       {userPosts.map((post) => {
@@ -324,31 +399,54 @@ export default function AdminUsersScreen() {
                                 {postBadge.text}
                               </span>
                             </div>
-                            {post.moderationStatus === 2 ? (
-                              <Button size="sm" variant="outline" onClick={() => setConfirm({ kind: 'unbanPost', post })}>
-                                解封
+                            <div className="flex shrink-0 items-center gap-1">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                disabled={previewLoadingId === post.id}
+                                onClick={() => void openPreview(post)}
+                              >
+                                {previewLoadingId === post.id ? '加载中...' : '查看'}
                               </Button>
-                            ) : post.moderationStatus === 0 ? (
-                              <Button size="sm" variant="destructive" onClick={() => setConfirm({ kind: 'banPost', post })}>
-                                封禁
-                              </Button>
-                            ) : (
-                              <span className="px-2 text-xs text-muted-foreground">待审核</span>
-                            )}
+                              {post.moderationStatus === 2 ? (
+                                <Button size="sm" variant="outline" onClick={() => setConfirm({ kind: 'unbanPost', post })}>
+                                  解封
+                                </Button>
+                              ) : post.moderationStatus === 0 ? (
+                                <Button size="sm" variant="destructive" onClick={() => setConfirm({ kind: 'banPost', post })}>
+                                  封禁
+                                </Button>
+                              ) : (
+                                <span className="px-2 text-xs text-muted-foreground">待审核</span>
+                              )}
+                            </div>
                           </div>
                         )
                       })}
-                      {userPosts.length < postsTotal && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          disabled={isPostsLoading}
-                          onClick={() => void loadMorePosts()}
-                        >
-                          {isPostsLoading ? '加载中...' : `加载更多（${userPosts.length}/${postsTotal}）`}
-                        </Button>
-                      )}
+                      {/* 分页器 */}
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs text-muted-foreground">
+                          共 {postsTotal} 条 · 第 {postsPage}/{Math.max(Math.ceil(postsTotal / PAGE_SIZE), 1)} 页
+                        </span>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={postsPage <= 1 || isPostsLoading}
+                            onClick={() => void loadPosts(postsPage - 1)}
+                          >
+                            上一页
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={postsPage >= Math.ceil(postsTotal / PAGE_SIZE) || isPostsLoading}
+                            onClick={() => void loadPosts(postsPage + 1)}
+                          >
+                            下一页
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -373,10 +471,77 @@ export default function AdminUsersScreen() {
         )}
       </div>
 
+      {/* ─── 帖子管理预览（查看后再决定是否封禁） ─── */}
+      {previewPost && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="帖子预览"
+        >
+          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl">
+            {previewPost.images?.[0]?.startsWith('http') && (
+              <div
+                className="h-44 w-full shrink-0 bg-muted"
+                style={{ background: `url(${previewPost.images[0]}) center / cover` }}
+              />
+            )}
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="text-lg font-bold text-foreground">{previewPost.title}</h3>
+                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${postStatusBadge(previewPost.moderationStatus).className}`}>
+                  {postStatusBadge(previewPost.moderationStatus).text}
+                </span>
+              </div>
+              <p className="whitespace-pre-wrap text-sm text-foreground/80">{previewPost.content}</p>
+              {(previewPost.productName || previewPost.productPrice != null) && (
+                <p className="text-sm text-coral">
+                  ¥{previewPost.productPrice ?? '—'} · {previewPost.productSource ?? '—'}
+                  {previewPost.productName ? ` · ${previewPost.productName}` : ''}
+                  {previewPost.productRating != null ? ` · ${previewPost.productRating}分` : ''}
+                </p>
+              )}
+              {previewPost.moderationReason && (
+                <p className="rounded-lg bg-destructive/10 p-2 text-xs text-destructive">
+                  当前状态说明：{previewPost.moderationReason}
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground">
+                作者：{previewPost.userNickname ?? `用户${previewPost.userId}`}
+                {' · '}发布于 {previewPost.createdAt?.slice(0, 16).replace('T', ' ')}
+                {' · '}赞 {previewPost.likeCount} · 评论 {previewPost.commentCount}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 p-4">
+              <a
+                href={`/posts/${previewPost.id}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-coral underline-offset-2 hover:underline"
+              >
+                前台查看 ↗
+              </a>
+              <div className="flex gap-2">
+                {previewPost.moderationStatus === 2 ? (
+                  <Button variant="outline" onClick={() => setConfirm({ kind: 'unbanPost', post: toPostBrief(previewPost) })}>
+                    解封
+                  </Button>
+                ) : previewPost.moderationStatus === 0 ? (
+                  <Button variant="destructive" onClick={() => setConfirm({ kind: 'banPost', post: toPostBrief(previewPost) })}>
+                    封禁
+                  </Button>
+                ) : null}
+                <Button variant="outline" onClick={() => setPreviewPost(null)}>关闭</Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── 确认弹窗（封禁用户/帖子需填理由） ─── */}
       {confirm && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
           role="dialog"
           aria-modal="true"
           aria-label="确认操作"

@@ -5,6 +5,7 @@ import com.buyershow.common.R;
 import com.buyershow.dto.request.BanRequest;
 import com.buyershow.dto.response.AdminUserDTO;
 import com.buyershow.dto.response.AdminUserPostDTO;
+import com.buyershow.dto.response.ModerationPostDTO;
 import com.buyershow.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -53,13 +54,21 @@ public class AdminUserController {
         return R.ok();
     }
 
-    /** 用户帖子列表（含封禁/待审状态，用于用户维度管理）。 */
+    /** 用户帖子列表（含封禁/待审状态；支持标题搜索与状态筛选）。 */
     @GetMapping("/users/{userId}/posts")
     public R<IPage<AdminUserPostDTO>> listUserPosts(
             @PathVariable Long userId,
             @RequestParam(defaultValue = "1") long page,
-            @RequestParam(defaultValue = "20") long size) {
-        return R.ok(adminUserService.listUserPosts(userId, page, size));
+            @RequestParam(defaultValue = "20") long size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Integer moderationStatus) {
+        return R.ok(adminUserService.listUserPosts(userId, page, size, search, moderationStatus));
+    }
+
+    /** 管理端帖子详情（含封禁/待审内容，供预览）。 */
+    @GetMapping("/posts/{postId}")
+    public R<ModerationPostDTO> getPostDetail(@PathVariable Long postId) {
+        return R.ok(adminUserService.getPostDetail(postId));
     }
 
     /** 封禁帖子。 */

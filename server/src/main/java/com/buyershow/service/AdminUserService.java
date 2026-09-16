@@ -11,6 +11,7 @@ import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.dto.response.AdminUserDTO;
 import com.buyershow.dto.response.AdminUserPostDTO;
+import com.buyershow.dto.response.ModerationPostDTO;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.PostMapper;
@@ -99,22 +100,43 @@ public class AdminUserService {
     }
 
     /**
-     * 用户帖子列表（未删除的帖子，含封禁/待审状态）。
+     * 用户帖子列表（未删除的帖子，含封禁/待审状态；支持标题搜索与状态筛选）。
      *
      * @param userId 目标用户ID
      * @param page 页码
      * @param size 每页数量
+     * @param search 标题关键词（可空）
+     * @param moderationStatus 审核状态筛选（可空：0 公开 / 1 待审 / 2 已封禁）
      * @return 帖子分页
      */
-    public IPage<AdminUserPostDTO> listUserPosts(Long userId, long page, long size) {
+    public IPage<AdminUserPostDTO> listUserPosts(Long userId, long page, long size,
+                                                 String search, Integer moderationStatus) {
         requireAdminId();
         requireUser(userId);
+        String keyword = trimToNull(search);
         IPage<Post> entityPage = postMapper.selectPage(page(page, size),
                 Wrappers.<Post>lambdaQuery()
                         .eq(Post::getUserId, userId)
                         .eq(Post::getStatus, PostStatus.PUBLIC.getValue())
+                        .eq(moderationStatus != null, Post::getModerationStatus, moderationStatus)
+                        .like(keyword != null, Post::getTitle, keyword)
                         .orderByDesc(Post::getId));
         return entityPage.convert(this::toUserPostDTO);
+    }
+
+    /**
+     * 管理端帖子详情（含封禁/待审内容，供预览与处置确认）。
+     *
+     * @param postId 帖子ID
+     * @return 帖子详情（含完整内容与审核信息）
+     */
+    public ModerationPostDTO getPostDetail(Long postId) {
+        requireAdminId();
+        Post post = postMapper.selectById(postId);
+        if (post == null || post.getStatus() == PostStatus.DELETED.getValue()) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        return toModerationPostDTO(post);
     }
 
     /**
@@ -188,6 +210,30 @@ public class AdminUserService {
                 .coverImage(images == null || images.isEmpty() ? null : images.get(0))
                 .moderationStatus(post.getModerationStatus())
                 .status(post.getStatus())
+                .createdAt(post.getCreatedAt())
+                .build();
+    }
+
+    private ModerationPostDTO toModerationPostDTO(Post post) {
+        User user = userMapper.selectById(post.getUserId());
+        return ModerationPostDTO.builder()
+                .id(post.getId())
+                .userId(post.getUserId())
+                .userNickname(user != null ? user.getNickname() : null)
+                .title(post.getTitle())
+                .content(post.getContent())
+                .images(post.getImages())
+                .tags(post.getTags())
+                .productName(post.getProductName())
+                .productPrice(post.getProductPrice())
+                .productSource(post.getProductSource())
+                .productRating(post.getProductRating())
+                .likeCount(post.getLikeCount())
+                .commentCount(post.getCommentCount())
+                .favoriteCount(post.getFavoriteCount())
+                .status(post.getStatus())
+                .moderationStatus(post.getModerationStatus())
+                .moderationReason(post.getModerationReason())
                 .createdAt(post.getCreatedAt())
                 .build();
     }

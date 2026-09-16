@@ -141,8 +141,43 @@ export function unbanUser(userId: number): Promise<void> {
   return request<void>(`/admin/users/${userId}/unban`, { method: 'POST' })
 }
 
-export function getAdminUserPosts(userId: number, page = 1, size = 20): Promise<PageResult<AdminUserPost>> {
-  return requestPage<AdminUserPost>(`/admin/users/${userId}/posts?page=${page}&size=${size}`)
+export function getAdminUserPosts(
+  userId: number,
+  page = 1,
+  size = 20,
+  search?: string,
+  moderationStatus?: number,
+): Promise<PageResult<AdminUserPost>> {
+  const params = new URLSearchParams({ page: String(page), size: String(size) })
+  if (search) params.set('search', search)
+  if (moderationStatus !== undefined) params.set('moderationStatus', String(moderationStatus))
+  return requestPage<AdminUserPost>(`/admin/users/${userId}/posts?${params.toString()}`)
+}
+
+export interface AdminPostDetail {
+  id: number
+  userId: number
+  userNickname: string | null
+  title: string
+  content: string
+  images: string[]
+  tags: string[] | null
+  productName: string | null
+  productPrice: number | null
+  productSource: string | null
+  productRating: number | null
+  likeCount: number
+  commentCount: number
+  favoriteCount: number
+  status: number
+  moderationStatus: number
+  moderationReason: string | null
+  createdAt: string
+}
+
+/** 管理端帖子详情（含封禁/待审内容，供预览） */
+export function getAdminPostDetail(postId: number): Promise<AdminPostDetail> {
+  return request<AdminPostDetail>(`/admin/posts/${postId}`)
 }
 
 export function banAdminPost(postId: number, reason?: string): Promise<void> {
