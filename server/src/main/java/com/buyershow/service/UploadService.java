@@ -93,6 +93,32 @@ public class UploadService {
                 .build();
     }
 
+    /**
+     * 发布列表中的 pending 图片（保留其余已发布 URL 不变），返回保序合并后的列表。
+     * 用于人工审核通过、编辑重审等场景（帖子图片可能为「已发布旧图 + 新增 pending 图」的混合）。
+     *
+     * @param ownerId 图片所有者（帖子作者）
+     * @param images 混合图片列表（pending objectName 与已发布 URL）
+     * @return 保序的最终图片列表
+     */
+    public List<String> publishPendingImages(Long ownerId, List<String> images) {
+        String pendingPrefix = "pending/" + ownerId + "/";
+        List<String> pendingImages = images.stream()
+                .filter(image -> image != null && image.startsWith(pendingPrefix))
+                .toList();
+        if (pendingImages.isEmpty()) {
+            return images;
+        }
+        List<String> published = publishImages(ownerId, pendingImages);
+        java.util.Map<String, String> pendingToPublished = new java.util.HashMap<>();
+        for (int i = 0; i < pendingImages.size(); i++) {
+            pendingToPublished.put(pendingImages.get(i), published.get(i));
+        }
+        return images.stream()
+                .map(image -> pendingToPublished.getOrDefault(image, image))
+                .toList();
+    }
+
     public void validatePendingImages(Long ownerId, List<String> images) {
         String requiredPrefix = "pending/" + ownerId + "/";
         for (String image : images) {

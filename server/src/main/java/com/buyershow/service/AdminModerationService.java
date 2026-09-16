@@ -107,7 +107,7 @@ public class AdminModerationService {
         if (newStatus == ModerationStatus.APPROVED.getValue()) {
             Post imageUpdate = new Post();
             imageUpdate.setId(postId);
-            imageUpdate.setImages(uploadService.publishImages(post.getUserId(), post.getImages()));
+            imageUpdate.setImages(uploadService.publishPendingImages(post.getUserId(), post.getImages()));
             postMapper.updateById(imageUpdate);
             notificationService.notifySystem(post.getUserId(),
                     String.format("你的帖子「%s」已审核通过", abbreviate(post.getTitle(), 50)), "post", postId);

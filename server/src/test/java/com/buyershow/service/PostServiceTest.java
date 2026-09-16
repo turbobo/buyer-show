@@ -105,8 +105,8 @@ class PostServiceTest {
         when(postMapper.selectById(50L)).thenReturn(ownedPost());
         when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
-        when(uploadService.publishImages(eq(10L), anyList()))
-                .thenReturn(List.of("http://cdn/published/b.jpg"));
+        when(uploadService.publishPendingImages(eq(10L), anyList()))
+                .thenReturn(List.of("http://cdn/published/a.jpg", "http://cdn/published/b.jpg"));
         when(postMapper.selectPostDetailRow(50L, 10L)).thenReturn(row(50L));
         when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
                 PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())

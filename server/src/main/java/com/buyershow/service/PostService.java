@@ -25,9 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -286,15 +284,8 @@ public class PostService {
         }
 
         List<String> finalImages = requestImages;
-        if (decision.getStatus() == ModerationStatus.APPROVED && !pendingImages.isEmpty()) {
-            List<String> published = uploadService.publishImages(userId, pendingImages);
-            Map<String, String> pendingToPublished = new HashMap<>();
-            for (int i = 0; i < pendingImages.size(); i++) {
-                pendingToPublished.put(pendingImages.get(i), published.get(i));
-            }
-            finalImages = requestImages.stream()
-                    .map(image -> pendingToPublished.getOrDefault(image, image))
-                    .toList();
+        if (decision.getStatus() == ModerationStatus.APPROVED) {
+            finalImages = uploadService.publishPendingImages(userId, requestImages);
         }
 
         post.setTitle(request.getTitle().trim());

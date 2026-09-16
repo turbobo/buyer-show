@@ -67,7 +67,7 @@ class AdminModerationServiceTest {
         when(postMapper.selectById(1L)).thenReturn(post);
         when(postMapper.moderatePending(eq(1L), eq(ModerationStatus.APPROVED.getValue()), isNull(), eq(100L), any(LocalDateTime.class)))
                 .thenReturn(1);
-        when(uploadService.publishImages(10L, post.getImages()))
+        when(uploadService.publishPendingImages(10L, post.getImages()))
                 .thenReturn(List.of("http://cdn/published/product.png"));
 
         ModerateContentRequest request = new ModerateContentRequest();
@@ -75,7 +75,7 @@ class AdminModerationServiceTest {
         service.moderatePost(1L, request);
 
         verify(postMapper).moderatePending(eq(1L), eq(ModerationStatus.APPROVED.getValue()), isNull(), eq(100L), any(LocalDateTime.class));
-        verify(uploadService).publishImages(10L, List.of("pending/10/product.png"));
+        verify(uploadService).publishPendingImages(10L, List.of("pending/10/product.png"));
         verify(postMapper).updateById(argThat((Post update) -> update.getId().equals(1L)
                 && update.getImages().equals(List.of("http://cdn/published/product.png"))));
         verify(notificationService).notifySystem(eq(10L), org.mockito.ArgumentMatchers.contains("已审核通过"), eq("post"), eq(1L));
