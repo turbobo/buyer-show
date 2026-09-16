@@ -128,7 +128,7 @@ export function NotificationsScreen() {
   }
 
   const navBar = (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <div className="flex items-center gap-1 -ml-3">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
@@ -166,6 +166,21 @@ export function NotificationsScreen() {
   return (
     <div className="min-h-screen bg-background">
       {navBar}
+      {/* PC 头部（移动端由导航栏承载） */}
+      <div className="mx-auto hidden max-w-5xl items-center justify-between px-4 pt-6 md:flex">
+        <h1 className="text-xl font-bold text-foreground">通知</h1>
+        {hasUnread && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleMarkAllRead}
+            className="text-xs text-coral hover:text-coral/80"
+          >
+            <CheckCheck className="mr-1 h-4 w-4" />
+            全部已读
+          </Button>
+        )}
+      </div>
       <div className="mx-auto max-w-5xl px-4 py-4">
         {notifications.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-20 text-muted-foreground">

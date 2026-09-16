@@ -252,7 +252,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       : isOwn ? '还没有发布分享' : '还没有公开分享'
 
   const navBar = (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <div className="flex items-center gap-1 -ml-3">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
@@ -347,7 +347,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         </section>
 
         <section className="mt-6">
-          <div role="tablist" aria-label="帖子分类" className="mb-4 flex border-b border-border">
+          <div role="tablist" aria-label="帖子分类" className="sticky top-14 z-40 mb-4 flex border-b border-border bg-background">
             {PROFILE_TABS.map((tab) => (
               <button
                 key={tab.key}

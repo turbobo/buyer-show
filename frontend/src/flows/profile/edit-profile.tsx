@@ -134,7 +134,7 @@ export default function EditProfileScreen() {
   }
 
   const navBar = (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
+    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <div className="flex items-center gap-1 -ml-3">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={handleBack}>
@@ -260,6 +260,17 @@ export default function EditProfileScreen() {
             <p className="mt-1 text-xs text-muted-foreground">用户名用于登录，暂不支持修改</p>
           </div>
         </section>
+
+        {/* PC：底部保存（移动端保存按钮在顶部导航栏） */}
+        <div className="mt-6 hidden justify-end md:flex">
+          <Button
+            disabled={isSaving || isLoading || isUploadingAvatar}
+            onClick={() => void handleSave()}
+            className="min-w-28 bg-coral text-white hover:bg-coral-dark"
+          >
+            {isSaving ? '保存中...' : '保存'}
+          </Button>
+        </div>
       </main>
 
       {showLeaveConfirm && (

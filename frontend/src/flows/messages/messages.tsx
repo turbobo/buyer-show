@@ -98,7 +98,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   return (
     <div className="flex h-[calc(100dvh-4rem)] flex-col bg-background md:h-[calc(100dvh-3.5rem)]">
       {/* Top Nav */}
-      <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border md:top-14">
+      <nav className="sticky top-0 z-50 bg-card/95 backdrop-blur-xl border-b border-border md:hidden">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button
@@ -192,6 +192,24 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
         <div className={`${showChat ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-background`}>
           {activeConv ? (
             <>
+              {/* PC 聊天头部（移动端由导航栏承载） */}
+              <div className="hidden items-center justify-between border-b border-border/60 px-4 py-2 md:flex">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-foreground">{activeConv.user.nickname}</span>
+                  {activeConv.isOnline && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="w-2 h-2 rounded-full bg-green-500" />
+                      在线
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" aria-label="语音通话"><Phone className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label="视频通话"><Video className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label="更多操作"><MoreVertical className="w-4 h-4" /></Button>
+                </div>
+              </div>
+
               {/* Messages */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 <div className="text-center">
