@@ -1,6 +1,8 @@
 package com.buyershow.controller;
 
 import com.buyershow.common.R;
+import com.buyershow.dto.response.CursorPage;
+import com.buyershow.dto.response.FollowUserDTO;
 import com.buyershow.service.FollowService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,5 +24,23 @@ public class FollowController {
     public R<Map<String, Boolean>> toggleFollow(@PathVariable Long userId) {
         boolean followed = followService.toggleFollow(userId);
         return R.ok(Map.of("followed", followed));
+    }
+
+    @Operation(summary = "粉丝列表（游标分页）")
+    @GetMapping("/{userId}/followers")
+    public R<CursorPage<FollowUserDTO>> getFollowers(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(followService.listFollowers(userId, cursor, size));
+    }
+
+    @Operation(summary = "关注列表（游标分页）")
+    @GetMapping("/{userId}/following")
+    public R<CursorPage<FollowUserDTO>> getFollowing(
+            @PathVariable Long userId,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(followService.listFollowing(userId, cursor, size));
     }
 }

@@ -31,6 +31,27 @@ export function getUserLikes(userId: number | string, cursor?: string): Promise<
   return request<CursorPage<ApiPostSummary>>(`/users/${userId}/likes${query}`)
 }
 
+export interface FollowUser {
+  id: number
+  nickname: string
+  avatarUrl: string | null
+  bio: string | null
+  isFollowing: boolean
+  mutual: boolean
+}
+
+/** 粉丝列表（按关注时间倒序） */
+export function getFollowers(userId: number | string, cursor?: string): Promise<CursorPage<FollowUser>> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return request<CursorPage<FollowUser>>(`/users/${userId}/followers${query}`)
+}
+
+/** 关注列表（按关注时间倒序） */
+export function getFollowing(userId: number | string, cursor?: string): Promise<CursorPage<FollowUser>> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return request<CursorPage<FollowUser>>(`/users/${userId}/following${query}`)
+}
+
 export function toggleFollow(userId: number): Promise<{ followed: boolean }> {
   return request<{ followed: boolean }>(`/users/${userId}/follow`, { method: 'POST' })
 }

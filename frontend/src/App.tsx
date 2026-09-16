@@ -13,6 +13,7 @@ const NotificationsScreen = lazy(() => import('./flows/messages/notifications-sc
 const LoginScreen = lazy(() => import('./flows/auth/login'))
 const ProfileScreen = lazy(() => import('./flows/profile/profile'))
 const EditProfileScreen = lazy(() => import('./flows/profile/edit-profile'))
+const FollowListScreen = lazy(() => import('./flows/profile/follow-list'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
@@ -55,6 +56,8 @@ function AnimatedRoutes() {
           <Route path="/posts/:postId/edit" element={<ProtectedRoute><PublishScreen /></ProtectedRoute>} />
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/user/:userId" element={<ProfileScreen />} />
+          <Route path="/user/:userId/followers" element={<FollowListScreen mode="followers" />} />
+          <Route path="/user/:userId/following" element={<FollowListScreen mode="following" />} />
           <Route path="/profile" element={<ProtectedRoute><ProfileScreen self /></ProtectedRoute>} />
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfileScreen /></ProtectedRoute>} />
           <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />

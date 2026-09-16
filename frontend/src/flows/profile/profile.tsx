@@ -266,9 +266,15 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
               <p className="mt-0.5 text-sm text-muted-foreground">@{profile.username}</p>
               {profile.bio && <p className="mt-2 text-sm text-foreground/80">{profile.bio}</p>}
               <div className="mt-3 flex gap-6 text-sm">
-                <span><b className="text-foreground">{profile.postCount}</b> <span className="text-muted-foreground">分享</span></span>
-                <span><b className="text-foreground">{profile.followerCount}</b> <span className="text-muted-foreground">粉丝</span></span>
-                <span><b className="text-foreground">{profile.followingCount}</b> <span className="text-muted-foreground">关注</span></span>
+                <button type="button" className="cursor-pointer" onClick={() => setActiveTab('posts')}>
+                  <b className="text-foreground">{profile.postCount}</b> <span className="text-muted-foreground">分享</span>
+                </button>
+                <button type="button" className="cursor-pointer" onClick={() => navigate(`/user/${profile.id}/followers`)}>
+                  <b className="text-foreground">{profile.followerCount}</b> <span className="text-muted-foreground">粉丝</span>
+                </button>
+                <button type="button" className="cursor-pointer" onClick={() => navigate(`/user/${profile.id}/following`)}>
+                  <b className="text-foreground">{profile.followingCount}</b> <span className="text-muted-foreground">关注</span>
+                </button>
               </div>
             </div>
             <div className="shrink-0">
