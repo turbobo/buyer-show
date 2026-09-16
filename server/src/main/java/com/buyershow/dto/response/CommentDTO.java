@@ -22,6 +22,8 @@ public class CommentDTO {
     private Integer likeCount;
     private Integer moderationStatus;
     private Boolean isLiked;
+    private Boolean isFavorited;
+    private LocalDateTime editedAt;
     private LocalDateTime createdAt;
     private String userNickname;
     private String userAvatarUrl;

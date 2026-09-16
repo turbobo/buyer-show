@@ -71,6 +71,14 @@ public class UserController {
         return R.ok(commentService.listMyComments(cursor, size));
     }
 
+    /** 获取当前用户收藏的评论（仅本人可见）。 */
+    @GetMapping("/me/favorite-comments")
+    public R<CursorPage<UserCommentRow>> getMyFavoriteComments(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(commentService.listMyFavoriteComments(cursor, size));
+    }
+
     /** 获取当前登录用户资料。 */
     @GetMapping("/me")
     public R<UserDTO> getCurrentUserProfile() {

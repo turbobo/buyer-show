@@ -1,12 +1,18 @@
 // 我的评论页：当前用户全部评论（含待审/未通过徽标，仅本人可见），支持删除与触底加载
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Home, Loader2, Trash2 } from 'lucide-react'
+import { ArrowLeft, Bookmark, Home, Loader2, Trash2 } from 'lucide-react'
 import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
-import { deleteComment, getUserComments, type UserComment } from '@/services/comments'
+import {
+  deleteComment,
+  getFavoriteComments,
+  getUserComments,
+  toggleCommentFavorite,
+  type UserComment,
+} from '@/services/comments'
 
 function formatTime(value: string): string {
   const date = new Date(value.replace(' ', 'T'))
@@ -18,6 +24,7 @@ export default function MyCommentsScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [comments, setComments] = useState<UserComment[]>([])
+  const [activeTab, setActiveTab] = useState<'mine' | 'favorites'>('mine')
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -33,7 +40,9 @@ export default function MyCommentsScreen() {
     else setIsLoading(true)
     setError(null)
     try {
-      const page = await getUserComments(nextCursor)
+      const page = activeTab === 'favorites'
+        ? await getFavoriteComments(nextCursor)
+        : await getUserComments(nextCursor)
       setComments((current) => (append ? [...current, ...page.list] : page.list))
       setCursor(page.nextCursor)
       setHasMore(page.hasMore)
@@ -43,7 +52,7 @@ export default function MyCommentsScreen() {
       setIsLoading(false)
       setIsLoadingMore(false)
     }
-  }, [])
+  }, [activeTab])
 
   useEffect(() => { void load() }, [load])
 
@@ -78,6 +87,16 @@ export default function MyCommentsScreen() {
     }
   }
 
+  const handleUnfavorite = async (comment: UserComment) => {
+    try {
+      await toggleCommentFavorite(comment.id)
+      setComments((current) => current.filter((item) => item.id !== comment.id))
+      toast('success', '已取消收藏')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '取消收藏失败')
+    }
+  }
+
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
@@ -98,6 +117,27 @@ export default function MyCommentsScreen() {
     <div className="min-h-screen bg-background">
       {navBar}
       <main className="mx-auto max-w-5xl px-4 py-6">
+        {/* 分类 Tab：我的评论 / 收藏的评论 */}
+        <div className="mb-4 flex items-center gap-1 rounded-full bg-muted/50 p-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('mine')}
+            className={`flex-1 rounded-full py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'mine' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            我的评论
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('favorites')}
+            className={`flex-1 rounded-full py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'favorites' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+            }`}
+          >
+            收藏的评论
+          </button>
+        </div>
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, index) => (
@@ -111,7 +151,9 @@ export default function MyCommentsScreen() {
           </div>
         ) : comments.length === 0 ? (
           <div className="rounded-xl bg-card p-12 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">还没有发表过评论</p>
+            <p className="mb-4 text-sm text-muted-foreground">
+              {activeTab === 'favorites' ? '还没有收藏评论' : '还没有发表过评论'}
+            </p>
             <Button onClick={() => navigate('/')} className="bg-coral text-white hover:bg-coral-dark">
               去逛逛
             </Button>
@@ -138,16 +180,29 @@ export default function MyCommentsScreen() {
                 </div>
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{comment.content}</p>
                 <div className="mt-3 flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    aria-label="删除评论"
-                    className="h-8 text-xs text-muted-foreground hover:text-destructive"
-                    onClick={() => setConfirmDelete(comment)}
-                  >
-                    <Trash2 className="mr-1 h-3.5 w-3.5" />
-                    删除
-                  </Button>
+                  {activeTab === 'favorites' ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label="取消收藏"
+                      className="h-8 text-xs text-muted-foreground hover:text-coral"
+                      onClick={() => void handleUnfavorite(comment)}
+                    >
+                      <Bookmark className="mr-1 h-3.5 w-3.5" />
+                      取消收藏
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label="删除评论"
+                      className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                      onClick={() => setConfirmDelete(comment)}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      删除
+                    </Button>
+                  )}
                 </div>
               </article>
             ))}

@@ -24,6 +24,10 @@ public class Comment {
     /** 0=通过 1=待人工审核 2=驳回 */
     private Integer moderationStatus;
     private String moderationReason;
+
+    /** 最后编辑时间（NULL=未编辑） */
+    private LocalDateTime editedAt;
+
     private Long moderatedBy;
     private LocalDateTime moderatedAt;
 

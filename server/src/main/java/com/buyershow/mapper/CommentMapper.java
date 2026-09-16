@@ -17,27 +17,35 @@ public interface CommentMapper extends BaseMapper<Comment> {
 
     @Select("SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.parent_id AS parentId, "
             + "c.content, c.reply_count AS replyCount, c.like_count AS likeCount, "
-            + "c.moderation_status AS moderationStatus, c.created_at AS createdAt, "
+            + "c.moderation_status AS moderationStatus, c.edited_at AS editedAt, c.created_at AS createdAt, "
             + "u.nickname AS userNickname, u.avatar_url AS userAvatarUrl, "
             + "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS ("
             + "  SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = #{viewerId}"
-            + ") THEN 1 ELSE 0 END AS isLiked "
+            + ") THEN 1 ELSE 0 END AS isLiked, "
+            + "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS ("
+            + "  SELECT 1 FROM favorite_comments fc WHERE fc.comment_id = c.id AND fc.user_id = #{viewerId}"
+            + ") THEN 1 ELSE 0 END AS isFavorited "
             + "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0 "
             + "WHERE c.post_id = #{postId} AND c.parent_id IS NULL "
             + "AND c.status = 0 AND c.moderation_status = 0 "
+            + "AND (#{cursorId} IS NULL OR c.id > #{cursorId}) "
             + "ORDER BY c.created_at, c.id LIMIT #{limit}")
     List<CommentDTO> selectVisibleRoots(@Param("postId") Long postId,
             @Param("viewerId") Long viewerId,
+            @Param("cursorId") Long cursorId,
             @Param("limit") int limit);
 
-    /** 热门排序（按点赞数倒序）的顶级评论。 */
+    /** 热门排序（按点赞数倒序）的顶级评论（第一页，不支持分页）。 */
     @Select("SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.parent_id AS parentId, "
             + "c.content, c.reply_count AS replyCount, c.like_count AS likeCount, "
-            + "c.moderation_status AS moderationStatus, c.created_at AS createdAt, "
+            + "c.moderation_status AS moderationStatus, c.edited_at AS editedAt, c.created_at AS createdAt, "
             + "u.nickname AS userNickname, u.avatar_url AS userAvatarUrl, "
             + "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS ("
             + "  SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = #{viewerId}"
-            + ") THEN 1 ELSE 0 END AS isLiked "
+            + ") THEN 1 ELSE 0 END AS isLiked, "
+            + "CASE WHEN #{viewerId} IS NOT NULL AND EXISTS ("
+            + "  SELECT 1 FROM favorite_comments fc WHERE fc.comment_id = c.id AND fc.user_id = #{viewerId}"
+            + ") THEN 1 ELSE 0 END AS isFavorited "
             + "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0 "
             + "WHERE c.post_id = #{postId} AND c.parent_id IS NULL "
             + "AND c.status = 0 AND c.moderation_status = 0 "
@@ -50,11 +58,14 @@ public interface CommentMapper extends BaseMapper<Comment> {
             "<script>",
             "SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.parent_id AS parentId,",
             "       c.content, c.reply_count AS replyCount, c.like_count AS likeCount,",
-            "       c.moderation_status AS moderationStatus, c.created_at AS createdAt,",
+            "       c.moderation_status AS moderationStatus, c.edited_at AS editedAt, c.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
             "       CASE WHEN #{viewerId} IS NOT NULL AND EXISTS (",
             "           SELECT 1 FROM comment_likes cl WHERE cl.comment_id = c.id AND cl.user_id = #{viewerId}",
-            "       ) THEN 1 ELSE 0 END AS isLiked",
+            "       ) THEN 1 ELSE 0 END AS isLiked,",
+            "       CASE WHEN #{viewerId} IS NOT NULL AND EXISTS (",
+            "           SELECT 1 FROM favorite_comments fc WHERE fc.comment_id = c.id AND fc.user_id = #{viewerId}",
+            "       ) THEN 1 ELSE 0 END AS isFavorited",
             "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0",
             "WHERE c.parent_id IN",
             "<foreach collection='parentIds' item='parentId' open='(' separator=',' close=')'>",
@@ -85,6 +96,33 @@ public interface CommentMapper extends BaseMapper<Comment> {
     List<UserCommentRow> selectUserComments(@Param("userId") Long userId,
             @Param("cursorId") Long cursorId,
             @Param("limit") int limit);
+
+    /**
+     * 当前用户收藏的评论（游标倒序）。
+     */
+    @Select("SELECT fc.id AS cursorKey, c.id, c.post_id AS postId, p.title AS postTitle, c.content, "
+            + "c.moderation_status AS moderationStatus, c.created_at AS createdAt "
+            + "FROM favorite_comments fc "
+            + "JOIN comments c ON c.id = fc.comment_id AND c.status = 0 "
+            + "JOIN posts p ON p.id = c.post_id AND p.status = 0 "
+            + "WHERE fc.user_id = #{userId} "
+            + "AND (#{cursorId} IS NULL OR fc.id < #{cursorId}) "
+            + "ORDER BY fc.id DESC LIMIT #{limit}")
+    List<UserCommentRow> selectFavoriteComments(@Param("userId") Long userId,
+            @Param("cursorId") Long cursorId,
+            @Param("limit") int limit);
+
+    /**
+     * 更新评论内容并写入编辑时间（作者 5 分钟内可编辑，重新过审）。
+     */
+    @Update("UPDATE comments SET content = #{content}, moderation_status = #{moderationStatus}, "
+            + "moderation_reason = #{reason}, edited_at = #{editedAt} "
+            + "WHERE id = #{commentId} AND status = 0")
+    int updateCommentContent(@Param("commentId") Long commentId,
+            @Param("content") String content,
+            @Param("moderationStatus") int moderationStatus,
+            @Param("reason") String reason,
+            @Param("editedAt") LocalDateTime editedAt);
 
     @Update("UPDATE posts SET comment_count = GREATEST(comment_count + #{delta}, 0) "
             + "WHERE id = #{postId} AND status = 0 AND moderation_status = 0")

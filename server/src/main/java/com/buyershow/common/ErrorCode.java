@@ -39,6 +39,7 @@ public enum ErrorCode {
     COMMENT_NO_DELETE(4002, "只能删除自己的评论"),
     COMMENT_CONTENT_EMPTY(4003, "评论内容不能为空"),
     COMMENT_REPLY_DEPTH(4004, "仅支持一级嵌套回复"),
+    COMMENT_EDIT_EXPIRED(4005, "评论发布超过 5 分钟，无法编辑"),
 
     // 内容安全 7000-7999
     CONTENT_REJECTED(7001, "内容未通过安全校验"),

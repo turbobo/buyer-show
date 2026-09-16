@@ -12,6 +12,9 @@ import java.time.LocalDateTime;
  */
 @Data
 public class UserCommentRow {
+    /** 游标键（收藏列表为 favorite_comments.id；评论列表为 comments.id） */
+    private Long cursorKey;
+
     private Long id;
     private Long postId;
     private String postTitle;
