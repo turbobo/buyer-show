@@ -36,7 +36,9 @@ class PostAppealServiceTest {
     private final PostAppealMapper postAppealMapper = mock(PostAppealMapper.class);
     private final PostMapper postMapper = mock(PostMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
-    private final PostAppealService service = new PostAppealService(postAppealMapper, postMapper, userMapper);
+    private final NotificationService notificationService = mock(NotificationService.class);
+    private final PostAppealService service = new PostAppealService(
+            postAppealMapper, postMapper, userMapper, notificationService);
 
     @AfterEach
     void tearDown() {
@@ -107,6 +109,22 @@ class PostAppealServiceTest {
         service.handleAppeal(3L, "APPROVE", "复核通过");
 
         verify(postMapper).approveRejected(eq(9L), eq(100L), any(LocalDateTime.class));
+        verify(notificationService).notifySystem(eq(2L), org.mockito.ArgumentMatchers.contains("已恢复公开"), eq("post"), eq(9L));
+    }
+
+    @Test
+    void testHandleAppealRejectNotifiesAuthor() {
+        authenticateAdmin();
+        PostAppeal appeal = appeal(3L, 9L, 2L);
+        when(postAppealMapper.selectById(3L)).thenReturn(appeal);
+        when(postAppealMapper.handlePending(eq(3L), eq(2), eq("内容确认违规"), eq(100L), any(LocalDateTime.class)))
+                .thenReturn(1);
+
+        service.handleAppeal(3L, "REJECT", "内容确认违规");
+
+        verify(postMapper, never()).approveRejected(any(), any(), any());
+        verify(notificationService).notifySystem(
+                eq(2L), org.mockito.ArgumentMatchers.contains("未通过"), eq("post"), eq(9L));
     }
 
     @Test

@@ -34,8 +34,9 @@ class AdminModerationServiceTest {
     private final ContentReportMapper contentReportMapper = mock(ContentReportMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final UploadService uploadService = mock(UploadService.class);
+    private final NotificationService notificationService = mock(NotificationService.class);
     private final AdminModerationService service = new AdminModerationService(
-            postMapper, commentMapper, contentReportMapper, userMapper, uploadService);
+            postMapper, commentMapper, contentReportMapper, userMapper, uploadService, notificationService);
 
     @AfterEach
     void tearDown() {
@@ -77,6 +78,7 @@ class AdminModerationServiceTest {
         verify(uploadService).publishImages(10L, List.of("pending/10/product.png"));
         verify(postMapper).updateById(argThat((Post update) -> update.getId().equals(1L)
                 && update.getImages().equals(List.of("http://cdn/published/product.png"))));
+        verify(notificationService).notifySystem(eq(10L), org.mockito.ArgumentMatchers.contains("已审核通过"), eq("post"), eq(1L));
     }
 
     @Test

@@ -87,4 +87,28 @@ public class NotificationService {
             log.warn("Failed to create follow notification: {}", e.getMessage());
         }
     }
+
+    /**
+     * 创建系统通知（异步）：审批结果、系统提示等。
+     * 一般由管理员操作触发；content 直接展示给用户。
+     *
+     * @param userId 接收者
+     * @param content 通知内容（≤500 字）
+     * @param targetType 跳转目标类型（post / 空）
+     * @param targetId 跳转目标ID（可空）
+     */
+    @Async
+    public void notifySystem(Long userId, String content, String targetType, Long targetId) {
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(userId);
+            notification.setType("system");
+            notification.setTargetType(targetType);
+            notification.setTargetId(targetId);
+            notification.setContent(content != null ? content.substring(0, Math.min(500, content.length())) : "");
+            notificationMapper.insert(notification);
+        } catch (Exception e) {
+            log.warn("Failed to create system notification: {}", e.getMessage());
+        }
+    }
 }

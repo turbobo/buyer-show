@@ -42,6 +42,7 @@ public class AdminModerationService {
     private final ContentReportMapper contentReportMapper;
     private final UserMapper userMapper;
     private final UploadService uploadService;
+    private final NotificationService notificationService;
 
     public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
@@ -94,12 +95,12 @@ public class AdminModerationService {
     public void moderatePost(Long postId, ModerateContentRequest request) {
         Long adminId = requireAdminId();
         int newStatus = resolveModerationStatus(request.getAction()).getValue();
+        String reason = trimToNull(request.getReason());
         Post post = postMapper.selectById(postId);
         if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()) {
             throw new BusinessException(ErrorCode.POST_NOT_FOUND);
         }
-        int affected = postMapper.moderatePending(
-                postId, newStatus, trimToNull(request.getReason()), adminId, LocalDateTime.now());
+        int affected = postMapper.moderatePending(postId, newStatus, reason, adminId, LocalDateTime.now());
         if (affected == 0) {
             throw new BusinessException(ErrorCode.CONTENT_NOT_PENDING);
         }
@@ -108,8 +109,14 @@ public class AdminModerationService {
             imageUpdate.setId(postId);
             imageUpdate.setImages(uploadService.publishImages(post.getUserId(), post.getImages()));
             postMapper.updateById(imageUpdate);
+            notificationService.notifySystem(post.getUserId(),
+                    String.format("你的帖子「%s」已审核通过", abbreviate(post.getTitle(), 50)), "post", postId);
         } else {
             uploadService.deletePendingImages(post.getUserId(), post.getImages());
+            notificationService.notifySystem(post.getUserId(),
+                    String.format("你的帖子「%s」未通过审核%s，如有异议可发起申诉", abbreviate(post.getTitle(), 50),
+                            reason != null ? "（" + reason + "）" : ""),
+                    "post", postId);
         }
     }
 
@@ -135,11 +142,17 @@ public class AdminModerationService {
         if (affected == 0) {
             throw new BusinessException(ErrorCode.CONTENT_NOT_PENDING);
         }
+        String reason = trimToNull(request.getReason());
         if (newStatus == ModerationStatus.APPROVED) {
             commentMapper.adjustPostCommentCount(comment.getPostId(), 1);
             if (comment.getParentId() != null) {
                 commentMapper.adjustReplyCount(comment.getParentId(), 1);
             }
+            notificationService.notifySystem(comment.getUserId(), "你的评论已审核通过", "post", comment.getPostId());
+        } else {
+            notificationService.notifySystem(comment.getUserId(),
+                    String.format("你的评论未通过审核%s", reason != null ? "（" + reason + "）" : ""),
+                    "post", comment.getPostId());
         }
     }
 
@@ -281,5 +294,12 @@ public class AdminModerationService {
 
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= maxLength ? value : value.substring(0, maxLength) + "…";
     }
 }

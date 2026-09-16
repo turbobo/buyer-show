@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Heart, MessageCircle, UserPlus, Bell, CheckCheck } from 'lucide-react'
+import { ArrowLeft, Heart, MessageCircle, UserPlus, Bell, CheckCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getNotifications, markAllAsRead, type Notification } from '@/services/notifications'
@@ -11,6 +11,7 @@ function getNotificationIcon(type: string) {
     case 'like': return <Heart className="w-4 h-4 text-red-500" />
     case 'comment': return <MessageCircle className="w-4 h-4 text-blue-500" />
     case 'follow': return <UserPlus className="w-4 h-4 text-green-500" />
+    case 'system': return <ShieldCheck className="w-4 h-4 text-coral" />
     default: return <Bell className="w-4 h-4 text-gray-500" />
   }
 }
@@ -20,6 +21,7 @@ function getNotificationText(notification: Notification): string {
     case 'like': return `赞了你的帖子${notification.content ? `「${notification.content}」` : ''}`
     case 'comment': return `评论了你的帖子${notification.content ? `：${notification.content}` : ''}`
     case 'follow': return '关注了你'
+    case 'system': return notification.content || '系统通知'
     default: return notification.content || '新通知'
   }
 }
@@ -43,14 +45,17 @@ function NotificationItem({ notification }: { notification: Notification }) {
   const navigate = useNavigate()
 
   const handleClick = () => {
-    if (notification.type === 'like' || notification.type === 'comment') {
-      if (notification.targetType === 'post' && notification.targetId) {
+    const canOpenPost = notification.targetType === 'post' && notification.targetId != null
+    if (notification.type === 'like' || notification.type === 'comment' || notification.type === 'system') {
+      if (canOpenPost) {
         navigate(`/posts/${notification.targetId}`)
       }
     } else if (notification.type === 'follow') {
       // Could navigate to user profile in future
     }
   }
+
+  const displayName = notification.type === 'system' ? '系统通知' : notification.actorNickname
 
   return (
     <button
@@ -62,7 +67,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
       <div className="relative shrink-0">
         <Avatar className="w-10 h-10">
           <AvatarFallback className="bg-coral-light text-coral text-sm font-bold">
-            {notification.actorNickname?.[0] || '?'}
+            {displayName?.[0] || '?'}
           </AvatarFallback>
         </Avatar>
         <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-card rounded-full flex items-center justify-center border border-border/40">
@@ -72,7 +77,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-foreground truncate">
-            {notification.actorNickname}
+            {displayName}
           </span>
           <span className="text-xs text-muted-foreground shrink-0">
             {formatTime(notification.createdAt)}

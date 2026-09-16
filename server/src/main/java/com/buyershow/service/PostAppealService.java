@@ -41,6 +41,7 @@ public class PostAppealService {
     private final PostAppealMapper postAppealMapper;
     private final PostMapper postMapper;
     private final UserMapper userMapper;
+    private final NotificationService notificationService;
 
     /**
      * 发起申诉：仅帖子作者、帖子处于已下架状态（驳回/封禁）、且无待处理申诉时可提交。
@@ -118,8 +119,16 @@ public class PostAppealService {
         if (affected == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "该申诉已被处理");
         }
+        String postTitle = abbreviate(resolvePostTitle(appeal.getPostId()), 50);
         if (approved) {
             postMapper.approveRejected(appeal.getPostId(), adminId, LocalDateTime.now());
+            notificationService.notifySystem(appeal.getUserId(),
+                    String.format("你的申诉已通过，「%s」已恢复公开", postTitle), "post", appeal.getPostId());
+        } else {
+            notificationService.notifySystem(appeal.getUserId(),
+                    String.format("你的申诉未通过，「%s」维持下架%s", postTitle,
+                            handleReason != null ? "（" + handleReason + "）" : ""),
+                    "post", appeal.getPostId());
         }
         log.info("Post appeal handled. adminId: {}, appealId: {}, approved: {}, postId: {}",
                 adminId, appealId, approved, appeal.getPostId());
@@ -140,6 +149,18 @@ public class PostAppealService {
                 .createdAt(appeal.getCreatedAt())
                 .handledAt(appeal.getHandledAt())
                 .build();
+    }
+
+    private String resolvePostTitle(Long postId) {
+        Post post = postMapper.selectById(postId);
+        return post != null && post.getTitle() != null ? post.getTitle() : "帖子";
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null) {
+            return "";
+        }
+        return value.length() <= maxLength ? value : value.substring(0, maxLength) + "…";
     }
 
     private <T> Page<T> page(long requestedPage, long requestedSize) {
