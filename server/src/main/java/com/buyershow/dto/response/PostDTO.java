@@ -25,6 +25,8 @@ public class PostDTO {
     private Integer commentCount;
     private Integer favoriteCount;
     private Integer moderationStatus;
+    /** 最近一次申诉状态（仅"我的帖子"列表返回；0 待处理 / 1 已通过 / 2 已驳回） */
+    private Integer appealStatus;
     private Boolean isLiked;
     private Boolean isFavorited;
     private LocalDateTime createdAt;

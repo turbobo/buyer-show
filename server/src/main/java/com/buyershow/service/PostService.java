@@ -260,6 +260,10 @@ public class PostService {
         if (!post.getUserId().equals(userId)) {
             throw new BusinessException(ErrorCode.POST_NO_EDIT);
         }
+        if (post.getModerationStatus() != null
+                && post.getModerationStatus() == ModerationStatus.REJECTED.getValue()) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "帖子已下架，无法修改，可在个人主页发起申诉");
+        }
 
         List<String> requestImages = request.getImages();
         List<String> pendingImages = new ArrayList<>();

@@ -215,6 +215,7 @@ class PostServiceTest {
         post.setId(50L);
         post.setUserId(10L);
         post.setStatus(0);
+        post.setModerationStatus(0);
         post.setImages(List.of("http://cdn/published/a.jpg"));
         return post;
     }

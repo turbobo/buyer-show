@@ -31,4 +31,6 @@ public class PostQueryRow {
     private String userAvatarUrl;
     /** 关系表游标键（收藏/点赞列表按关系表 ID 排序时使用；为空时游标取帖子 ID） */
     private Long cursorKey;
+    /** 最近一次申诉状态（仅"我的帖子"列表返回；0 待处理 / 1 已通过 / 2 已驳回） */
+    private Integer appealStatus;
 }

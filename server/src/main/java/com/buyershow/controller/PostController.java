@@ -1,9 +1,11 @@
 package com.buyershow.controller;
 
 import com.buyershow.common.R;
+import com.buyershow.dto.request.AppealRequest;
 import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
+import com.buyershow.service.PostAppealService;
 import com.buyershow.service.PostService;
 import com.buyershow.common.security.RateLimit;
 import jakarta.validation.Valid;
@@ -18,6 +20,7 @@ import java.util.Map;
 public class PostController {
 
     private final PostService postService;
+    private final PostAppealService postAppealService;
 
     @GetMapping
     public R<CursorPage<PostDTO>> getFeed(
@@ -61,5 +64,12 @@ public class PostController {
     public R<Map<String, Boolean>> toggleFavorite(@PathVariable Long id) {
         boolean favorited = postService.toggleFavorite(id);
         return R.ok(Map.of("favorited", favorited));
+    }
+
+    /** 发起申诉（仅已下架帖子的作者）。 */
+    @PostMapping("/{id}/appeal")
+    public R<Void> createAppeal(@PathVariable Long id, @Valid @RequestBody AppealRequest request) {
+        postAppealService.createAppeal(id, request.getReason());
+        return R.ok();
     }
 }
