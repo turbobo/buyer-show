@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { login, register } from '@/services/auth'
@@ -65,6 +66,16 @@ export default function LoginScreen() {
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background p-4">
+      {/* 返回首页（登录页不拦截浏览，游客可随时回首页） */}
+      <Button
+        variant="ghost"
+        aria-label="返回首页"
+        onClick={() => navigate('/')}
+        className="absolute left-4 top-4 z-20"
+      >
+        <ArrowLeft className="mr-1 h-4 w-4" />返回首页
+      </Button>
+
       {/* 背景装饰 */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-coral/5 blur-3xl" />

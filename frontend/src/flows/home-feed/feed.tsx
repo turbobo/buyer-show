@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Clock, Heart, Home, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -206,9 +206,31 @@ export default function HomeFeedScreen() {
       .catch(() => { /* 未登录或请求失败，保持 null */ })
   }, [])
 
-  const handleLogout = () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const location = useLocation()
+
+  // 登出确认弹窗：Esc 关闭
+  useEffect(() => {
+    if (!showLogoutConfirm) return
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowLogoutConfirm(false)
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showLogoutConfirm])
+
+  const handleConfirmLogout = () => {
+    setIsLoggingOut(true)
     clearTokens()
     setCurrentUser(null)
+    setIsLoggingOut(false)
+    setShowLogoutConfirm(false)
+    toast('success', '已退出登录')
+    // 受保护路由登出后回首页；公开页（首页）原地切换为游客态
+    if (/^\/(profile|publish|messages|notifications|admin)(\/|$)/.test(location.pathname)) {
+      navigate('/')
+    }
   }
 
   const handleTabClick = (tab: TabKey) => {
@@ -291,7 +313,7 @@ export default function HomeFeedScreen() {
                 </Avatar>
                 <span className="max-w-20 truncate text-sm font-medium">{currentUser.nickname}</span>
               </button>
-              <Button aria-label="退出登录" variant="ghost" size="icon" onClick={handleLogout}>
+              <Button aria-label="退出登录" variant="ghost" size="icon" onClick={() => setShowLogoutConfirm(true)}>
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>
@@ -420,6 +442,29 @@ export default function HomeFeedScreen() {
           )
         })}
       </div>
+
+      {/* ─── 登出二次确认 ─── */}
+      {showLogoutConfirm && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="退出登录确认"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-foreground">退出登录？</h3>
+            <p className="mt-2 text-sm text-muted-foreground">退出后将以游客身份浏览，随时可以重新登录。</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" autoFocus disabled={isLoggingOut} onClick={() => setShowLogoutConfirm(false)}>
+                取消
+              </Button>
+              <Button variant="destructive" disabled={isLoggingOut} onClick={handleConfirmLogout}>
+                {isLoggingOut ? '退出中...' : '退出登录'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
