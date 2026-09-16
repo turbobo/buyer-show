@@ -65,6 +65,15 @@ public class AnalyticsController {
     }
 
     /**
+     * 接收前端性能指标（web-vitals，未登录也可上报）。
+     */
+    @PostMapping("/performance")
+    public R<Void> recordPerformance(@RequestBody Map<String, Object> metrics) {
+        analyticsService.recordPerformance(metrics);
+        return R.ok();
+    }
+
+    /**
      * 获取概览数据（管理员）
      */
     @GetMapping("/overview")

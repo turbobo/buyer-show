@@ -2,6 +2,7 @@ package com.buyershow.service;
 
 import com.buyershow.entity.AnalyticsEvent;
 import com.buyershow.mapper.AnalyticsEventMapper;
+import com.buyershow.common.security.SecurityUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,26 @@ public class AnalyticsService {
             } catch (Exception e) {
                 log.warn("Failed to record analytics event: {}", e.getMessage());
             }
+        }
+    }
+
+    /**
+     * 记录前端性能指标（web-vitals），作为 performance 事件落库（未登录也可上报）。
+     *
+     * @param metrics 性能指标（cls/fid/lcp/inp/ttfb 等）
+     */
+    public void recordPerformance(Map<String, Object> metrics) {
+        if (metrics == null || metrics.isEmpty()) {
+            return;
+        }
+        try {
+            AnalyticsEvent event = new AnalyticsEvent();
+            event.setEventType("performance");
+            event.setUserId(SecurityUtils.getCurrentUserId());
+            event.setMetadata(objectMapper.writeValueAsString(metrics));
+            analyticsEventMapper.insert(event);
+        } catch (Exception e) {
+            log.warn("Failed to record performance metrics: {}", e.getMessage());
         }
     }
 

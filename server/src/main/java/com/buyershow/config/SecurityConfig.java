@@ -37,6 +37,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/health").permitAll()
                 .requestMatchers("/sitemap.xml").permitAll()
                 .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/analytics/events", "/api/v1/analytics/performance").permitAll()
                 // Browse endpoints (public read)
                 .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
