@@ -70,6 +70,8 @@
 | **页面过渡** | 仅透明度动画（详见 §七 红线）；全局 fixed 组件（Header/TabBar）位于动画容器**之外** |
 
 > ⚠️ **flex 容器陷阱（强制）**：当页面根为 `flex flex-col`（如消息页）时，内容容器必须写全 `mx-auto w-full max-w-5xl px-4`——缺少 `w-full` 会因交叉轴 auto margin 触发 shrink-to-fit，导致 `max-w-5xl` 失效（内容收缩为内容宽度，如消息双栏从 1024px 缩成 524px）。
+>
+> **层叠约定（强制）**：页面内吸顶导航 `z-50` < 全局 Header `z-[55]`（下拉菜单在 Header 内弹出，须高于页面吸顶条）< 模态弹窗 `z-[60]` < 图片预览 `z-[9999]`。新增 fixed/sticky 元素时对照本梯度取值，禁止随意写高 z-index。
 
 ---
 
