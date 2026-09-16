@@ -60,23 +60,7 @@ public class PostService {
             rows = postMapper.selectFeedRows(cursorId, normalizedTag, limit + 1, currentUserId);
         }
 
-        boolean hasMore = rows.size() > limit;
-        List<PostQueryRow> visibleRows = hasMore ? rows.subList(0, limit) : rows;
-        List<PostDTO> posts = visibleRows.stream()
-                .map(postAssembler::toPostDTO)
-                .toList();
-
-        String nextCursor = null;
-        if (hasMore && !visibleRows.isEmpty()) {
-            PostQueryRow lastRow = visibleRows.get(visibleRows.size() - 1);
-            nextCursor = CursorUtils.encode(lastRow.getId());
-        }
-
-        return CursorPage.<PostDTO>builder()
-                .list(posts)
-                .nextCursor(nextCursor)
-                .hasMore(hasMore)
-                .build();
+        return toCursorPage(rows, limit);
     }
 
     /**
@@ -98,6 +82,26 @@ public class PostService {
         Long currentUserId = SecurityUtils.getCurrentUserId();
         List<PostQueryRow> rows = postMapper.selectUserFeedRows(userId, cursorId, limit + 1, currentUserId);
 
+        return toCursorPage(rows, limit);
+    }
+
+    /**
+     * 查询当前用户自己的全部帖子（含待审/未通过，仅本人可见，游标分页）。
+     *
+     * @param cursor 游标
+     * @param requestedLimit 每页数量
+     * @return 帖子游标页
+     */
+    public CursorPage<PostDTO> listOwnPosts(String cursor, int requestedLimit) {
+        Long currentUserId = requireCurrentUserId();
+        int limit = normalizePageSize(requestedLimit);
+        Long cursorId = CursorUtils.decode(cursor);
+        List<PostQueryRow> rows = postMapper.selectOwnFeedRows(currentUserId, cursorId, limit + 1, currentUserId);
+
+        return toCursorPage(rows, limit);
+    }
+
+    private CursorPage<PostDTO> toCursorPage(List<PostQueryRow> rows, int limit) {
         boolean hasMore = rows.size() > limit;
         List<PostQueryRow> visibleRows = hasMore ? rows.subList(0, limit) : rows;
         List<PostDTO> posts = visibleRows.stream()

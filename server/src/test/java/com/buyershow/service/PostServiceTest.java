@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -81,6 +82,21 @@ class PostServiceTest {
 
         assertEquals(ErrorCode.USER_NOT_FOUND.getCode(), exception.getCode());
         verify(postMapper, never()).selectUserFeedRows(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void testListOwnPostsIncludesUnmoderated() {
+        loginAs(10L);
+        when(postMapper.selectOwnFeedRows(eq(10L), isNull(), eq(21), eq(10L)))
+                .thenReturn(List.of(row(100L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.listOwnPosts(null, 20);
+
+        assertEquals(1, page.getList().size());
+        assertFalse(page.isHasMore());
+        verify(postMapper).selectOwnFeedRows(10L, null, 21, 10L);
     }
 
     @Test

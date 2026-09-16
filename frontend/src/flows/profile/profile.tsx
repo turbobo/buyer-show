@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Heart, Loader2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Heart, Loader2, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -7,32 +7,69 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
-import { getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
+import { getMyPosts, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
 import { smartBack } from '@/lib/smart-back'
-import type { ApiPostSummary } from '@/services/posts'
+import { deletePost, type ApiPostSummary } from '@/services/posts'
 
-/** 帖子网格卡片 */
-function PostGridItem({ post }: { post: ApiPostSummary }) {
+/** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标） */
+function PostGridItem({ post, manageable, onDeleteRequest }: {
+  post: ApiPostSummary
+  manageable: boolean
+  onDeleteRequest: (post: ApiPostSummary) => void
+}) {
   const navigate = useNavigate()
   const cover = post.thumbnails?.[0] ?? post.images[0]
+  const statusBadge = post.moderationStatus === 1
+    ? { text: '审核中', className: 'bg-yellow-500/90' }
+    : post.moderationStatus === 2
+      ? { text: '未通过', className: 'bg-destructive/90' }
+      : null
   return (
-    <button
-      type="button"
-      onClick={() => navigate(`/posts/${post.id}`)}
-      className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
-    >
-      <div
-        className="aspect-[3/4] bg-muted"
-        style={cover?.startsWith('http') ? { background: `url(${cover}) center / cover` } : undefined}
-      />
-      <div className="p-3">
-        <h3 className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <Heart className="h-3.5 w-3.5" />
-          <span>{post.likeCount}</span>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => navigate(`/posts/${post.id}`)}
+        className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
+      >
+        <div
+          className="relative aspect-[3/4] bg-muted"
+          style={cover?.startsWith('http') ? { background: `url(${cover}) center / cover` } : undefined}
+        >
+          {statusBadge && (
+            <span className={`absolute left-1.5 top-1.5 rounded px-1.5 py-0.5 text-[10px] text-white ${statusBadge.className}`}>
+              {statusBadge.text}
+            </span>
+          )}
         </div>
-      </div>
-    </button>
+        <div className="p-3">
+          <h3 className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
+          <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
+            <Heart className="h-3.5 w-3.5" />
+            <span>{post.likeCount}</span>
+          </div>
+        </div>
+      </button>
+      {manageable && (
+        <div className="absolute right-1.5 top-1.5 flex gap-1">
+          <button
+            type="button"
+            aria-label="编辑帖子"
+            onClick={() => navigate(`/posts/${post.id}/edit`)}
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-black/80"
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+          <button
+            type="button"
+            aria-label="删除帖子"
+            onClick={() => onDeleteRequest(post)}
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white transition-colors hover:bg-destructive"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -48,6 +85,8 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isFollowSubmitting, setIsFollowSubmitting] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<ApiPostSummary | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const profileRef = useRef<UserProfile | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -64,7 +103,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     try {
       const targetProfile = profileRef.current
         ?? (self ? await getCurrentUserProfile() : await getUserProfile(params.userId ?? ''))
-      const page = await getUserPosts(targetProfile.id, nextCursor)
+      const page = self ? await getMyPosts(nextCursor) : await getUserPosts(targetProfile.id, nextCursor)
       profileRef.current = targetProfile
       setProfile(targetProfile)
       setPosts((current) => (append ? [...current, ...page.list] : page.list))
@@ -117,6 +156,27 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       toast('error', requestError instanceof Error ? requestError.message : '操作失败')
     } finally {
       setIsFollowSubmitting(false)
+    }
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    setIsDeleting(true)
+    try {
+      await deletePost(String(pendingDelete.id))
+      setPosts((current) => current.filter((item) => item.id !== pendingDelete.id))
+      setProfile((current) => {
+        if (!current) return current
+        const next = { ...current, postCount: Math.max(current.postCount - 1, 0) }
+        profileRef.current = next
+        return next
+      })
+      toast('success', '已删除')
+      setPendingDelete(null)
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '删除失败')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -207,12 +267,14 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         <section className="mt-6">
           <h3 className="mb-3 text-lg font-bold text-foreground">分享</h3>
           {posts.length === 0 && (
-            <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">还没有公开分享</p>
+            <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">
+              {isOwn ? '还没有发布分享' : '还没有公开分享'}
+            </p>
           )}
           <div className="columns-2 gap-3 space-y-3 md:columns-3">
             {posts.map((post) => (
               <div key={post.id} className="break-inside-avoid">
-                <PostGridItem post={post} />
+                <PostGridItem post={post} manageable={isOwn} onDeleteRequest={setPendingDelete} />
               </div>
             ))}
           </div>
@@ -222,6 +284,32 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           </div>
         </section>
       </main>
+
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="删除帖子确认"
+        >
+          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
+            <h3 className="text-lg font-bold text-foreground">删除这条分享？</h3>
+            <p className="text-sm text-muted-foreground">「{pendingDelete.title}」删除后不可恢复。</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" disabled={isDeleting} onClick={() => setPendingDelete(null)}>
+                取消
+              </Button>
+              <Button
+                className="bg-destructive text-white hover:bg-destructive/90"
+                disabled={isDeleting}
+                onClick={() => void handleConfirmDelete()}
+              >
+                {isDeleting ? '删除中...' : '删除'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

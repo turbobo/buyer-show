@@ -13,6 +13,12 @@ export function getUserPosts(userId: number | string, cursor?: string): Promise<
   return request<CursorPage<ApiPostSummary>>(`/users/${userId}/posts${query}`)
 }
 
+/** 我的帖子（含待审/未通过，仅本人可访问） */
+export function getMyPosts(cursor?: string): Promise<CursorPage<ApiPostSummary>> {
+  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+  return request<CursorPage<ApiPostSummary>>(`/users/me/posts${query}`)
+}
+
 export function toggleFollow(userId: number): Promise<{ followed: boolean }> {
   return request<{ followed: boolean }>(`/users/${userId}/follow`, { method: 'POST' })
 }

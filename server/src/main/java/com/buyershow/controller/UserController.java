@@ -34,6 +34,14 @@ public class UserController {
         return R.ok(postService.listUserPosts(userId, cursor, size));
     }
 
+    /** 获取当前用户自己的全部帖子（含待审/未通过）。 */
+    @GetMapping("/me/posts")
+    public R<CursorPage<PostDTO>> getMyPosts(
+            @RequestParam(required = false) String cursor,
+            @RequestParam(defaultValue = "20") int size) {
+        return R.ok(postService.listOwnPosts(cursor, size));
+    }
+
     /** 获取当前登录用户资料。 */
     @GetMapping("/me")
     public R<UserDTO> getCurrentUserProfile() {
