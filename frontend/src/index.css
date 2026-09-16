@@ -139,6 +139,8 @@
 
   html {
     @apply font-sans;
+    /* 固定滚动条占位：内容长短不同的页面切换时，避免居中容器（导航/返回按钮等）横向跳动与抖动 */
+    scrollbar-gutter: stable;
   }
 }
 
