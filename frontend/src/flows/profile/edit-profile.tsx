@@ -136,7 +136,7 @@ export default function EditProfileScreen() {
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-        <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={handleBack}>
+        <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={handleBack}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <h1 className="flex-1 truncate text-lg font-bold text-foreground">编辑资料</h1>

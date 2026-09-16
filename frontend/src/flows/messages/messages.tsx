@@ -101,6 +101,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           <Button
             variant="ghost"
             size="icon"
+            className="-ml-3"
             aria-label={showChat ? '返回对话列表' : '返回上一页'}
             onClick={showChat ? () => setActiveConv(null) : onBack}
           >

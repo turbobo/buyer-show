@@ -69,7 +69,7 @@ export default function LoginScreen() {
       {/* 返回首页（登录页不拦截浏览，游客可随时回首页；几何与全局 Stack 导航一致） */}
       <div className="absolute inset-x-0 top-0 z-20">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
-          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button aria-label="返回首页" variant="ghost" size="icon" className="-ml-3" onClick={() => navigate('/')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
         </div>

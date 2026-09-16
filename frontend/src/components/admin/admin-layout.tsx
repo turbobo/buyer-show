@@ -99,7 +99,7 @@ export default function AdminLayout() {
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border bg-card/95 px-4 backdrop-blur-xl">
           <Button
-            className="lg:hidden"
+            className="-ml-3 lg:hidden"
             variant="ghost"
             size="icon"
             aria-label="展开导航"

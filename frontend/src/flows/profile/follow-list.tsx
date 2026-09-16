@@ -95,7 +95,7 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+          <Button aria-label="返回上一页" variant="ghost" size="icon" className="-ml-3" onClick={() => smartBack()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-lg font-bold text-foreground">{title}</h1>
