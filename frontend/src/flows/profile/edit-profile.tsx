@@ -135,7 +135,7 @@ export default function EditProfileScreen() {
 
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-3xl items-center justify-between px-4">
+      <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4">
         <Button variant="ghost" onClick={handleBack}>
           <ArrowLeft className="mr-1 h-4 w-4" />返回
         </Button>
@@ -155,9 +155,11 @@ export default function EditProfileScreen() {
     return (
       <div className="min-h-screen bg-background">
         {navBar}
-        <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
-          <Skeleton className="h-64 rounded-2xl" />
-          <Skeleton className="h-40 rounded-2xl" />
+        <main className="mx-auto max-w-5xl space-y-6 p-4 py-6">
+          <div className="mx-auto max-w-3xl space-y-6">
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-40 rounded-2xl" />
+          </div>
         </main>
       </div>
     )
@@ -169,8 +171,8 @@ export default function EditProfileScreen() {
     <div className="min-h-screen bg-background">
       {navBar}
 
-      <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
-        <section className="space-y-6 rounded-2xl border border-border/60 bg-card p-5">
+      <main className="mx-auto max-w-5xl space-y-6 p-4 py-6">
+        <section className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-border/60 bg-card p-5">
           {/* ─── 头像 ─── */}
           <div className="flex flex-col items-center gap-2">
             <button

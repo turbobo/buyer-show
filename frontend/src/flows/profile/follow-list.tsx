@@ -94,7 +94,7 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
   return (
     <div className="min-h-screen bg-background">
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-3xl items-center gap-3 px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -102,7 +102,7 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
         </div>
       </nav>
 
-      <main className="mx-auto max-w-3xl px-4 py-6">
+      <main className="mx-auto max-w-5xl px-4 py-6">
         {isLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 6 }).map((_, index) => (
