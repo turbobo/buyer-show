@@ -22,8 +22,8 @@ export function DesktopHeader() {
     <header className="sticky top-0 z-50 hidden border-b border-border bg-card/95 backdrop-blur-xl md:block">
       <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
         <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2" aria-label="返回首页">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <span className="text-base font-bold text-foreground">买家说</span>
+          <img src="/favicon.svg" alt="" className="h-8 w-8" />
+          <span className="text-lg font-bold text-foreground">买家说</span>
         </button>
         <nav className="flex items-center gap-1" aria-label="频道导航">
           <Button variant={pathname === '/' ? 'secondary' : 'ghost'} size="sm" onClick={() => navigate('/')}>

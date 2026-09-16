@@ -367,10 +367,14 @@ export default function HomeFeedScreen() {
     <div className="min-h-screen bg-background pb-20">
       {/* ─── 顶部导航栏 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-5xl items-center gap-4 px-4">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="" className="h-8 w-8" />
             <span className="hidden text-lg font-bold sm:block">买家说</span>
+          </div>
+          <div className="hidden items-center gap-1 md:flex">
+            <Button variant="secondary" size="sm" onClick={() => handleTabClick('home')}>首页</Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/messages')}>消息</Button>
           </div>
           <div className="relative mx-auto max-w-xl flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -445,7 +449,7 @@ export default function HomeFeedScreen() {
       </nav>
 
       {/* ─── 标签筛选栏 ─── */}
-      <div className="sticky top-16 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
+      <div className="sticky top-14 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4">
           <div className="flex flex-1 gap-2 overflow-x-auto">
             {mockTags.map((tag) => (

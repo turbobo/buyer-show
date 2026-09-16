@@ -140,7 +140,7 @@ export default function EditProfileScreen() {
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={handleBack}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button aria-label="返回首页" variant="ghost" size="icon" className="md:hidden" onClick={() => navigate('/')}>
             <Home className="h-5 w-5" />
           </Button>
         </div>

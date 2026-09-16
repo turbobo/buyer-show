@@ -258,7 +258,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Button aria-label="返回首页" variant="ghost" size="icon" onClick={() => navigate('/')}>
+          <Button aria-label="返回首页" variant="ghost" size="icon" className="md:hidden" onClick={() => navigate('/')}>
             <Home className="h-5 w-5" />
           </Button>
         </div>
