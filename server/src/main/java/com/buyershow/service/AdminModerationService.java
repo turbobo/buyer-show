@@ -27,6 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -66,6 +67,27 @@ public class AdminModerationService {
                 .eq(ContentReport::getStatus, ContentReportService.STATUS_PENDING)
                 .orderByAsc(ContentReport::getCreatedAt, ContentReport::getId));
         return entityPage.convert(this::toReportDTO);
+    }
+
+    /**
+     * 待办计数（待审帖子/评论/举报），用于后台看板。
+     *
+     * @return 三类待办数量
+     */
+    public Map<String, Long> pendingCounts() {
+        requireAdminId();
+        long pendingPosts = postMapper.selectCount(Wrappers.<Post>lambdaQuery()
+                .eq(Post::getStatus, PostStatus.PUBLIC.getValue())
+                .eq(Post::getModerationStatus, ModerationStatus.PENDING.getValue()));
+        long pendingComments = commentMapper.selectCount(Wrappers.<Comment>lambdaQuery()
+                .eq(Comment::getStatus, CommentStatus.ACTIVE.getValue())
+                .eq(Comment::getModerationStatus, ModerationStatus.PENDING.getValue()));
+        long pendingReports = contentReportMapper.selectCount(Wrappers.<ContentReport>lambdaQuery()
+                .eq(ContentReport::getStatus, ContentReportService.STATUS_PENDING));
+        return Map.of(
+                "pendingPosts", pendingPosts,
+                "pendingComments", pendingComments,
+                "pendingReports", pendingReports);
     }
 
     @Transactional

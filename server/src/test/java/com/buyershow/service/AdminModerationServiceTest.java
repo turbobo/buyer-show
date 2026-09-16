@@ -20,6 +20,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -125,6 +126,20 @@ class AdminModerationServiceTest {
         verify(contentReportMapper).handlePending(eq(1L), eq(1), eq(100L), any(LocalDateTime.class));
         verify(commentMapper).adjustPostCommentCount(3L, -1);
         verify(commentMapper).adjustReplyCount(4L, -1);
+    }
+
+    @Test
+    void testPendingCountsAggregatesQueues() {
+        authenticate(1);
+        when(postMapper.selectCount(any())).thenReturn(3L);
+        when(commentMapper.selectCount(any())).thenReturn(2L);
+        when(contentReportMapper.selectCount(any())).thenReturn(1L);
+
+        Map<String, Long> counts = service.pendingCounts();
+
+        assertEquals(3L, counts.get("pendingPosts"));
+        assertEquals(2L, counts.get("pendingComments"));
+        assertEquals(1L, counts.get("pendingReports"));
     }
 
     private void authenticate(int role) {

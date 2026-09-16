@@ -18,6 +18,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 管理员审核工作台 REST 接口。
  *
@@ -53,6 +55,12 @@ public class AdminModerationController {
             @RequestParam(defaultValue = "1") long page,
             @RequestParam(defaultValue = "20") long size) {
         return R.ok(adminModerationService.listPendingReports(page, size));
+    }
+
+    /** 待办计数（待审帖子/评论/举报）。 */
+    @GetMapping("/pending-counts")
+    public R<Map<String, Long>> pendingCounts() {
+        return R.ok(adminModerationService.pendingCounts());
     }
 
     /** 审核帖子。 */

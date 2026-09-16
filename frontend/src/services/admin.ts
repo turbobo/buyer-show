@@ -30,6 +30,16 @@ export interface PageResult<T> {
   size: number
 }
 
+export interface PendingCounts {
+  pendingPosts: number
+  pendingComments: number
+  pendingReports: number
+}
+
+export function getPendingCounts(): Promise<PendingCounts> {
+  return request<PendingCounts>('/admin/pending-counts')
+}
+
 export function getPendingPosts(page = 1, size = 50): Promise<PageResult<PendingPost>> {
   return request<PageResult<PendingPost>>(`/admin/moderation/posts?page=${page}&size=${size}`)
 }
