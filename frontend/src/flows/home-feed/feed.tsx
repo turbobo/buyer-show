@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Clock, Heart, Home, LogOut, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,13 +16,56 @@ import { mockTags, hotSearchTags, searchHistory } from '../shared/mock-data'
 
 type TabKey = 'home' | 'search' | 'publish' | 'messages' | 'profile'
 
-/** 根据 post id 生成确定性的随机图片高度（180~260px 范围） */
-function cardImageHeight(postId: number): string {
+/** 根据 post id 生成确定性的图片区比例（同时给出 CSS 类与数值比，供列高估算） */
+function cardImageAspect(postId: number): { className: string; ratio: number } {
   const seed = ((postId * 2654435761) >>> 0) % 100
-  if (seed < 30) return 'aspect-[3/4]'      // 30% 高卡
-  if (seed < 60) return 'aspect-square'      // 30% 方卡
-  if (seed < 85) return 'aspect-[4/5]'       // 25% 中高卡
-  return 'aspect-[5/6]'                      // 15% 矮卡
+  if (seed < 30) return { className: 'aspect-[3/4]', ratio: 4 / 3 }      // 30% 高卡
+  if (seed < 60) return { className: 'aspect-square', ratio: 1 }          // 30% 方卡
+  if (seed < 85) return { className: 'aspect-[4/5]', ratio: 5 / 4 }      // 25% 中高卡
+  return { className: 'aspect-[5/6]', ratio: 6 / 5 }                      // 15% 矮卡
+}
+
+/** 估算卡片相对高度（列宽归一化为 1000），用于最短列优先分配 */
+function estimateCardHeight(post: ApiPostSummary): number {
+  const { ratio } = cardImageAspect(post.id)
+  return ratio * 1000 + 110 + (post.productName ? 24 : 0)
+}
+
+/**
+ * 按「当前最短列优先」把卡片分配到 N 列。
+ * 替代 CSS columns：多列布局在卡片少/高度不均时会留下大段列尾空白。
+ */
+function distributePosts(posts: ApiPostSummary[], columnCount: number): ApiPostSummary[][] {
+  const columns: ApiPostSummary[][] = Array.from({ length: columnCount }, () => [])
+  const heights = new Array<number>(columnCount).fill(0)
+  for (const post of posts) {
+    let target = 0
+    for (let i = 1; i < columnCount; i++) {
+      if (heights[i] < heights[target]) {
+        target = i
+      }
+    }
+    columns[target].push(post)
+    heights[target] += estimateCardHeight(post)
+  }
+  return columns
+}
+
+/** 响应式列数（与既有断点一致：2 / md:3 / xl:4） */
+function useColumnCount(): number {
+  const calc = () => {
+    if (typeof window === 'undefined') return 2
+    if (window.innerWidth >= 1280) return 4
+    if (window.innerWidth >= 768) return 3
+    return 2
+  }
+  const [count, setCount] = useState(calc)
+  useEffect(() => {
+    const onResize = () => setCount(calc())
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+  return count
 }
 
 function postBackground(post: ApiPostSummary): string {
@@ -42,7 +85,7 @@ function PostCard({ post }: { post: ApiPostSummary }) {
       onClick={() => navigate(`/posts/${post.id}`)}
       className="group w-full overflow-hidden rounded-xl border border-border/60 bg-card text-left transition-all hover:-translate-y-0.5 hover:border-coral/20 hover:shadow-lg"
     >
-      <div className={`bg-muted ${cardImageHeight(post.id)}`} style={{ background: postBackground(post) }} />
+      <div className={`bg-muted ${cardImageAspect(post.id).className}`} style={{ background: postBackground(post) }} />
       <div className="p-3">
         <h3 className="mb-2 line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
         {post.productName && (
@@ -150,6 +193,8 @@ export default function HomeFeedScreen() {
   const { toast } = useToast()
   const { theme, toggleTheme } = useTheme()
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
+  const columnCount = useColumnCount()
+  const distributedColumns = useMemo(() => distributePosts(posts, columnCount), [posts, columnCount])
   const [cursor, setCursor] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -371,9 +416,13 @@ export default function HomeFeedScreen() {
           <span className="text-xs text-muted-foreground">{activeTag}</span>
         </div>
         {isLoading && posts.length === 0 && (
-          <div className="columns-2 gap-3 space-y-3 md:columns-3 xl:columns-4">
-            {Array.from({ length: 8 }).map((_, index) => (
-              <Skeleton key={index} className="break-inside-avoid rounded-xl" style={{ aspectRatio: index % 3 === 0 ? '3/4' : index % 3 === 1 ? '1/1' : '4/5' }} />
+          <div className="flex items-start gap-3">
+            {Array.from({ length: columnCount }).map((_, columnIndex) => (
+              <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-3">
+                {Array.from({ length: 2 }).map((_, index) => (
+                  <Skeleton key={index} className="rounded-xl" style={{ aspectRatio: index % 3 === 0 ? '3/4' : index % 3 === 1 ? '1/1' : '4/5' }} />
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -392,10 +441,12 @@ export default function HomeFeedScreen() {
             </Button>
           </div>
         )}
-        <div className="columns-2 gap-3 space-y-3 md:columns-3 xl:columns-4">
-          {posts.map((post) => (
-            <div key={post.id} className="break-inside-avoid">
-              <PostCard post={post} />
+        <div className="flex items-start gap-3">
+          {distributedColumns.map((column, columnIndex) => (
+            <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-3">
+              {column.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
             </div>
           ))}
         </div>
