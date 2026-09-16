@@ -12,6 +12,7 @@ const MessagesScreen = lazy(() => import('./flows/messages/messages'))
 const NotificationsScreen = lazy(() => import('./flows/messages/notifications-screen').then(m => ({ default: m.NotificationsScreen })))
 const LoginScreen = lazy(() => import('./flows/auth/login'))
 const ProfileScreen = lazy(() => import('./flows/profile/profile'))
+const EditProfileScreen = lazy(() => import('./flows/profile/edit-profile'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
@@ -55,6 +56,7 @@ function AnimatedRoutes() {
           <Route path="/login" element={<LoginScreen />} />
           <Route path="/user/:userId" element={<ProfileScreen />} />
           <Route path="/profile" element={<ProtectedRoute><ProfileScreen self /></ProtectedRoute>} />
+          <Route path="/profile/edit" element={<ProtectedRoute><EditProfileScreen /></ProtectedRoute>} />
           <Route path="/admin/moderation" element={<ProtectedRoute><AdminModerationScreen /></ProtectedRoute>} />
           <Route path="/admin/analytics" element={<ProtectedRoute><AdminAnalytics /></ProtectedRoute>} />
           <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />

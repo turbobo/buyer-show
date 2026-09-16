@@ -22,3 +22,13 @@ export function getMyPosts(cursor?: string): Promise<CursorPage<ApiPostSummary>>
 export function toggleFollow(userId: number): Promise<{ followed: boolean }> {
   return request<{ followed: boolean }>(`/users/${userId}/follow`, { method: 'POST' })
 }
+
+export interface UpdateProfilePayload {
+  nickname?: string
+  bio?: string
+  avatarUrl?: string
+}
+
+export function updateProfile(payload: UpdateProfilePayload): Promise<UserProfile> {
+  return request<UserProfile>('/users/me', { method: 'PUT', body: JSON.stringify(payload) })
+}

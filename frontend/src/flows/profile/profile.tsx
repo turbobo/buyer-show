@@ -247,7 +247,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
             </div>
             <div className="shrink-0">
               {isOwn ? (
-                <Button variant="outline" onClick={() => toast('info', '编辑资料功能开发中')}>编辑资料</Button>
+                <Button variant="outline" onClick={() => navigate('/profile/edit')}>编辑资料</Button>
               ) : (
                 <Button
                   variant={profile.isFollowing ? 'outline' : 'default'}
