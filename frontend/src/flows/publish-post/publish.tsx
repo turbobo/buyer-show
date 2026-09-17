@@ -8,9 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { createPost, getPost, updatePost } from '@/services/posts'
+import { getHotTagStats, type TagStat } from '@/services/tags'
 import { deleteUploadedImage, uploadImage, validateImageFile } from '@/services/uploads'
 import { useToast } from '@/components/ui/toast'
-import { mockTags } from '../shared/mock-data'
 
 const SOURCES = ['天猫', '京东', '拼多多', '线下门店', '海淘', '其他']
 const MAX_IMAGES = 9
@@ -56,6 +56,10 @@ export default function PublishScreen() {
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagOptions, setTagOptions] = useState<TagStat[]>([])
+
+  // 热门标签选项（真实聚合；含编辑模式下的已有标签）
+  const tagChoices = Array.from(new Set([...selectedTags, ...tagOptions.map((item) => item.tag)]))
   const [isPublishing, setIsPublishing] = useState(false)
   const [isInitializing, setIsInitializing] = useState(isEdit)
   const [draftPrompt, setDraftPrompt] = useState<PostDraft | null>(null)
@@ -76,6 +80,11 @@ export default function PublishScreen() {
     if (navigateTimerRef.current !== null) {
       window.clearTimeout(navigateTimerRef.current)
     }
+  }, [])
+
+  // 热门标签选项（真实聚合；接口为空时提示发布后自动统计）
+  useEffect(() => {
+    getHotTagStats().then(setTagOptions).catch(() => { /* 保持空列表 */ })
   }, [])
 
   // 编辑模式：加载原帖并回填
@@ -475,13 +484,12 @@ export default function PublishScreen() {
         <section className="rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="mb-3 text-lg font-bold">标签</h2>
           <div className="flex flex-wrap gap-2">
-            {mockTags.filter((tag) => tag.name !== '全部').map((tag) => {
-              const name = tag.name.replace(/^[^\u4e00-\u9fa5]+/, '')
+            {tagChoices.map((name) => {
               const selected = selectedTags.includes(name)
               return (
                 <button
                   type="button"
-                  key={tag.name}
+                  key={name}
                   onClick={() => setSelectedTags((current) =>
                     selected ? current.filter((item) => item !== name) : current.length < 5 ? [...current, name] : current,
                   )}
@@ -489,10 +497,13 @@ export default function PublishScreen() {
                     selected ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                   }`}
                 >
-                  {tag.name}
+                  {name}
                 </button>
               )
             })}
+            {tagChoices.length === 0 && (
+              <p className="text-xs text-muted-foreground">暂无热门标签，发布后将自动统计</p>
+            )}
           </div>
         </section>
 

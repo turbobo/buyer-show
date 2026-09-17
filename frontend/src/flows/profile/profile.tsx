@@ -319,7 +319,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       {navBar}
       <main className="mx-auto max-w-5xl px-4 py-6">
         <section className="rounded-2xl border border-border/60 bg-card p-6">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-wrap items-start gap-4">
             <Avatar className="h-20 w-20 shrink-0">
               {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} alt={profile.nickname} />}
               <AvatarFallback className="bg-coral-light text-2xl font-bold text-coral">
@@ -342,7 +342,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                 </button>
               </div>
             </div>
-            <div className="shrink-0">
+            <div className="flex shrink-0 gap-2 max-md:w-full">
               {isOwn ? (
                 <Button variant="outline" onClick={() => navigate('/profile/edit')}>编辑资料</Button>
               ) : (

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFeed, type ApiPostSummary } from '@/services/posts'
+import { getHotTagStats, type TagStat } from '@/services/tags'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
@@ -14,7 +15,6 @@ import { UserMenu } from '@/components/layout/user-menu'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useTheme } from '@/hooks/use-theme'
 import { Moon, Sun } from 'lucide-react'
-import { mockTags } from '../shared/mock-data'
 import {
   addSearchHistory,
   clearSearchHistory,
@@ -297,6 +297,7 @@ export default function HomeFeedScreen() {
   const [hasMore, setHasMore] = useState(false)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const [activeTag, setActiveTag] = useState('全部')
+  const [hotTagStats, setHotTagStats] = useState<TagStat[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
@@ -312,7 +313,7 @@ export default function HomeFeedScreen() {
 
   const loadFeed = useCallback(async (nextCursor?: string, append = false) => {
     const version = ++requestVersion.current
-    const tag = activeTag === '全部' ? undefined : activeTag.replace(/^[^\u4e00-\u9fa5]+/, '')
+    const tag = activeTag === '全部' ? undefined : activeTag
     setIsLoading(true)
     setError(null)
     try {
@@ -330,6 +331,11 @@ export default function HomeFeedScreen() {
   }, [activeTag, feedSort])
 
   useEffect(() => { void loadFeed() }, [loadFeed])
+
+  // 热门标签（真实聚合；接口为空时仅显示「全部」）
+  useEffect(() => {
+    getHotTagStats().then(setHotTagStats).catch(() => { /* 保持空列表 */ })
+  }, [])
 
   const refreshFeed = useCallback(async () => {
     if (isRefreshing) return
@@ -532,16 +538,16 @@ export default function HomeFeedScreen() {
       <div className="sticky top-14 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4">
           <div className="flex flex-1 gap-2 overflow-x-auto">
-            {mockTags.map((tag) => (
+            {['全部', ...hotTagStats.map((item) => item.tag)].map((tagName) => (
               <button
                 type="button"
-                key={tag.display}
-                onClick={() => setActiveTag(tag.display)}
+                key={tagName}
+                onClick={() => setActiveTag(tagName)}
                 className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  activeTag === tag.display ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  activeTag === tagName ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
-                {tag.display}
+                {tagName}
               </button>
             ))}
           </div>

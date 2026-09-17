@@ -277,13 +277,13 @@ public interface PostMapper extends BaseMapper<Post> {
     })
     List<Post> selectPostsWithTag(@Param("tag") String tag);
 
-    /** 标签聚合统计（未删除帖，按使用量倒序，可按关键词过滤）。 */
+    /** 标签聚合统计（公开帖口径：未删除且审核通过，与管理端操作影响面互补）。 */
     @Select({
             "<script>",
             "SELECT jt.tag AS tag, COUNT(*) AS postCount",
             "FROM posts p",
             "JOIN JSON_TABLE(p.tags, '$[*]' COLUMNS (tag VARCHAR(50) PATH '$')) jt",
-            "WHERE p.status = 0",
+            "WHERE p.status = 0 AND p.moderation_status = 0",
             "<if test='keyword != null'> AND jt.tag LIKE CONCAT('%', #{keyword}, '%') </if>",
             "GROUP BY jt.tag",
             "ORDER BY postCount DESC, jt.tag",
