@@ -99,35 +99,40 @@ export function DesktopHeader() {
             <Search className="h-4 w-4 shrink-0" />
             <span className="truncate">搜索好物、品牌、标签...</span>
           </button>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
-            <Button
-              aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-            >
-              {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-            </Button>
-            {isAdmin && (
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>
-                审核台
+          {/* 右操作区双层分组（16/8）：工具组（主题/审核台） | 操作组（发布+身份区） */}
+          <div className="ml-auto flex shrink-0 items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button
+                aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+                variant="ghost"
+                size="icon"
+                onClick={toggleTheme}
+              >
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
               </Button>
-            )}
-            <Button
-              aria-label="发布分享"
-              onClick={() => navigate('/publish')}
-              className="h-9 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
-            >
-              <Plus className="h-4 w-4 sm:mr-1" />
-              <span>发布</span>
-            </Button>
-            {currentUser ? (
-              <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
-            ) : (
-              <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
-                登录
+              {isAdmin && (
+                <Button variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>
+                  审核台
+                </Button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                aria-label="发布分享"
+                onClick={() => navigate('/publish')}
+                className="h-10 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
+              >
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span>发布</span>
               </Button>
-            )}
+              {currentUser ? (
+                <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
+              ) : (
+                <Button variant="ghost" size="sm" onClick={() => navigate('/login')}>
+                  登录
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </header>

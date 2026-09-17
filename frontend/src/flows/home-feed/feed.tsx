@@ -522,31 +522,38 @@ export default function HomeFeedScreen() {
             )}
             {isSearchFocused && <SearchPanel query={searchQuery} onClose={() => setIsSearchFocused(false)} />}
           </div>
-          <Button aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'} variant="ghost" size="icon" onClick={toggleTheme}>
-            {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
-          </Button>
-          {currentUser && getTokenRole() === 'ADMIN' && (
-            <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>
-              审核台
-            </Button>
-          )}
-          <Button
-            aria-label="发布分享"
-            onClick={() => navigate('/publish')}
-            className="h-10 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
-          >
-            <Plus className="h-4 w-4 sm:mr-1" />
-            <span className="hidden sm:inline">发布</span>
-          </Button>
-          {currentUser ? (
-            <div className="hidden sm:block">
-              <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
+          {/* 右操作区双层分组（16/8）：工具组（主题/审核台） | 操作组（发布+身份区） */}
+          <div className="ml-auto flex shrink-0 items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Button aria-label={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'} variant="ghost" size="icon" onClick={toggleTheme}>
+                {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+              </Button>
+              {currentUser && getTokenRole() === 'ADMIN' && (
+                <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/admin/moderation')}>
+                  审核台
+                </Button>
+              )}
             </div>
-          ) : (
-            <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/login')}>
-              登录
-            </Button>
-          )}
+            <div className="flex items-center gap-2">
+              <Button
+                aria-label="发布分享"
+                onClick={() => navigate('/publish')}
+                className="h-10 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
+              >
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">发布</span>
+              </Button>
+              {currentUser ? (
+                <div className="hidden sm:block">
+                  <UserMenu user={currentUser} onLogoutRequest={() => setShowLogoutConfirm(true)} />
+                </div>
+              ) : (
+                <Button className="hidden sm:inline-flex" variant="ghost" size="sm" onClick={() => navigate('/login')}>
+                  登录
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </nav>
 
