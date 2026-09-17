@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "check:ui": "bash scripts/ui-consistency-check.sh",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"

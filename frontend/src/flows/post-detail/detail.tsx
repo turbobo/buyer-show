@@ -13,6 +13,7 @@ import { ApiError, getTokenUserId } from '@/services/http'
 import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
+import { AppDialog } from '@/components/ui/app-dialog'
 import { PostStructuredData } from '@/components/structured-data'
 import { useToast } from '@/components/ui/toast'
 import { trackPostView, trackPostLike, trackPostFavorite, trackCommentCreate } from '@/services/analytics'
@@ -786,45 +787,40 @@ export default function PostDetailScreen() {
         />
       )}
 
-      {isAppealOpen && post && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="发起申诉"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
-            <h3 className="text-lg font-bold text-foreground">发起申诉</h3>
-            <p className="text-sm text-muted-foreground">
-              「{post.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。
-            </p>
-            <Textarea
-              value={appealReason}
-              maxLength={500}
-              onChange={(event) => setAppealReason(event.target.value)}
-              className="min-h-24"
-              placeholder="申诉理由（必填，最多500字）"
-              aria-label="申诉理由"
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="outline"
-                disabled={isAppealSubmitting}
-                onClick={() => { setIsAppealOpen(false); setAppealReason('') }}
-              >
-                取消
-              </Button>
-              <Button
-                className="bg-coral text-white hover:bg-coral-dark"
-                disabled={isAppealSubmitting || !appealReason.trim()}
-                onClick={() => void handleSubmitAppeal()}
-              >
-                {isAppealSubmitting ? '提交中...' : '提交申诉'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 发起申诉（U34：统一 AppDialog） */}
+      <AppDialog
+        open={isAppealOpen && post !== null}
+        onOpenChange={(next) => { if (!next) { setIsAppealOpen(false); setAppealReason('') } }}
+        title="发起申诉"
+        description={post ? `「${post.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。` : undefined}
+        footer={(
+          <>
+            <Button
+              variant="outline"
+              disabled={isAppealSubmitting}
+              onClick={() => { setIsAppealOpen(false); setAppealReason('') }}
+            >
+              取消
+            </Button>
+            <Button
+              className="bg-coral text-white hover:bg-coral-dark"
+              disabled={isAppealSubmitting || !appealReason.trim()}
+              onClick={() => void handleSubmitAppeal()}
+            >
+              {isAppealSubmitting ? '提交中...' : '提交申诉'}
+            </Button>
+          </>
+        )}
+      >
+        <Textarea
+          value={appealReason}
+          maxLength={500}
+          onChange={(event) => setAppealReason(event.target.value)}
+          className="min-h-24"
+          placeholder="申诉理由（必填，最多500字）"
+          aria-label="申诉理由"
+        />
+      </AppDialog>
     </div>
     </div>
   )

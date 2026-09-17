@@ -4,6 +4,8 @@ import { GitMerge, Pencil, Search, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AppDialog } from '@/components/ui/app-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import { useToast } from '@/components/ui/toast'
 import { deleteTag, getTags, mergeTag, renameTag, type TagStat } from '@/services/admin'
 
@@ -100,10 +102,7 @@ export default function AdminTagsScreen() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
-          <p className="mb-3 text-sm text-destructive">{error}</p>
-          <Button variant="outline" onClick={() => void load(keyword)}>重新加载</Button>
-        </div>
+        <ErrorState message={error} onRetry={() => void load(keyword)} />
       ) : tags.length === 0 ? (
         <p className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground">
           {keyword ? `没有找到包含「${keyword}」的标签` : '暂无标签数据（发布带标签的帖子后可见）'}
@@ -133,52 +132,42 @@ export default function AdminTagsScreen() {
         </div>
       )}
 
-      {/* ─── 操作弹窗（含影响面预览） ─── */}
-      {dialog && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label={MODE_TITLES[dialog.mode]}
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">{MODE_TITLES[dialog.mode]}</h3>
-            {dialog.mode === 'delete' ? (
-              <p className="mt-2 text-sm text-muted-foreground">
-                将把「{dialog.tag.tag}」从 <b className="text-foreground">{dialog.tag.postCount}</b> 篇帖子中移除，操作不可撤销。
-              </p>
-            ) : (
-              <>
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {dialog.mode === 'rename' ? `重命名「${dialog.tag.tag}」` : `将「${dialog.tag.tag}」并入目标标签`}
-                  ，将影响 <b className="text-foreground">{dialog.tag.postCount}</b> 篇帖子。
-                </p>
-                <Input
-                  value={targetInput}
-                  autoFocus
-                  aria-label="新标签名"
-                  onChange={(event) => setTargetInput(event.target.value)}
-                  placeholder={dialog.mode === 'rename' ? '输入新标签名' : '输入目标标签名'}
-                  className="mt-3"
-                />
-              </>
-            )}
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" autoFocus={dialog.mode === 'delete'} disabled={isSubmitting} onClick={() => setDialog(null)}>
-                取消
-              </Button>
-              <Button
-                variant={dialog.mode === 'delete' ? 'destructive' : 'default'}
-                className={dialog.mode === 'delete' ? '' : 'bg-coral text-white hover:bg-coral-dark'}
-                disabled={isSubmitting}
-                onClick={() => void handleSubmit()}
-              >
-                {isSubmitting ? '处理中...' : '确认'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 操作弹窗（含影响面预览；U34：统一 AppDialog） ─── */}
+      <AppDialog
+        open={dialog !== null}
+        onOpenChange={(next) => { if (!next) setDialog(null) }}
+        title={dialog ? MODE_TITLES[dialog.mode] : ''}
+        description={dialog ? (
+          dialog.mode === 'delete'
+            ? <>将把「{dialog.tag.tag}」从 <b className="text-foreground">{dialog.tag.postCount}</b> 篇帖子中移除，操作不可撤销。</>
+            : <>{dialog.mode === 'rename' ? `重命名「${dialog.tag.tag}」` : `将「${dialog.tag.tag}」并入目标标签`}，将影响 <b className="text-foreground">{dialog.tag.postCount}</b> 篇帖子。</>
+        ) : undefined}
+        footer={(
+          <>
+            <Button variant="outline" disabled={isSubmitting} onClick={() => setDialog(null)}>
+              取消
+            </Button>
+            <Button
+              variant={dialog?.mode === 'delete' ? 'destructive' : 'default'}
+              className={dialog?.mode === 'delete' ? '' : 'bg-coral text-white hover:bg-coral-dark'}
+              disabled={isSubmitting}
+              onClick={() => void handleSubmit()}
+            >
+              {isSubmitting ? '处理中...' : '确认'}
+            </Button>
+          </>
+        )}
+      >
+        {dialog && dialog.mode !== 'delete' && (
+          <Input
+            value={targetInput}
+            autoFocus
+            aria-label="新标签名"
+            onChange={(event) => setTargetInput(event.target.value)}
+            placeholder={dialog.mode === 'rename' ? '输入新标签名' : '输入目标标签名'}
+          />
+        )}
+      </AppDialog>
     </div>
   )
 }

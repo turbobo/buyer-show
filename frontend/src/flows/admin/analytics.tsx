@@ -4,6 +4,7 @@ import { Eye, FileText, Heart, MessageSquare, PenSquare, ThumbsUp, TrendingUp, U
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { request } from '@/services/http'
 import { getPendingCounts, type PendingCounts } from '@/services/admin'
 
@@ -105,10 +106,7 @@ export default function AdminAnalytics() {
 
   if (error && !overview) {
     return (
-      <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-destructive/30 bg-card p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => void load(days)}>重试</Button>
-      </div>
+      <ErrorState message={error} onRetry={() => void load(days)} className="mx-auto max-w-sm rounded-2xl p-8" />
     )
   }
 

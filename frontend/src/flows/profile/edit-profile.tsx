@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { ApiError } from '@/services/http'
@@ -273,28 +274,17 @@ export default function EditProfileScreen() {
         </div>
       </main>
 
-      {showLeaveConfirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="放弃修改确认"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
-            <h3 className="text-lg font-bold text-foreground">放弃未保存的修改？</h3>
-            <p className="text-sm text-muted-foreground">返回后本次修改将不会保留。</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>继续编辑</Button>
-              <Button
-                className="bg-destructive text-white hover:bg-destructive/90"
-                onClick={() => { setShowLeaveConfirm(false); smartBack() }}
-              >
-                放弃修改
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* 放弃修改确认（U34：统一 ConfirmDialog） */}
+      <ConfirmDialog
+        open={showLeaveConfirm}
+        title="放弃未保存的修改？"
+        description="返回后本次修改将不会保留。"
+        confirmText="放弃修改"
+        cancelText="继续编辑"
+        destructive
+        onConfirm={() => { setShowLeaveConfirm(false); smartBack() }}
+        onCancel={() => setShowLeaveConfirm(false)}
+      />
     </div>
   )
 }

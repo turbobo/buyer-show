@@ -11,6 +11,7 @@ import { getNotifications, getUnreadCount, markAllAsRead, type Notification as A
 import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
 import { getTokenUserId } from '@/services/http'
 import { EmptyState } from '@/components/ui/empty-state'
+import { LoadingState } from '@/components/ui/loading-state'
 import {
   getConversations,
   getMessages,
@@ -354,9 +355,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           <div className="flex-1 overflow-y-auto px-2 pb-4">
             {activeTab === 'dm' ? (
               isLoadingConversations ? (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState label="加载会话" />
               ) : conversationsError ? (
                 <div className="px-3 py-8 text-center">
                   <p className="mb-3 text-sm text-destructive">{conversationsError}</p>
@@ -396,9 +395,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
                   </div>
                 )}
                 {isLoadingNotifications ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
+                  <LoadingState label="加载通知" />
                 ) : notifications.length === 0 ? (
                   <EmptyState icon={ShieldCheck} title="暂无通知" className="px-3" />
                 ) : (
@@ -444,9 +441,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               {/* Messages */}
               <div className="flex-1 space-y-3 overflow-y-auto p-4">
                 {isLoadingMessages ? (
-                  <div className="flex justify-center py-8">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                  </div>
+                  <LoadingState label="加载消息" />
                 ) : messages.length === 0 ? (
                   <p className="py-8 text-center text-xs text-muted-foreground">暂无消息，向对方打个招呼吧</p>
                 ) : (

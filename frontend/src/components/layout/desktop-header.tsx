@@ -2,9 +2,11 @@
 // 菜单规格与 Feed 顶部导航完全一致：logo · 🏠首页 · 💬消息 · 搜索 · 主题 · 审核台 · 发布 · 用户区(头像下拉：我的主页/编辑资料/退出)
 import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, MessageCircle, Moon, Plus, Search, Sun } from 'lucide-react'
+import { Moon, Plus, Search, Sun } from 'lucide-react'
+import { CHANNELS, PC_CHANNEL_ORDER, isChannelActive } from '@/lib/navigation'
 import { Button } from '@/components/ui/button'
 import { UserMenu } from './user-menu'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/hooks/use-theme'
 import { useToast } from '@/components/ui/toast'
 import { useUnreadCount } from '@/hooks/use-unread-count'
@@ -46,7 +48,6 @@ export function DesktopHeader() {
   if (!visible) return null
 
   const isAdmin = getTokenRole() === 'ADMIN'
-  const onMessages = pathname.startsWith('/messages') || pathname.startsWith('/notifications')
 
   const handleConfirmLogout = () => {
     setIsLoggingOut(true)
@@ -67,19 +68,28 @@ export function DesktopHeader() {
             <span className="text-lg font-bold text-foreground">买家说</span>
           </button>
           <nav className="flex shrink-0 items-center gap-1" aria-label="频道导航">
-            <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
-              <Home className="mr-1 h-4 w-4" />
-              首页
-            </Button>
-            <Button variant={onMessages ? 'secondary' : 'ghost'} size="sm" className="relative" onClick={() => navigate('/messages')}>
-              <MessageCircle className="mr-1 h-4 w-4" />
-              消息
-              {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </Button>
+            {PC_CHANNEL_ORDER.map((key) => {
+              const channel = CHANNELS[key]
+              const Icon = channel.icon
+              const active = isChannelActive(key, pathname)
+              return (
+                <Button
+                  key={key}
+                  variant={active ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="relative"
+                  onClick={() => navigate(channel.to)}
+                >
+                  <Icon className="mr-1 h-4 w-4" />
+                  {channel.label}
+                  {key === 'messages' && unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              )
+            })}
           </nav>
           <button
             type="button"
@@ -122,28 +132,17 @@ export function DesktopHeader() {
         </div>
       </header>
 
-      {/* ─── 登出二次确认 ─── */}
-      {showLogoutConfirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="退出登录确认"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">退出登录？</h3>
-            <p className="mt-2 text-sm text-muted-foreground">退出后将以游客身份浏览，随时可以重新登录。</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" autoFocus disabled={isLoggingOut} onClick={() => setShowLogoutConfirm(false)}>
-                取消
-              </Button>
-              <Button variant="destructive" disabled={isLoggingOut} onClick={handleConfirmLogout}>
-                {isLoggingOut ? '退出中...' : '退出登录'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 登出二次确认（U34：统一 ConfirmDialog） ─── */}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="退出登录？"
+        description="退出后将以游客身份浏览，随时可以重新登录。"
+        confirmText="退出登录"
+        destructive
+        isSubmitting={isLoggingOut}
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </>
   )
 }

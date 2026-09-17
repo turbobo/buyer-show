@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Clock, Heart, Home, Loader2, MessageCircle, Plus, Search, TrendingUp, User as UserIcon, X } from 'lucide-react'
+import { Clock, Heart, Loader2, Plus, Search, TrendingUp, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -8,7 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFeed, type ApiPostSummary } from '@/services/posts'
 import { getHotTagStats, type TagStat } from '@/services/tags'
+import { CHANNELS, TABBAR_ORDER, PC_CHANNEL_ORDER, isChannelActive, type ChannelKey } from '@/lib/navigation'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
@@ -24,7 +27,7 @@ import {
   getSuggestions,
 } from '@/services/search'
 
-type TabKey = 'home' | 'search' | 'publish' | 'messages' | 'profile'
+type TabKey = ChannelKey
 
 /** 根据 post id 生成确定性的图片区比例（同时给出 CSS 类与数值比，供列高估算） */
 function cardImageAspect(postId: number): { className: string; ratio: number } {
@@ -426,15 +429,17 @@ export default function HomeFeedScreen() {
 
   const handleTabClick = (tab: TabKey) => {
     setActiveTab(tab)
-    if (tab === 'publish') navigate('/publish')
-    else if (tab === 'messages') navigate('/messages')
-    else if (tab === 'profile') navigate('/profile')
-    else if (tab === 'home') window.scrollTo({ top: 0, behavior: 'smooth' })
-    else if (tab === 'search') {
-      setIsSearchFocused(true)
-      // 滚动到搜索框
-      document.getElementById('search-input')?.focus()
+    const channel = CHANNELS[tab]
+    if (tab === 'home') {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+      return
     }
+    if (tab === 'search') {
+      setIsSearchFocused(true)
+      document.getElementById('search-input')?.focus()
+      return
+    }
+    navigate(channel.to)
   }
 
   // 从其他页 TabBar「搜索」进入：自动聚焦搜索框并清除参数
@@ -464,19 +469,28 @@ export default function HomeFeedScreen() {
             <span className="hidden text-lg font-bold sm:block">买家说</span>
           </button>
           <div className="hidden items-center gap-1 md:flex">
-            <Button variant="secondary" size="sm" onClick={() => handleTabClick('home')}>
-              <Home className="mr-1 h-4 w-4" />
-              首页
-            </Button>
-            <Button variant="ghost" size="sm" className="relative" onClick={() => navigate('/messages')}>
-              <MessageCircle className="mr-1 h-4 w-4" />
-              消息
-              {unreadCount > 0 && (
-                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </span>
-              )}
-            </Button>
+            {PC_CHANNEL_ORDER.map((key) => {
+              const channel = CHANNELS[key]
+              const Icon = channel.icon
+              const active = isChannelActive(key, location.pathname)
+              return (
+                <Button
+                  key={key}
+                  variant={active ? 'secondary' : 'ghost'}
+                  size="sm"
+                  className="relative"
+                  onClick={() => handleTabClick(key)}
+                >
+                  <Icon className="mr-1 h-4 w-4" />
+                  {channel.label}
+                  {key === 'messages' && unreadCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </Button>
+              )
+            })}
           </div>
           <div className="relative mx-auto max-w-xl flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -598,10 +612,7 @@ export default function HomeFeedScreen() {
           </div>
         )}
         {error && (
-          <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
-            <p className="mb-3 text-sm text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => void loadFeed()}>重新加载</Button>
-          </div>
+          <ErrorState message={error} onRetry={() => void loadFeed()} />
         )}
         {!isLoading && !error && posts.length === 0 && (
           <div className="rounded-xl bg-card">
@@ -635,13 +646,7 @@ export default function HomeFeedScreen() {
 
       {/* ─── 底部 TabBar（移动端） ─── */}
       <div className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t border-border bg-card/95 backdrop-blur-lg safe-bottom md:hidden">
-        {([
-          { key: 'home' as const, icon: Home, label: '首页' },
-          { key: 'search' as const, icon: Search, label: '搜索' },
-          { key: 'publish' as const, icon: Plus, label: '发布' },
-          { key: 'messages' as const, icon: MessageCircle, label: '消息' },
-          { key: 'profile' as const, icon: UserIcon, label: '我的' },
-        ]).map((tab) => {
+        {TABBAR_ORDER.map((key) => CHANNELS[key]).map((tab) => {
           const isActive = activeTab === tab.key
           const Icon = tab.icon
           const isPublish = tab.key === 'publish'
@@ -670,28 +675,17 @@ export default function HomeFeedScreen() {
         })}
       </div>
 
-      {/* ─── 登出二次确认 ─── */}
-      {showLogoutConfirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="退出登录确认"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">退出登录？</h3>
-            <p className="mt-2 text-sm text-muted-foreground">退出后将以游客身份浏览，随时可以重新登录。</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" autoFocus disabled={isLoggingOut} onClick={() => setShowLogoutConfirm(false)}>
-                取消
-              </Button>
-              <Button variant="destructive" disabled={isLoggingOut} onClick={handleConfirmLogout}>
-                {isLoggingOut ? '退出中...' : '退出登录'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 登出二次确认（U34：统一 ConfirmDialog） ─── */}
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        title="退出登录？"
+        description="退出后将以游客身份浏览，随时可以重新登录。"
+        confirmText="退出登录"
+        destructive
+        isSubmitting={isLoggingOut}
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutConfirm(false)}
+      />
     </div>
   )
 }

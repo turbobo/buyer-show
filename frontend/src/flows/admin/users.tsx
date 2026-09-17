@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
+import { AppDialog } from '@/components/ui/app-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import {
   banAdminPost,
   banUser,
@@ -237,10 +239,7 @@ export default function AdminUsersScreen() {
 
   if (error && users.length === 0) {
     return (
-      <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-destructive/30 bg-card p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => void load(1)}>重试</Button>
-      </div>
+      <ErrorState message={error} onRetry={() => void load(1)} className="mx-auto max-w-sm rounded-2xl p-8" />
     )
   }
 
@@ -538,49 +537,48 @@ export default function AdminUsersScreen() {
         </div>
       )}
 
-      {/* ─── 确认弹窗（封禁用户/帖子需填理由） ─── */}
-      {confirm && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="确认操作"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">{confirmTitle}</h3>
-            <p className="text-sm text-muted-foreground">
-              {confirm.kind === 'banUser' && `「${confirm.user.nickname}」封禁后无法登录，其帖子将从公开视图隐藏，可随时解封。`}
-              {confirm.kind === 'unbanUser' && `「${confirm.user.nickname}」解封后可正常登录，其内容恢复可见。`}
-              {confirm.kind === 'banPost' && `「${confirm.post.title}」封禁后将从公开视图移除，可随时解封。`}
-              {confirm.kind === 'unbanPost' && `「${confirm.post.title}」解封后恢复公开可见。`}
-            </p>
-            {(confirm.kind === 'banUser' || confirm.kind === 'banPost') && (
-              <Textarea
-                value={reason}
-                maxLength={200}
-                onChange={(event) => setReason(event.target.value)}
-                placeholder="封禁理由（选填，最多200字）"
-                className="min-h-20"
-              />
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={isSubmitting} onClick={() => { setConfirm(null); setReason('') }}>
-                取消
-              </Button>
-              <Button
-                variant={confirm.kind === 'banUser' || confirm.kind === 'banPost' ? 'destructive' : 'default'}
-                className={confirm.kind === 'banUser' || confirm.kind === 'banPost' ? '' : 'bg-coral text-white hover:bg-coral-dark'}
-                disabled={isSubmitting}
-                onClick={() => void handleConfirm()}
-              >
-                {isSubmitting
-                  ? '处理中...'
-                  : confirm.kind === 'banUser' || confirm.kind === 'banPost' ? '确认封禁' : '确认解封'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 确认弹窗（封禁用户/帖子需填理由；U34：统一 AppDialog） ─── */}
+      <AppDialog
+        open={confirm !== null}
+        onOpenChange={(next) => { if (!next) { setConfirm(null); setReason('') } }}
+        title={confirmTitle}
+        description={confirm ? (
+          <>
+            {confirm.kind === 'banUser' && `「${confirm.user.nickname}」封禁后无法登录，其帖子将从公开视图隐藏，可随时解封。`}
+            {confirm.kind === 'unbanUser' && `「${confirm.user.nickname}」解封后可正常登录，其内容恢复可见。`}
+            {confirm.kind === 'banPost' && `「${confirm.post.title}」封禁后将从公开视图移除，可随时解封。`}
+            {confirm.kind === 'unbanPost' && `「${confirm.post.title}」解封后恢复公开可见。`}
+          </>
+        ) : undefined}
+        footer={(
+          <>
+            <Button variant="outline" disabled={isSubmitting} onClick={() => { setConfirm(null); setReason('') }}>
+              取消
+            </Button>
+            <Button
+              variant={confirm?.kind === 'banUser' || confirm?.kind === 'banPost' ? 'destructive' : 'default'}
+              className={confirm?.kind === 'banUser' || confirm?.kind === 'banPost' ? '' : 'bg-coral text-white hover:bg-coral-dark'}
+              disabled={isSubmitting}
+              onClick={() => void handleConfirm()}
+            >
+              {isSubmitting
+                ? '处理中...'
+                : confirm?.kind === 'banUser' || confirm?.kind === 'banPost' ? '确认封禁' : '确认解封'}
+            </Button>
+          </>
+        )}
+      >
+        {(confirm?.kind === 'banUser' || confirm?.kind === 'banPost') && (
+          <Textarea
+            value={reason}
+            maxLength={200}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="封禁理由（选填，最多200字）"
+            className="min-h-20"
+            aria-label="封禁理由"
+          />
+        )}
+      </AppDialog>
     </div>
   )
 }

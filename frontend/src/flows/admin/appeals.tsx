@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { AppDialog } from '@/components/ui/app-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
 import { getAppeals, handleAppeal, type AppealItem } from '@/services/admin'
@@ -94,10 +96,7 @@ export default function AdminAppealsScreen() {
 
   if (error && appeals.length === 0) {
     return (
-      <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-destructive/30 bg-card p-8 text-center">
-        <p className="text-sm text-destructive">{error}</p>
-        <Button variant="outline" onClick={() => void load(1)}>重试</Button>
-      </div>
+      <ErrorState message={error} onRetry={() => void load(1)} className="mx-auto max-w-sm rounded-2xl p-8" />
     )
   }
 
@@ -179,48 +178,41 @@ export default function AdminAppealsScreen() {
         )}
       </div>
 
-      {/* ─── 处理确认弹窗 ─── */}
-      {confirm && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="处理申诉确认"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">
-              {confirm.action === 'APPROVE' ? '通过申诉并解封？' : '驳回申诉？'}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {confirm.action === 'APPROVE'
-                ? `「${confirm.appeal.postTitle ?? '该帖子'}」将恢复公开可见。`
-                : `「${confirm.appeal.postTitle ?? '该帖子'}」将维持下架状态，作者可再次申诉。`}
-            </p>
-            {confirm.action === 'REJECT' && (
-              <Textarea
-                value={handleReason}
-                maxLength={500}
-                onChange={(event) => setHandleReason(event.target.value)}
-                className="min-h-20"
-                placeholder="驳回说明（选填，最多500字）"
-              />
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={isSubmitting} onClick={() => { setConfirm(null); setHandleReason('') }}>
-                取消
-              </Button>
-              <Button
-                className={confirm.action === 'APPROVE' ? 'bg-coral text-white hover:bg-coral-dark' : ''}
-                variant={confirm.action === 'APPROVE' ? 'default' : 'destructive'}
-                disabled={isSubmitting}
-                onClick={() => void handleConfirm()}
-              >
-                {isSubmitting ? '处理中...' : confirm.action === 'APPROVE' ? '通过并解封' : '确认驳回'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 处理确认弹窗（U34：统一 AppDialog） ─── */}
+      <AppDialog
+        open={confirm !== null}
+        onOpenChange={(next) => { if (!next) { setConfirm(null); setHandleReason('') } }}
+        title={confirm?.action === 'APPROVE' ? '通过申诉并解封？' : '驳回申诉？'}
+        description={confirm ? (confirm.action === 'APPROVE'
+          ? `「${confirm.appeal.postTitle ?? '该帖子'}」将恢复公开可见。`
+          : `「${confirm.appeal.postTitle ?? '该帖子'}」将维持下架状态，作者可再次申诉。`) : undefined}
+        footer={(
+          <>
+            <Button variant="outline" disabled={isSubmitting} onClick={() => { setConfirm(null); setHandleReason('') }}>
+              取消
+            </Button>
+            <Button
+              className={confirm?.action === 'APPROVE' ? 'bg-coral text-white hover:bg-coral-dark' : ''}
+              variant={confirm?.action === 'APPROVE' ? 'default' : 'destructive'}
+              disabled={isSubmitting}
+              onClick={() => void handleConfirm()}
+            >
+              {isSubmitting ? '处理中...' : confirm?.action === 'APPROVE' ? '通过并解封' : '确认驳回'}
+            </Button>
+          </>
+        )}
+      >
+        {confirm?.action === 'REJECT' && (
+          <Textarea
+            value={handleReason}
+            maxLength={500}
+            onChange={(event) => setHandleReason(event.target.value)}
+            className="min-h-20"
+            placeholder="驳回说明（选填，最多500字）"
+            aria-label="驳回说明"
+          />
+        )}
+      </AppDialog>
     </div>
   )
 }

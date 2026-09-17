@@ -1,25 +1,20 @@
-// 底部 TabBar（移动端）：一级频道常驻导航
+// 底部 TabBar（移动端）：一级频道常驻导航（U35：频道定义读自 lib/navigation.ts）
 // 显示于 Stack 页（主页/列表/消息等）；沉浸页与独立体系页隐藏（详情、发布、登录、管理后台）
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Home, MessageCircle, Plus, Search, User as UserIcon } from 'lucide-react'
+import { CHANNELS, TABBAR_ORDER, isChannelActive, type ChannelKey } from '@/lib/navigation'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 
-const TABS = [
-  { key: 'home', icon: Home, label: '首页' },
-  { key: 'search', icon: Search, label: '搜索' },
-  { key: 'publish', icon: Plus, label: '发布' },
-  { key: 'messages', icon: MessageCircle, label: '消息' },
-  { key: 'profile', icon: UserIcon, label: '我的' },
-] as const
+const TABS = TABBAR_ORDER.map((key) => CHANNELS[key])
 
-type TabKey = (typeof TABS)[number]['key']
+type TabKey = ChannelKey
 
 // 隐藏规则：首页（Feed 自带 TabBar）、详情/编辑帖（沉浸）、发布（表单）、登录、管理后台
 const HIDDEN_PREFIXES = ['/posts', '/publish', '/login', '/admin']
 
 function resolveActive(pathname: string): TabKey | null {
-  if (pathname.startsWith('/messages') || pathname.startsWith('/notifications')) return 'messages'
-  if (pathname.startsWith('/profile')) return 'profile'
+  for (const key of TABBAR_ORDER) {
+    if (isChannelActive(key, pathname)) return key
+  }
   return null
 }
 
@@ -34,17 +29,12 @@ export function AppTabBar() {
   const active = resolveActive(pathname)
 
   const handleClick = (key: TabKey) => {
-    if (key === 'search') {
-      // 移动端搜索入口：回首页并聚焦搜索框
-      navigate('/?focus=search')
-      return
-    }
-    const target = key === 'home' ? '/' : key === 'publish' ? '/publish' : key === 'messages' ? '/messages' : '/profile'
-    if (pathname === target) {
+    const channel = CHANNELS[key]
+    if (pathname === channel.to) {
       window.scrollTo({ top: 0, behavior: 'smooth' })
       return
     }
-    navigate(target)
+    navigate(channel.to)
   }
 
   return (

@@ -4,6 +4,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ErrorState } from '@/components/ui/error-state'
 import { useToast } from '@/components/ui/toast'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getFollowers, getFollowing, toggleFollow, type FollowUser } from '@/services/users'
@@ -115,13 +116,16 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
             ))}
           </div>
         ) : error && users.length === 0 ? (
-          <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-destructive/30 bg-card p-8 text-center">
-            <p className="text-sm text-destructive">{error}</p>
-            <div className="flex justify-center gap-2">
-              <Button variant="outline" onClick={() => void loadPage()}>重试</Button>
-              <Button onClick={() => navigate('/')}>返回首页</Button>
-            </div>
-          </div>
+          <ErrorState
+            message={error}
+            className="mx-auto max-w-sm rounded-2xl p-8"
+            action={(
+              <div className="flex justify-center gap-2">
+                <Button variant="outline" onClick={() => void loadPage()}>重试</Button>
+                <Button onClick={() => navigate('/')}>返回首页</Button>
+              </div>
+            )}
+          />
         ) : users.length === 0 ? (
           <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">{emptyText}</p>
         ) : (

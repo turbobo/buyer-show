@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
+import { AppDialog } from '@/components/ui/app-dialog'
 import { getPendingReports, handleReport, type ContentReport } from '@/services/admin'
 
 /**
@@ -119,39 +120,33 @@ export default function AdminReportsScreen() {
         </div>
       )}
 
-      {/* ─── 采纳下架二次确认 ─── */}
-      {confirmAccept && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="确认采纳举报"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold">确认采纳并下架？</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              被举报的{confirmAccept.contentType === 'POST' ? '帖子' : '评论'}将从公开范围移除，操作不可撤销。
-            </p>
-            <label className="mt-3 flex items-center gap-2 text-sm text-foreground">
-              <input
-                type="checkbox"
-                checked={banAuthor}
-                onChange={(event) => setBanAuthor(event.target.checked)}
-                className="h-4 w-4 accent-coral"
-              />
-              同时封禁作者账号（其全部内容将隐藏）
-            </label>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" disabled={isSubmitting} onClick={() => setConfirmAccept(null)}>
-                取消
-              </Button>
-              <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleConfirmAccept()}>
-                {isSubmitting ? '处理中...' : '确认下架'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 采纳下架二次确认（U34：统一 AppDialog） ─── */}
+      <AppDialog
+        open={confirmAccept !== null}
+        onOpenChange={(next) => { if (!next) setConfirmAccept(null) }}
+        title="确认采纳并下架？"
+        description={confirmAccept ? `被举报的${confirmAccept.contentType === 'POST' ? '帖子' : '评论'}将从公开范围移除，操作不可撤销。` : undefined}
+        footer={(
+          <>
+            <Button variant="outline" disabled={isSubmitting} onClick={() => setConfirmAccept(null)}>
+              取消
+            </Button>
+            <Button variant="destructive" disabled={isSubmitting} onClick={() => void handleConfirmAccept()}>
+              {isSubmitting ? '处理中...' : '确认下架'}
+            </Button>
+          </>
+        )}
+      >
+        <label className="flex items-center gap-2 text-sm text-foreground">
+          <input
+            type="checkbox"
+            checked={banAuthor}
+            onChange={(event) => setBanAuthor(event.target.checked)}
+            className="h-4 w-4 accent-coral"
+          />
+          同时封禁作者账号（其全部内容将隐藏）
+        </label>
+      </AppDialog>
     </div>
   )
 }

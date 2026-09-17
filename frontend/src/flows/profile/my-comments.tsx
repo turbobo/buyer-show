@@ -5,6 +5,8 @@ import { ArrowLeft, Bookmark, Home, Loader2, Trash2 } from 'lucide-react'
 import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import { useToast } from '@/components/ui/toast'
 import {
   deleteComment,
@@ -145,10 +147,7 @@ export default function MyCommentsScreen() {
             ))}
           </div>
         ) : error ? (
-          <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
-            <p className="mb-3 text-sm text-destructive">{error}</p>
-            <Button variant="outline" onClick={() => void load()}>重新加载</Button>
-          </div>
+          <ErrorState message={error} onRetry={() => void load()} />
         ) : comments.length === 0 ? (
           <div className="rounded-xl bg-card p-12 text-center">
             <p className="mb-4 text-sm text-muted-foreground">
@@ -215,28 +214,17 @@ export default function MyCommentsScreen() {
         )}
       </main>
 
-      {/* ─── 删除二次确认 ─── */}
-      {confirmDelete && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="删除评论确认"
-        >
-          <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-foreground">删除这条评论？</h3>
-            <p className="mt-2 text-sm text-muted-foreground">删除后不可恢复，评论将不再展示。</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <Button variant="outline" autoFocus disabled={isDeleting} onClick={() => setConfirmDelete(null)}>
-                取消
-              </Button>
-              <Button variant="destructive" disabled={isDeleting} onClick={() => void handleDelete()}>
-                {isDeleting ? '删除中...' : '删除'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 删除二次确认（U34：统一 ConfirmDialog） ─── */}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="删除这条评论？"
+        description="删除后不可恢复，评论将不再展示。"
+        confirmText="删除"
+        destructive
+        isSubmitting={isDeleting}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   )
 }

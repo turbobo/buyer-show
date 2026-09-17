@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getAuditLogs, type AuditLogItem } from '@/services/admin'
+import { ErrorState } from '@/components/ui/error-state'
 
 type FilterKey = 'all' | 'moderation' | 'user' | 'post' | 'report' | 'appeal' | 'tag'
 
@@ -100,10 +101,7 @@ export default function AdminAuditLogScreen() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/30 bg-card p-6 text-center">
-          <p className="mb-3 text-sm text-destructive">{error}</p>
-          <Button variant="outline" onClick={() => void load(page)}>重新加载</Button>
-        </div>
+        <ErrorState message={error} onRetry={() => void load(page)} />
       ) : logs.length === 0 ? (
         <p className="rounded-xl bg-card p-8 text-center text-sm text-muted-foreground">暂无审计记录</p>
       ) : (

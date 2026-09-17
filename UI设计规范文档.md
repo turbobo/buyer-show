@@ -27,6 +27,7 @@
 | `coral` | `#FF6B35` | 品牌主色、CTA、选中态、强调 |
 | `coral-light` | `#FFF0E8` | 高亮背景、选中底色 |
 | `coral-dark` | `#E55A2B` | 按压态、hover 加深 |
+| `coral-contrast` | `#9A3412` | **浅珊瑚底（coral-light）上的文字色**（对比 ≥4.5:1，头像首字/徽标等） |
 | `warm-bg` | `#FAF7F5` | 页面背景 |
 | `warm-100/200/300` | `#F5EDE8` / `#E8DDD5` / `#D4C5B9` | 浅底 / 分隔线 / 边框占位 |
 
@@ -89,7 +90,7 @@
 ```
 
 - 显示规则：Feed 导航服务首页；Header 服务其余 Stack 页（首页 / 登录 / 管理后台不显示 Header）。
-- **菜单一致性为硬规范**：新增菜单项必须两侧同步（Feed 导航与 DesktopHeader）。
+- **菜单一致性为硬规范**：频道与菜单顺序定义于 `frontend/src/lib/navigation.ts`（单一配置源，U35）：DesktopHeader / AppTabBar / Feed 导航与 Feed 自带底栏均从此读取；新增菜单项只改配置源。顺序约定：[logo]→[首页]→[消息]→[搜索]→[主题]→[审核台]→[发布]→[用户区]。
 - 高亮规则：消息/通知页 → 「消息」；首页 Feed → 「首页」；其余不高亮。
 - 搜索框：统一居中（`mx-auto max-w-xl h-10 rounded-full`）；首页为真输入框，其余页点击 → 跳首页聚焦（浮层化为 U24 规划）。
 - **+ 发布**（coral 主 CTA）紧邻身份区左侧；**身份区为导航最右锚点**：已登录 = 头像+昵称（点击展开**下拉菜单**：我的主页 / 编辑资料 / 退出登录（二次确认弹窗，Esc 关闭）；菜单点击外部 / Esc 关闭）；未登录 = 「登录」按钮（ghost，`/login?redirect=当前路径`）。
@@ -130,8 +131,9 @@
 - 异步按钮：提交中 `disabled` + 文案「xx中...」（防连点）。
 
 ### 5.2 弹窗
+- **统一原语（U34）**：确认类用 `ConfirmDialog`（破坏性二次确认，autoFocus 在「取消」）；表单/复合弹层用 `AppDialog`（基于 Base UI Dialog：Esc、遮罩点击关闭、焦点陷阱、aria 关联内置，层级 z-[60]）；**禁止新写自撸 `fixed inset-0` 弹窗**。豁免清单见《前端一致性走查清单》。
 - 遮罩 `bg-black/50`（可加 backdrop-blur）；卡片 `rounded-2xl`；标题 H2 + 描述 Caption。
-- **破坏性操作必须二次确认**（取消 + destructive 确认）；`autoFocus` 置于「取消」；`Esc` 关闭；`role="dialog" aria-modal="true"`。
+- **破坏性操作必须二次确认**（取消 + destructive 确认）；`autoFocus` 置于「取消」；`Esc` 关闭。
 - 表单内确认（如未保存离开）同规范。
 
 ### 5.3 Toast
@@ -145,9 +147,9 @@
 固定顶部居中胶囊，深色底白字。
 
 ### 5.4 状态组件（三态全覆盖为硬要求）
-- **Loading**：骨架屏（圆角与目标一致，shimmer 1.5s）；超过 300ms 的操作必须反馈。
-- **Empty**：`EmptyState`（图标 + 标题 + 描述 + 可选 CTA，如「去发布」）。
-- **Error**：就近展示错误 + 「重新加载」按钮；全局 `ErrorBoundary` + 关键区块独立兜底。
+- **Loading**：`LoadingState`（旋转 + 无障碍播报）或骨架屏（圆角与目标一致，shimmer 1.5s）；超过 300ms 的操作必须反馈。
+- **Empty**：统一 `EmptyState` 组件（`components/ui/empty-state.tsx`：图标 + 标题 + 描述 + 可选 CTA，如「去发布」）；新页面一律使用，存量手写空态逐步替换。
+- **Error**：统一 `ErrorState`（就近展示 + 重试，支持自定义 action）；全局 `ErrorBoundary` + 关键区块独立兜底。
 
 ### 5.5 表单
 - 每输入有可见 `<label>`（`htmlFor` 关联）；错误就地显示于字段下方；必填标记。
@@ -164,7 +166,7 @@
 |------|------|
 | 确认策略 | 删除/封禁/退出/申诉处理等破坏性操作：**二次确认**；普通提交成功后 toast |
 | 手势 | 下拉刷新（阈值 **56px**：下拉指示 → 松开刷新 → 刷新中，`Loader2` 旋转）；列表触底自动加载；长按无隐藏操作 |
-| 触控 | 所有可点目标 ≥44×44px；相邻目标间距 ≥8px |
+| 触控 | 主操作（TabBar / 导航按钮 / 发布 CTA / 消息 tabs）≥**44px**；次级控件（标签 chips / 排序钮 / 搜索框）≥**36–40px**；相邻目标间距 ≥8px |
 | 键盘 | `Esc` 全局返回（弹窗豁免）；`Tab` 焦点环可见；焦点顺序符合视觉顺序 |
 | 深浅色 | 随系统/手动切换，全部 token 化实时生效 |
 | 防抖 | 搜索输入 onBlur 延迟 200ms 关闭面板（blur 竞态防护）；高频事件 throttle/debounce |
@@ -235,4 +237,6 @@
 
 ---
 
-*文档版本：v1.2 | 2026-09-16 | 维护：功能迭代后同步更新本规范与《产品设计文档》*
+*文档版本：v1.4 | 2026-09-17 | 维护：功能迭代后同步更新本规范与《产品设计文档》*
+> v1.4（2026-09-17）新增：弹窗统一原语（ConfirmDialog / AppDialog）、三态组件齐备（LoadingState / ErrorState）、导航单一配置源 `lib/navigation.ts`；配套《前端一致性走查清单》。
+> v1.3（2026-09-17）新增：`coral-contrast` token（浅珊瑚底文字对比）、EmptyState 组件落地、触控基线分级（主操作 44 / 次级 36-40）。

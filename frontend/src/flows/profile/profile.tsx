@@ -10,6 +10,9 @@ import { getAccessToken, getTokenUserId } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
 import { startConversation } from '@/services/messages'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { AppDialog } from '@/components/ui/app-dialog'
+import { ErrorState } from '@/components/ui/error-state'
 import { smartBack } from '@/lib/smart-back'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
@@ -301,13 +304,16 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   if (error && !profile) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background p-4">
-        <div className="w-full max-w-sm space-y-3 rounded-2xl border border-destructive/30 bg-card p-8 text-center">
-          <p className="text-sm text-destructive">{error}</p>
-          <div className="flex justify-center gap-2">
-            <Button variant="outline" onClick={() => void loadPage()}>重试</Button>
-            <Button onClick={() => navigate('/')}>返回首页</Button>
-          </div>
-        </div>
+        <ErrorState
+          message={error}
+          className="w-full max-w-sm rounded-2xl p-8"
+          action={(
+            <div className="flex justify-center gap-2">
+              <Button variant="outline" onClick={() => void loadPage()}>重试</Button>
+              <Button onClick={() => navigate('/')}>返回首页</Button>
+            </div>
+          )}
+        />
       </div>
     )
   }
@@ -423,67 +429,48 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         </section>
       </main>
 
-      {pendingDelete && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="删除帖子确认"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
-            <h3 className="text-lg font-bold text-foreground">删除这条分享？</h3>
-            <p className="text-sm text-muted-foreground">「{pendingDelete.title}」删除后不可恢复。</p>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={isDeleting} onClick={() => setPendingDelete(null)}>
-                取消
-              </Button>
-              <Button
-                className="bg-destructive text-white hover:bg-destructive/90"
-                disabled={isDeleting}
-                onClick={() => void handleConfirmDelete()}
-              >
-                {isDeleting ? '删除中...' : '删除'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 删除帖子确认（U34：统一 ConfirmDialog） ─── */}
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title="删除这条分享？"
+        description={pendingDelete ? `「${pendingDelete.title}」删除后不可恢复。` : undefined}
+        confirmText="删除"
+        destructive
+        isSubmitting={isDeleting}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setPendingDelete(null)}
+      />
 
-      {appealTarget && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="发起申诉"
-        >
-          <div className="w-full max-w-sm space-y-4 rounded-2xl bg-card p-6">
-            <h3 className="text-lg font-bold text-foreground">发起申诉</h3>
-            <p className="text-sm text-muted-foreground">
-              「{appealTarget.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。
-            </p>
-            <Textarea
-              value={appealReason}
-              maxLength={500}
-              onChange={(event) => setAppealReason(event.target.value)}
-              className="min-h-24"
-              placeholder="申诉理由（必填，最多500字）"
-              aria-label="申诉理由"
-            />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" disabled={isAppealSubmitting} onClick={() => { setAppealTarget(null); setAppealReason('') }}>
-                取消
-              </Button>
-              <Button
-                className="bg-coral text-white hover:bg-coral-dark"
-                disabled={isAppealSubmitting || !appealReason.trim()}
-                onClick={() => void handleSubmitAppeal()}
-              >
-                {isAppealSubmitting ? '提交中...' : '提交申诉'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ─── 发起申诉（U34：统一 AppDialog） ─── */}
+      <AppDialog
+        open={appealTarget !== null}
+        onOpenChange={(next) => { if (!next) { setAppealTarget(null); setAppealReason('') } }}
+        title="发起申诉"
+        description={appealTarget ? `「${appealTarget.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。` : undefined}
+        footer={(
+          <>
+            <Button variant="outline" disabled={isAppealSubmitting} onClick={() => { setAppealTarget(null); setAppealReason('') }}>
+              取消
+            </Button>
+            <Button
+              className="bg-coral text-white hover:bg-coral-dark"
+              disabled={isAppealSubmitting || !appealReason.trim()}
+              onClick={() => void handleSubmitAppeal()}
+            >
+              {isAppealSubmitting ? '提交中...' : '提交申诉'}
+            </Button>
+          </>
+        )}
+      >
+        <Textarea
+          value={appealReason}
+          maxLength={500}
+          onChange={(event) => setAppealReason(event.target.value)}
+          className="min-h-24"
+          placeholder="申诉理由（必填，最多500字）"
+          aria-label="申诉理由"
+        />
+      </AppDialog>
     </div>
   )
 }
