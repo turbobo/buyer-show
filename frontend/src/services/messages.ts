@@ -8,6 +8,8 @@ export interface ConversationItem {
   lastMessage: string | null
   lastMessageAt: string | null
   unreadCount: number
+  /** 对方是否在线（60 秒内有活跃） */
+  peerOnline: boolean
 }
 
 export interface ChatMessage {

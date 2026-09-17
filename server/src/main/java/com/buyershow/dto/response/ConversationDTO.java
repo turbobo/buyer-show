@@ -19,4 +19,6 @@ public class ConversationDTO {
     private String lastMessage;
     private LocalDateTime lastMessageAt;
     private Integer unreadCount;
+    /** 对方是否在线（60 秒内有活跃） */
+    private Boolean peerOnline;
 }

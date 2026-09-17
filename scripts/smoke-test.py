@@ -186,6 +186,7 @@ def main():
             convs_a = req("/conversations", token=token_a).get("data", [])
             target = next((c for c in convs_a if c["id"] == conv_id), None)
             check("对方未读+1", target is not None and target["unreadCount"] >= 1)
+            check("对方在线状态可见", target is not None and target.get("peerOnline") is True)
             req(f"/conversations/{conv_id}/read", "POST", token_a)
             convs_a2 = req("/conversations", token=token_a).get("data", [])
             target2 = next((c for c in convs_a2 if c["id"] == conv_id), None)

@@ -14,15 +14,18 @@ import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.MessageMapper;
 import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -41,12 +44,18 @@ class ConversationServiceTest {
     private final UserMapper userMapper = mock(UserMapper.class);
     private final FollowMapper followMapper = mock(FollowMapper.class);
     private final ContentModerationService moderationService = mock(ContentModerationService.class);
+    private final ActivityService activityService = mock(ActivityService.class);
     private final ConversationService service = new ConversationService(
-            conversationMapper, messageMapper, userMapper, followMapper, moderationService);
+            conversationMapper, messageMapper, userMapper, followMapper, moderationService, activityService);
 
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
+    }
+
+    @BeforeEach
+    void setUpActivity() {
+        when(activityService.onlineAmong(anyList())).thenReturn(Set.of());
     }
 
     @Test

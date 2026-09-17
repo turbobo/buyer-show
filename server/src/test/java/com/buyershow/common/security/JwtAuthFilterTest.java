@@ -18,7 +18,8 @@ class JwtAuthFilterTest {
 
     private final JwtTokenProvider tokenProvider = mock(JwtTokenProvider.class);
     private final UserMapper userMapper = mock(UserMapper.class);
-    private final JwtAuthFilter filter = new JwtAuthFilter(tokenProvider, userMapper, new ObjectMapper());
+    private final com.buyershow.service.ActivityService activityService = mock(com.buyershow.service.ActivityService.class);
+    private final JwtAuthFilter filter = new JwtAuthFilter(tokenProvider, userMapper, new ObjectMapper(), activityService);
 
     @AfterEach
     void tearDown() {

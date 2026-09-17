@@ -43,7 +43,10 @@ function ConversationItemView({ conv, isActive, onClick }: { conv: ConversationI
       </Avatar>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{conv.peerNickname}</span>
+          <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-foreground">
+            {conv.peerNickname}
+            {conv.peerOnline && <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-label="在线" />}
+          </span>
           <span className="shrink-0 text-xs text-muted-foreground">{formatConversationTime(conv.lastMessageAt)}</span>
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{conv.lastMessage ?? ''}</p>
@@ -248,10 +251,11 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
-  // 轮询增量消息（打开会话时每 20s 拉新 + 同步已读）
+  // 轮询增量消息（打开会话时每 5s 拉新 + 同步已读与对方在线状态；页面隐藏时暂停）
   useEffect(() => {
     if (!activeConv) return
     const timer = window.setInterval(async () => {
+      if (document.hidden) return
       try {
         const lastId = messages.length > 0 ? messages[messages.length - 1].id : undefined
         const fresh = lastId
@@ -264,10 +268,18 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           })
           await markConversationRead(activeConv.id)
         }
+        // 同步会话列表（对方在线状态 / 最后消息 / 未读）
+        const latest = await getConversations()
+        setConversations(latest)
+        setActiveConv((current) => {
+          if (!current) return current
+          const matched = latest.find((item) => item.id === current.id)
+          return matched ? { ...current, ...matched } : current
+        })
       } catch {
         /* 轮询失败静默，下次重试 */
       }
-    }, 20000)
+    }, 5000)
     return () => window.clearInterval(timer)
   }, [activeConv, messages])
 
@@ -414,6 +426,10 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               <div className="hidden items-center justify-between border-b border-border/60 px-4 py-2 md:flex">
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-foreground">{activeConv.peerNickname}</span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className={`h-2 w-2 rounded-full ${activeConv.peerOnline ? 'bg-green-500' : 'bg-muted-foreground/40'}`} />
+                    {activeConv.peerOnline ? '在线' : '离线'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button variant="ghost" size="icon" aria-label="语音通话"><Phone className="w-4 h-4" /></Button>

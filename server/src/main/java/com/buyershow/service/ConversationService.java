@@ -25,6 +25,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 私信服务：会话发起、消息收发与已读。
@@ -46,6 +47,7 @@ public class ConversationService {
     private final UserMapper userMapper;
     private final FollowMapper followMapper;
     private final ContentModerationService contentModerationService;
+    private final ActivityService activityService;
 
     /**
      * 当前用户的会话列表（按最后消息时间倒序）。
@@ -54,7 +56,13 @@ public class ConversationService {
      */
     public List<ConversationDTO> listConversations() {
         Long userId = requireCurrentUserId();
-        return conversationMapper.selectConversations(userId, MAX_CONVERSATIONS);
+        List<ConversationDTO> conversations = conversationMapper.selectConversations(userId, MAX_CONVERSATIONS);
+        if (!conversations.isEmpty()) {
+            Set<Long> onlinePeers = activityService.onlineAmong(
+                    conversations.stream().map(ConversationDTO::getPeerId).toList());
+            conversations.forEach(dto -> dto.setPeerOnline(onlinePeers.contains(dto.getPeerId())));
+        }
+        return conversations;
     }
 
     /**
@@ -93,7 +101,6 @@ public class ConversationService {
         conversationMapper.insert(conversation);
         return toConversationDTO(conversation, userId, target);
     }
-
     /**
      * 会话消息：afterId 拉增量（正序）；否则加载 beforeId 之前最近一页（正序返回）。
      *
@@ -198,6 +205,7 @@ public class ConversationService {
         dto.setUnreadCount(conversation.getUserAId().equals(userId)
                 ? safeUnread(conversation.getAUnread())
                 : safeUnread(conversation.getBUnread()));
+        dto.setPeerOnline(activityService.onlineAmong(List.of(peer.getId())).contains(peer.getId()));
         return dto;
     }
 

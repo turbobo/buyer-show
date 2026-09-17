@@ -4,6 +4,7 @@ import com.buyershow.common.UserRole;
 import com.buyershow.common.UserStatus;
 import com.buyershow.entity.User;
 import com.buyershow.mapper.UserMapper;
+import com.buyershow.service.ActivityService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.buyershow.common.R;
 import com.buyershow.common.ErrorCode;
@@ -29,6 +30,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private final JwtTokenProvider jwtTokenProvider;
     private final UserMapper userMapper;
     private final ObjectMapper objectMapper;
+    private final ActivityService activityService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -60,6 +62,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         var authorities = Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + role));
         var authentication = new UsernamePasswordAuthenticationToken(user, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
+        // 记录在线状态（60 秒内有效）
+        activityService.touch(userId);
         filterChain.doFilter(request, response);
     }
 
