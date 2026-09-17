@@ -69,7 +69,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
     >
       <div className="relative shrink-0">
         <Avatar className="w-10 h-10">
-          <AvatarFallback className="bg-coral-light text-coral text-sm font-bold">
+          <AvatarFallback className="bg-coral-light text-coral-contrast text-sm font-bold">
             {displayName?.[0] || '?'}
           </AvatarFallback>
         </Avatar>

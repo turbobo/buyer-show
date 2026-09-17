@@ -28,6 +28,8 @@
   --color-coral: #FF6B35;
   --color-coral-light: #FFF0E8;
   --color-coral-dark: #E55A2B;
+  /* 浅珊瑚底上的文字色（对比 ≥4.5:1，用于 coral-light 背景组合） */
+  --color-coral-contrast: #9A3412;
   --color-warm-bg: #FAF7F5;
   --color-warm-100: #F5EDE8;
   --color-warm-200: #E8DDD5;

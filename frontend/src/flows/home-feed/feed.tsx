@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFeed, type ApiPostSummary } from '@/services/posts'
 import { getHotTagStats, type TagStat } from '@/services/tags'
+import { EmptyState } from '@/components/ui/empty-state'
 import { clearTokens, getTokenRole } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
@@ -124,7 +125,7 @@ function PostCard({ post }: { post: ApiPostSummary }) {
             onClick={(event) => { event.stopPropagation(); navigate(`/user/${post.userId}`) }}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.stopPropagation(); navigate(`/user/${post.userId}`) } }}
           >
-            <Avatar className="h-5 w-5"><AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral">{post.userNickname[0]}</AvatarFallback></Avatar>
+            <Avatar className="h-5 w-5"><AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral-contrast">{post.userNickname[0]}</AvatarFallback></Avatar>
             <span className="max-w-20 truncate text-xs text-muted-foreground">{post.userNickname}</span>
           </div>
           <div className="flex items-center gap-1 text-muted-foreground">
@@ -208,7 +209,7 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
               <button
                 type="button"
                 onClick={() => handleSearch(query)}
-                className="mt-1 rounded-lg px-2 py-2 text-left text-sm text-coral transition-colors hover:bg-coral-light/50"
+                className="mt-1 rounded-lg px-2 py-2 text-left text-sm text-coral-contrast transition-colors hover:bg-coral-light/50"
               >
                 搜索「{query.trim()}」
               </button>
@@ -217,7 +218,7 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
             <button
               type="button"
               onClick={() => handleSearch(query)}
-              className="w-full rounded-lg px-2 py-2 text-left text-sm text-coral transition-colors hover:bg-coral-light/50"
+              className="w-full rounded-lg px-2 py-2 text-left text-sm text-coral-contrast transition-colors hover:bg-coral-light/50"
             >
               搜索「{query.trim()}」
             </button>
@@ -269,7 +270,7 @@ function SearchPanel({ query, onClose }: { query: string; onClose: () => void })
                     key={tag}
                     type="button"
                     onClick={() => handleSearch(tag)}
-                    className="rounded-full bg-coral-light px-3 py-1 text-xs text-coral transition-colors hover:bg-coral-light/80"
+                    className="rounded-full bg-coral-light px-3 py-1 text-xs text-coral-contrast transition-colors hover:bg-coral-light/80"
                   >
                     {tag}
                   </button>
@@ -458,7 +459,7 @@ export default function HomeFeedScreen() {
       {/* ─── 顶部导航栏 ─── */}
       <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-4 px-4">
-          <button type="button" onClick={() => handleTabClick('home')} className="flex items-center gap-2" aria-label="返回首页">
+          <button type="button" onClick={() => handleTabClick('home')} className="flex h-11 items-center gap-2" aria-label="返回首页">
             <img src="/favicon.svg" alt="" className="h-8 w-8" />
             <span className="hidden text-lg font-bold sm:block">买家说</span>
           </button>
@@ -492,6 +493,7 @@ export default function HomeFeedScreen() {
                 if (e.key === 'Enter') handleSearchSubmit()
               }}
               placeholder="搜索好物、品牌、标签..."
+              aria-label="搜索"
               className="h-10 rounded-full border-0 bg-muted/50 pl-10 pr-10"
             />
             {searchQuery && (
@@ -517,7 +519,7 @@ export default function HomeFeedScreen() {
           <Button
             aria-label="发布分享"
             onClick={() => navigate('/publish')}
-            className="h-9 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
+            className="h-10 rounded-full bg-coral px-3 text-white hover:bg-coral-dark sm:px-4"
           >
             <Plus className="h-4 w-4 sm:mr-1" />
             <span className="hidden sm:inline">发布</span>
@@ -543,7 +545,7 @@ export default function HomeFeedScreen() {
                 type="button"
                 key={tagName}
                 onClick={() => setActiveTag(tagName)}
-                className={`whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   activeTag === tagName ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}
               >
@@ -554,7 +556,8 @@ export default function HomeFeedScreen() {
           <button
             type="button"
             onClick={() => setFeedSort(feedSort === 'new' ? 'hot' : 'new')}
-            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+            aria-label={feedSort === 'hot' ? '切换到最新' : '切换到热门'}
+            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
               feedSort === 'hot' ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
             }`}
             title={feedSort === 'hot' ? '切换到最新' : '切换到热门'}
@@ -578,8 +581,9 @@ export default function HomeFeedScreen() {
 
       {/* ─── 主内容区 ─── */}
       <main className="mx-auto max-w-5xl px-4 py-6">
+        <h1 className="sr-only">买家说 · 好物分享首页</h1>
         <div className="mb-4 flex items-center gap-2">
-          <Badge variant="secondary" className="border-0 bg-coral-light text-coral">{posts.length} 篇分享</Badge>
+          <Badge variant="secondary" className="border-0 bg-coral-light text-coral-contrast">{posts.length} 篇分享</Badge>
           <span className="text-xs text-muted-foreground">{activeTag}</span>
         </div>
         {isLoading && posts.length === 0 && (
@@ -600,12 +604,17 @@ export default function HomeFeedScreen() {
           </div>
         )}
         {!isLoading && !error && posts.length === 0 && (
-          <div className="rounded-xl bg-card p-12 text-center">
-            <p className="mb-4 text-sm text-muted-foreground">暂无公开分享</p>
-            <Button onClick={() => navigate('/publish')} className="bg-coral text-white hover:bg-coral-dark">
-              <Plus className="mr-1.5 h-4 w-4" />
-              去发布
-            </Button>
+          <div className="rounded-xl bg-card">
+            <EmptyState
+              icon={TrendingUp}
+              title="暂无公开分享"
+              action={(
+                <Button onClick={() => navigate('/publish')} className="mt-2 bg-coral text-white hover:bg-coral-dark">
+                  <Plus className="mr-1.5 h-4 w-4" />
+                  去发布
+                </Button>
+              )}
+            />
           </div>
         )}
         <div className="flex items-start gap-3">
@@ -625,7 +634,7 @@ export default function HomeFeedScreen() {
       </main>
 
       {/* ─── 底部 TabBar（移动端） ─── */}
-      <div className="fixed bottom-0 left-0 right-0 flex h-16 items-center border-t border-border bg-card/95 backdrop-blur-lg safe-bottom md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t border-border bg-card/95 backdrop-blur-lg safe-bottom md:hidden">
         {([
           { key: 'home' as const, icon: Home, label: '首页' },
           { key: 'search' as const, icon: Search, label: '搜索' },
@@ -641,7 +650,7 @@ export default function HomeFeedScreen() {
               key={tab.key}
               type="button"
               onClick={() => handleTabClick(tab.key)}
-              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-90 ${
+              className={`relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-90 ${
                 isPublish ? '' : isActive ? 'text-coral' : 'text-muted-foreground'
               }`}
             >

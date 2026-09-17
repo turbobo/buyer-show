@@ -169,7 +169,7 @@ function CommentItem({ comment, onReply, onReport, onLike, onFavorite, onEdit, c
   return (
     <div className="flex gap-3">
       <Avatar className="mt-0.5 h-8 w-8 shrink-0">
-        <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">
+        <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">
           {comment.userNickname?.[0] ?? '用'}
         </AvatarFallback>
       </Avatar>
@@ -611,7 +611,7 @@ export default function PostDetailScreen() {
             onClick={() => navigate(`/user/${post.userId}`)}
           >
             <Avatar className="h-7 w-7">
-              <AvatarFallback className="bg-coral-light text-[10px] text-coral">
+              <AvatarFallback className="bg-coral-light text-[10px] text-coral-contrast">
                 {post.userNickname?.[0] ?? '?'}
               </AvatarFallback>
             </Avatar>

@@ -47,7 +47,7 @@ export function UserMenu({ user, onLogoutRequest }: { user: UserProfile; onLogou
       >
         <Avatar className="h-8 w-8">
           {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.nickname} />}
-          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">
+          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">
             {user.nickname[0]}
           </AvatarFallback>
         </Avatar>

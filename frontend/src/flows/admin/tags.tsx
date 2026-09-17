@@ -112,7 +112,7 @@ export default function AdminTagsScreen() {
         <div className="space-y-2">
           {tags.map((tag) => (
             <article key={tag.tag} className="flex flex-wrap items-center gap-3 rounded-xl border border-border/60 bg-card p-3">
-              <span className="rounded-full bg-coral-light px-3 py-1 text-sm font-medium text-coral">{tag.tag}</span>
+              <span className="rounded-full bg-coral-light px-3 py-1 text-sm font-medium text-coral-contrast">{tag.tag}</span>
               <span className="text-xs text-muted-foreground">{tag.postCount} 篇</span>
               <div className="ml-auto flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openDialog('rename', tag)}>

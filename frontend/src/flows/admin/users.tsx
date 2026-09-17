@@ -297,7 +297,7 @@ export default function AdminUsersScreen() {
               >
                 <Avatar className="h-10 w-10 shrink-0">
                   {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.nickname} />}
-                  <AvatarFallback className="bg-coral-light text-sm font-bold text-coral">
+                  <AvatarFallback className="bg-coral-light text-sm font-bold text-coral-contrast">
                     {user.nickname[0]}
                   </AvatarFallback>
                 </Avatar>
@@ -306,7 +306,7 @@ export default function AdminUsersScreen() {
                     <span className="truncate text-sm font-medium text-foreground">{user.nickname}</span>
                     <span className="text-xs text-muted-foreground">@{user.username}</span>
                     {user.role === 1 && (
-                      <span className="rounded bg-coral-light px-1.5 py-0.5 text-[10px] font-medium text-coral">管理员</span>
+                      <span className="rounded bg-coral-light px-1.5 py-0.5 text-[10px] font-medium text-coral-contrast">管理员</span>
                     )}
                     {badge && (
                       <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${badge.className}`}>{badge.text}</span>

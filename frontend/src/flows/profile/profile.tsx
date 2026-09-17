@@ -322,7 +322,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           <div className="flex flex-wrap items-start gap-4">
             <Avatar className="h-20 w-20 shrink-0">
               {profile.avatarUrl && <AvatarImage src={profile.avatarUrl} alt={profile.nickname} />}
-              <AvatarFallback className="bg-coral-light text-2xl font-bold text-coral">
+              <AvatarFallback className="bg-coral-light text-2xl font-bold text-coral-contrast">
                 {profile.nickname[0]}
               </AvatarFallback>
             </Avatar>
@@ -349,7 +349,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                 <>
                   <Button
                     variant={profile.isFollowing ? 'outline' : 'default'}
-                    className={profile.isFollowing ? '' : 'bg-coral text-white hover:bg-coral-dark'}
+                    className={`h-10 ${profile.isFollowing ? '' : 'bg-coral text-white hover:bg-coral-dark'}`}
                     disabled={isFollowSubmitting}
                     onClick={() => void handleFollow()}
                   >
@@ -359,6 +359,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                   </Button>
                   <Button
                     variant="outline"
+                    className="h-10"
                     disabled={isStartingChat}
                     onClick={() => void handleStartChat()}
                   >
@@ -380,7 +381,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                 role="tab"
                 aria-selected={activeTab === tab.key}
                 onClick={() => setActiveTab(tab.key)}
-                className={`flex-1 border-b-2 px-3 pb-2 pt-1 text-sm font-medium transition-colors ${
+                className={`flex-1 border-b-2 px-3 pb-3 pt-2 text-sm font-medium transition-colors ${
                   activeTab === tab.key
                     ? 'border-coral text-coral'
                     : 'border-transparent text-muted-foreground hover:text-foreground'

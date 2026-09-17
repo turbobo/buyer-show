@@ -59,7 +59,7 @@ export default function AdminLayout() {
               onClick={() => setIsDrawerOpen(false)}
               className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
                 active
-                  ? 'bg-coral-light text-coral'
+                  ? 'bg-coral-light text-coral-contrast'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
@@ -110,7 +110,7 @@ export default function AdminLayout() {
           </Button>
           <h1 className="text-lg font-bold text-foreground">{current?.label ?? '管理后台'}</h1>
           <div className="flex-1" />
-          <span className="inline-flex items-center gap-1 rounded-full bg-coral-light px-3 py-1 text-xs font-medium text-coral">
+          <span className="inline-flex items-center gap-1 rounded-full bg-coral-light px-3 py-1 text-xs font-medium text-coral-contrast">
             <ShieldCheck className="h-3.5 w-3.5" />管理员
           </span>
         </header>

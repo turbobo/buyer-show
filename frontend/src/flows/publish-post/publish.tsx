@@ -52,7 +52,7 @@ export default function PublishScreen() {
   const [productName, setProductName] = useState('')
   const [source, setSource] = useState(SOURCES[0])
   const [price, setPrice] = useState('')
-  const [rating, setRating] = useState(5)
+  const [rating, setRating] = useState(0)
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -348,14 +348,14 @@ export default function PublishScreen() {
       <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
         {/* ─── 草稿恢复提示 ─── */}
         {draftPrompt && (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
             <span className="flex-1">
               发现 {new Date(draftPrompt.savedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })} 保存的草稿，是否恢复？
             </span>
             <Button size="sm" className="h-8 bg-coral text-white hover:bg-coral-dark" onClick={applyDraft}>
               恢复草稿
             </Button>
-            <Button size="sm" variant="ghost" className="h-8 text-amber-700" onClick={discardDraft}>
+            <Button size="sm" variant="ghost" className="h-8 text-amber-700 dark:text-amber-400" onClick={discardDraft}>
               丢弃
             </Button>
           </div>
@@ -368,6 +368,8 @@ export default function PublishScreen() {
           <div>
             <label htmlFor="post-title" className="mb-1.5 block text-sm font-medium">标题</label>
             <Input
+              id="post-title"
+              aria-label="标题"
               value={title}
               maxLength={200}
               onChange={(event) => setTitle(event.target.value)}
@@ -378,6 +380,8 @@ export default function PublishScreen() {
           <div>
             <label htmlFor="post-content" className="mb-1.5 block text-sm font-medium">正文</label>
             <Textarea
+              id="post-content"
+              aria-label="正文"
               value={content}
               maxLength={5000}
               onChange={(event) => setContent(event.target.value)}
@@ -444,24 +448,35 @@ export default function PublishScreen() {
         <section className="space-y-4 rounded-2xl border border-border/60 bg-card p-5">
           <h2 className="text-lg font-bold">商品信息</h2>
           <Input
+            aria-label="商品名称"
             value={productName}
             onChange={(event) => setProductName(event.target.value)}
             placeholder="商品名称（可选）"
           />
           <div className="grid gap-4 sm:grid-cols-2">
             <Input
+              aria-label="价格（元）"
               value={price}
               type="number"
               min="0"
               onChange={(event) => setPrice(event.target.value)}
               placeholder="价格（元）"
             />
-            <div className="flex items-center gap-1">
+            <div role="radiogroup" aria-label="商品评分" className="flex items-center gap-1">
               {[1, 2, 3, 4, 5].map((value) => (
-                <button type="button" key={value} onClick={() => setRating(value)}>
+                <button
+                  type="button"
+                  key={value}
+                  role="radio"
+                  aria-checked={rating === value}
+                  aria-label={`${value} 星`}
+                  onClick={() => setRating(rating === value ? 0 : value)}
+                  className="flex h-11 w-9 items-center justify-center"
+                >
                   <Star className={`h-6 w-6 ${value <= rating ? 'fill-yellow-400 text-yellow-400' : 'text-muted-foreground/30'}`} />
                 </button>
               ))}
+              {rating === 0 && <span className="ml-1 text-xs text-muted-foreground">未评分</span>}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

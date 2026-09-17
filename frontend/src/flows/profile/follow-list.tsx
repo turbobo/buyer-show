@@ -138,7 +138,7 @@ export default function FollowListScreen({ mode }: { mode: 'followers' | 'follow
                 >
                   <Avatar className="h-11 w-11 shrink-0">
                     {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.nickname} />}
-                    <AvatarFallback className="bg-coral-light text-sm font-bold text-coral">
+                    <AvatarFallback className="bg-coral-light text-sm font-bold text-coral-contrast">
                       {user.nickname[0]}
                     </AvatarFallback>
                   </Avatar>

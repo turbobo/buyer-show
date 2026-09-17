@@ -255,7 +255,7 @@ export default function AdminAnalytics() {
                   className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:border-coral/40"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-coral-light text-xs font-bold text-coral">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-coral-light text-xs font-bold text-coral-contrast">
                       {index + 1}
                     </span>
                     <span className="text-sm">帖子 #{post.post_id}</span>
@@ -280,7 +280,7 @@ export default function AdminAnalytics() {
                 <span
                   key={tag}
                   className={`rounded-full px-3 py-1 text-sm ${
-                    index < 3 ? 'bg-coral-light font-medium text-coral' : 'bg-muted text-muted-foreground'
+                    index < 3 ? 'bg-coral-light font-medium text-coral-contrast' : 'bg-muted text-muted-foreground'
                   }`}
                 >
                   {tag}

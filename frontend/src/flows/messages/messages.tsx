@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { getNotifications, getUnreadCount, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
 import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
 import { getTokenUserId } from '@/services/http'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   getConversations,
   getMessages,
@@ -39,7 +40,7 @@ function ConversationItemView({ conv, isActive, onClick }: { conv: ConversationI
       className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all ${isActive ? 'bg-coral-light' : 'hover:bg-muted/50'}`}
     >
       <Avatar className="h-12 w-12 shrink-0">
-        <AvatarFallback className="bg-coral-light text-coral text-sm font-bold">{conv.peerNickname[0]}</AvatarFallback>
+        <AvatarFallback className="bg-coral-light text-coral-contrast text-sm font-bold">{conv.peerNickname[0]}</AvatarFallback>
       </Avatar>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
@@ -115,7 +116,7 @@ function NotificationItem({ notification, onClick }: { notification: AppNotifica
     >
       <div className="relative shrink-0">
         <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral">{displayName?.[0] ?? '?'}</AvatarFallback>
+          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">{displayName?.[0] ?? '?'}</AvatarFallback>
         </Avatar>
         <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-border/40 bg-card">
           {notificationIcon(notification.type)}
@@ -325,10 +326,10 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           {/* Tabs */}
           <div className="p-3">
             <div className="flex bg-muted/50 rounded-xl p-1">
-              <button onClick={() => setActiveTab('dm')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${activeTab === 'dm' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              <button onClick={() => setActiveTab('dm')} className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all ${activeTab === 'dm' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 私信
               </button>
-              <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+              <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 互动通知
                 {unreadCount > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">
@@ -344,7 +345,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
             <div className="px-3 pb-2">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input placeholder="搜索对话..." className="pl-9 h-9 bg-muted/50 border-0 rounded-full text-sm" />
+                <Input placeholder="搜索对话..." aria-label="搜索对话" className="h-10 pl-9 bg-muted/50 border-0 rounded-full text-sm" />
               </div>
             </div>
           )}
@@ -362,10 +363,12 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
                   <Button variant="outline" size="sm" onClick={() => void loadConversations()}>重试</Button>
                 </div>
               ) : conversations.length === 0 ? (
-                <div className="px-3 py-8 text-center">
-                  <p className="text-sm text-muted-foreground">暂无私信</p>
-                  <p className="mt-1 text-xs text-muted-foreground">对方关注你后，可在其主页点「私信」发起对话</p>
-                </div>
+                <EmptyState
+                  icon={MessageCircle}
+                  title="暂无私信"
+                  description="对方关注你后，可在其主页点「私信」发起对话"
+                  className="px-3"
+                />
               ) : (
                 <div className="space-y-0.5">
                   {conversations.map((conversation) => (
@@ -397,7 +400,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
                 ) : notifications.length === 0 ? (
-                  <p className="px-3 py-8 text-center text-sm text-muted-foreground">暂无通知</p>
+                  <EmptyState icon={ShieldCheck} title="暂无通知" className="px-3" />
                 ) : (
                   notifications.map((item) => (
                     <NotificationItem

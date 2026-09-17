@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   addSearchHistory,
   clearSearchHistory,
@@ -65,8 +66,8 @@ export default function SearchScreen() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* ─── 顶部导航（含搜索输入） ─── */}
-      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
+      {/* ─── 顶部导航（含搜索输入；移动端；PC 无第二行，搜索入口在内容区） ─── */}
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
         <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
           <div className="flex items-center gap-1 -ml-3">
             <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
@@ -97,6 +98,21 @@ export default function SearchScreen() {
       </nav>
 
       <main className="mx-auto max-w-5xl px-4 py-6">
+        <h1 className="sr-only">搜索</h1>
+        {/* PC 搜索行（内容区，非吸顶第二行） */}
+        <div className="relative mb-6 hidden max-w-xl md:block">
+          <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={input}
+            aria-label="搜索关键词"
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void runSearch(input)
+            }}
+            placeholder="搜索好物、品牌、标签..."
+            className="h-10 rounded-full border-0 bg-muted/50 pl-10"
+          />
+        </div>
         {!searched ? (
           <div className="space-y-6">
             {history.length > 0 && (
@@ -141,7 +157,7 @@ export default function SearchScreen() {
                       key={tag}
                       type="button"
                       onClick={() => void runSearch(tag)}
-                      className="rounded-full bg-coral-light px-3 py-1.5 text-xs text-coral transition-colors hover:bg-coral-light/80"
+                      className="rounded-full bg-coral-light px-3 py-1.5 text-xs text-coral-contrast transition-colors hover:bg-coral-light/80"
                     >
                       {tag}
                     </button>
@@ -162,9 +178,12 @@ export default function SearchScreen() {
             <Button variant="outline" onClick={() => void runSearch(input)}>重新搜索</Button>
           </div>
         ) : results.length === 0 ? (
-          <div className="rounded-xl bg-card p-12 text-center">
-            <p className="mb-1 text-sm text-muted-foreground">没有找到与「{input}」相关的内容</p>
-            <p className="text-xs text-muted-foreground">换个关键词试试吧</p>
+          <div className="rounded-xl bg-card">
+            <EmptyState
+              icon={SearchIcon}
+              title={`没有找到与「${input}」相关的内容`}
+              description="换个关键词试试吧"
+            />
           </div>
         ) : (
           <div className="space-y-3">
@@ -187,7 +206,7 @@ export default function SearchScreen() {
                     <h3 className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Avatar className="h-5 w-5">
-                        <AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral">
+                        <AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral-contrast">
                           {post.userNickname[0]}
                         </AvatarFallback>
                       </Avatar>

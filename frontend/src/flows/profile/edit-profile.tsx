@@ -189,7 +189,7 @@ export default function EditProfileScreen() {
             >
               <Avatar className="h-24 w-24">
                 {avatarUrl && <AvatarImage src={avatarUrl} alt="头像预览" />}
-                <AvatarFallback className="bg-coral-light text-3xl font-bold text-coral">
+                <AvatarFallback className="bg-coral-light text-3xl font-bold text-coral-contrast">
                   {nickname[0] ?? '?'}
                 </AvatarFallback>
               </Avatar>

@@ -61,7 +61,7 @@ export function AppTabBar() {
               key={tab.key}
               type="button"
               onClick={() => handleClick(tab.key)}
-              className={`relative flex flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-90 ${
+              className={`relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 transition-transform active:scale-90 ${
                 isPublish ? '' : isActive ? 'text-coral' : 'text-muted-foreground'
               }`}
             >
