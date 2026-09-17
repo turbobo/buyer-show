@@ -41,8 +41,9 @@ class AuthServiceTest {
     private final PasswordEncoder passwordEncoder = mock(PasswordEncoder.class);
     private final JwtTokenProvider jwtTokenProvider = mock(JwtTokenProvider.class);
     private final LoginRateLimiter loginRateLimiter = mock(LoginRateLimiter.class);
+    private final CaptchaService captchaService = mock(CaptchaService.class);
     private final AuthService authService = new AuthService(
-            userMapper, passwordEncoder, jwtTokenProvider, loginRateLimiter);
+            userMapper, passwordEncoder, jwtTokenProvider, loginRateLimiter, captchaService);
 
     @AfterEach
     void tearDown() {

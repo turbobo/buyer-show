@@ -32,4 +32,10 @@ public class RegisterRequest {
     @Email(message = "邮箱格式不正确")
     @Size(max = 255, message = "邮箱长度不能超过255字符")
     private String email;
+
+    @NotBlank(message = "验证码不能为空")
+    private String captchaId;
+
+    @NotBlank(message = "验证码不能为空")
+    private String captchaCode;
 }

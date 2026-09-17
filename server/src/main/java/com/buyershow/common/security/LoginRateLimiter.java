@@ -1,7 +1,5 @@
 package com.buyershow.common.security;
 
-import com.buyershow.common.ErrorCode;
-import com.buyershow.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -28,6 +26,9 @@ public class LoginRateLimiter {
     private static final int MAX_ATTEMPTS = 5;
     private static final long WINDOW_SECONDS = 15 * 60; // 15 分钟
 
+    /** 硬限流阈值（不提供验证码时） */
+    public static final int HARD_LIMIT_ATTEMPTS = MAX_ATTEMPTS;
+
     private static final String LUA_RATE_LIMIT =
             "local current = redis.call('INCR', KEYS[1]) " +
             "if current == 1 then redis.call('EXPIRE', KEYS[1], ARGV[1]) end " +
@@ -44,24 +45,19 @@ public class LoginRateLimiter {
     private final RedisTemplate<String, Object> redisTemplate;
 
     /**
-     * 检查是否允许登录尝试。
+     * 记录一次登录尝试（账号与 IP 双维度 INCR，不拦截），返回账号维度当前次数。
+     * 限流与验证码要求由调用方根据次数决定。
      *
      * @param identifier 用户名/手机号/邮箱
      * @param ip         客户端 IP
+     * @return 账号维度当前窗口内尝试次数
      */
-    public void checkRateLimit(String identifier, String ip) {
-        // 检查账号维度
+    public long recordAttempt(String identifier, String ip) {
         String accountKey = "rate:login:account:" + identifier;
         Long accountCount = redisTemplate.execute(
                 RATE_LIMIT_SCRIPT,
                 Collections.singletonList(accountKey),
                 WINDOW_SECONDS);
-        if (accountCount != null && accountCount > MAX_ATTEMPTS) {
-            log.warn("Login rate limit exceeded for account: {}", identifier);
-            throw new BusinessException(ErrorCode.RATE_LIMITED, "登录尝试次数过多，请 15 分钟后再试");
-        }
-
-        // 检查 IP 维度
         String ipKey = "rate:login:ip:" + ip;
         Long ipCount = redisTemplate.execute(
                 RATE_LIMIT_SCRIPT,
@@ -69,8 +65,22 @@ public class LoginRateLimiter {
                 WINDOW_SECONDS);
         if (ipCount != null && ipCount > MAX_ATTEMPTS) {
             log.warn("Login rate limit exceeded for IP: {}", ip);
-            throw new BusinessException(ErrorCode.RATE_LIMITED, "登录尝试次数过多，请 15 分钟后再试");
         }
+        return accountCount == null ? 0L : accountCount;
+    }
+
+    /**
+     * 判断 IP 维度是否已超硬限流阈值。
+     *
+     * @param ip 客户端 IP
+     * @return 是否超限
+     */
+    public boolean isIpRateLimited(String ip) {
+        Object value = redisTemplate.opsForValue().get("rate:login:ip:" + ip);
+        if (value instanceof Number number) {
+            return number.longValue() > MAX_ATTEMPTS;
+        }
+        return false;
     }
 
     /**

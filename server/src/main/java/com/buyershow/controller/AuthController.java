@@ -4,8 +4,10 @@ import com.buyershow.common.R;
 import com.buyershow.dto.request.ChangePasswordRequest;
 import com.buyershow.dto.request.LoginRequest;
 import com.buyershow.dto.request.RegisterRequest;
+import com.buyershow.dto.response.CaptchaDTO;
 import com.buyershow.dto.response.TokenPair;
 import com.buyershow.service.AuthService;
+import com.buyershow.service.CaptchaService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,13 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final CaptchaService captchaService;
+
+    /** 图形验证码（注册必用；登录连续失败后使用）。 */
+    @GetMapping("/captcha")
+    public R<CaptchaDTO> captcha() {
+        return R.ok(captchaService.generate());
+    }
 
     @PostMapping("/register")
     public R<TokenPair> register(@Valid @RequestBody RegisterRequest request) {

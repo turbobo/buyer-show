@@ -56,9 +56,29 @@ def check(name, ok, detail=""):
     print(f"[{icon}] {name}" + (f"  ({detail})" if detail else ""))
 
 
+def redis_get(key):
+    """从本地 Docker Redis 读取值（仅冒烟环境使用，用于取图形验证码明文）。
+
+    注意：应用使用 Jackson 序列化，Redis 内存储为 JSON 字符串（含引号），需解码。
+    """
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = subprocess.run(
+        ["docker", "compose", "exec", "-T", "redis", "redis-cli", "--raw", "GET", key],
+        capture_output=True, text=True, cwd=project_root)
+    raw = out.stdout.strip()
+    try:
+        return json.loads(raw)
+    except Exception:  # noqa: BLE001 - 非 JSON 时按原文返回
+        return raw
+
+
 def register(username, nickname):
+    captcha = req("/auth/captcha").get("data") or {}
+    captcha_id = captcha.get("captchaId")
+    captcha_code = redis_get(f"captcha:{captcha_id}") if captcha_id else ""
     return req("/auth/register", "POST", body={
         "username": username, "password": "123456", "nickname": nickname,
+        "captchaId": captcha_id, "captchaCode": captcha_code,
     })
 
 
@@ -86,7 +106,16 @@ def main():
     health = req("/health")
     check("健康检查", health.get("code") == 0 or health.get("status") == "UP", str(health)[:60])
 
-    # 2. 注册 / 登录
+    # 2. 注册 / 登录（含图形验证码）
+    captcha_resp = req("/auth/captcha")
+    captcha_data = captcha_resp.get("data") or {}
+    check("验证码获取", bool(captcha_data.get("captchaId")) and str(captcha_data.get("image", "")).startswith("data:image/svg+xml"))
+    bad_captcha = req("/auth/register", "POST", body={
+        "username": f"smokeBad{STAMP}", "password": "123456", "nickname": f"坏码{STAMP}",
+        "captchaId": captcha_data.get("captchaId"), "captchaCode": "XXXX",
+    })
+    check("错误验证码注册被拒(1010)", bad_captcha.get("code") == 1010)
+
     user_a = f"smokeA{STAMP}"
     user_b = f"smokeB{STAMP}"
     reg_a = register(user_a, f"冒烟A{STAMP}")

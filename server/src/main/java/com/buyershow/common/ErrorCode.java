@@ -16,6 +16,8 @@ public enum ErrorCode {
     ACCOUNT_DELETED(1006, "账号已注销"),
     REFRESH_TOKEN_INVALID(1007, "刷新令牌无效"),
     WECHAT_AUTH_FAILED(1008, "微信登录失败"),
+    CAPTCHA_REQUIRED(1009, "请先输入验证码"),
+    CAPTCHA_INVALID(1010, "验证码错误或已过期"),
 
     // 用户 2000-2999
     USER_NOT_FOUND(2001, "用户不存在"),

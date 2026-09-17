@@ -31,12 +31,19 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final LoginRateLimiter loginRateLimiter;
+    private final CaptchaService captchaService;
+
+    /** 连续尝试超过该次数后要求验证码 */
+    private static final long CAPTCHA_ATTEMPT_THRESHOLD = 3;
 
     public TokenPair register(RegisterRequest request) {
         String username = request.getUsername().trim();
         String phone = trimToNull(request.getPhone());
         String email = trimToNull(request.getEmail());
         log.info("用户注册: username={}, phone={}, email={}", username, phone, email);
+
+        // 图形验证码校验（一次性消费）
+        captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
 
         // Check username uniqueness
         Long count = userMapper.selectCount(
@@ -114,8 +121,25 @@ public class AuthService {
         String identifier = request.getUsername().trim();
         log.info("用户登录: identifier={}, ip={}", identifier, clientIp);
 
-        // 限流检查
-        loginRateLimiter.checkRateLimit(identifier, clientIp);
+        // 记录尝试次数（账号 + IP 双维度）
+        long attempts = loginRateLimiter.recordAttempt(identifier, clientIp);
+
+        if (attempts > CAPTCHA_ATTEMPT_THRESHOLD) {
+            boolean hasCaptcha = request.getCaptchaId() != null && request.getCaptchaCode() != null
+                    && !request.getCaptchaId().isBlank() && !request.getCaptchaCode().isBlank();
+            if (!hasCaptcha) {
+                // 超硬限流阈值或 IP 异常时直接拦截，否则提示输入验证码
+                if (attempts > LoginRateLimiter.HARD_LIMIT_ATTEMPTS || loginRateLimiter.isIpRateLimited(clientIp)) {
+                    throw new BusinessException(ErrorCode.RATE_LIMITED, "登录尝试次数过多，请 15 分钟后再试");
+                }
+                throw new BusinessException(ErrorCode.CAPTCHA_REQUIRED);
+            }
+            // 人机验证通过 → 重置计数（给予继续尝试的机会）
+            captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
+            loginRateLimiter.clearAttempts(identifier, clientIp);
+        } else if (loginRateLimiter.isIpRateLimited(clientIp)) {
+            throw new BusinessException(ErrorCode.RATE_LIMITED, "登录尝试次数过多，请 15 分钟后再试");
+        }
 
         User user = resolveByLoginIdentifier(identifier);
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {

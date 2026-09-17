@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { login, register } from '@/services/auth'
+import { login, register, getCaptcha, type CaptchaData } from '@/services/auth'
+import { ApiError } from '@/services/http'
 import { trackLogin, trackRegister } from '@/services/analytics'
 import { useToast } from '@/components/ui/toast'
 
@@ -24,6 +25,25 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [captcha, setCaptcha] = useState<CaptchaData | null>(null)
+  const [captchaCode, setCaptchaCode] = useState('')
+  const [showLoginCaptcha, setShowLoginCaptcha] = useState(false)
+
+  const reloadCaptcha = useCallback(async () => {
+    try {
+      setCaptcha(await getCaptcha())
+    } catch {
+      /* 拉取失败时保持空态，提交前会提示 */
+    }
+  }, [])
+
+  // 注册模式立即展示验证码
+  useEffect(() => {
+    if (isRegistering) {
+      setCaptchaCode('')
+      void reloadCaptcha()
+    }
+  }, [isRegistering, reloadCaptcha])
 
   const validateRegisterInput = (): string | null => {
     if (!nickname.trim()) return '请填写昵称'
@@ -36,6 +56,8 @@ export default function LoginScreen() {
     if (isRegistering) {
       const validationError = validateRegisterInput()
       if (validationError) { setError(validationError); return }
+      if (!captcha) { setError('验证码加载中，请点击图片重试'); return }
+      if (!captchaCode.trim()) { setError('请输入验证码'); return }
     }
     setIsSubmitting(true)
     setError(null)
@@ -47,17 +69,37 @@ export default function LoginScreen() {
           nickname: nickname.trim(),
           phone: phone.trim() || undefined,
           email: email.trim() || undefined,
+          captchaId: captcha?.captchaId ?? '',
+          captchaCode: captchaCode.trim(),
         })
         toast('success', '注册成功，欢迎加入买家说！')
       } else {
-        await login(account.trim(), password)
+        await login(
+          account.trim(),
+          password,
+          showLoginCaptcha && captcha ? { captchaId: captcha.captchaId, captchaCode: captchaCode.trim() } : undefined,
+        )
         trackLogin('password')
         toast('success', '登录成功')
       }
       navigate(safeRedirect)
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : '认证失败'
-      setError(message)
+      const code = requestError instanceof ApiError ? requestError.code : undefined
+      if (!isRegistering && code === 1009) {
+        // 连续失败达阈值，要求验证码
+        setShowLoginCaptcha(true)
+        setCaptchaCode('')
+        void reloadCaptcha()
+        setError('登录尝试次数较多，请输入验证码后重试')
+      } else {
+        setError(message)
+        // 验证码错误或注册失败时刷新验证码（一次性消费）
+        if (code === 1010 || isRegistering) {
+          setCaptchaCode('')
+          void reloadCaptcha()
+        }
+      }
       toast('error', message)
     } finally {
       setIsSubmitting(false)
@@ -133,6 +175,28 @@ export default function LoginScreen() {
             autoComplete={isRegistering ? 'new-password' : 'current-password'}
             className="h-11"
           />
+          {!isRegistering && showLoginCaptcha && (
+            <div className="flex items-center gap-2">
+              <Input
+                aria-label="验证码"
+                value={captchaCode}
+                onChange={(event) => setCaptchaCode(event.target.value)}
+                placeholder="验证码（不区分大小写）"
+                maxLength={4}
+                autoComplete="off"
+                className="h-11 flex-1"
+              />
+              {captcha && (
+                <img
+                  src={captcha.image}
+                  alt="验证码，点击刷新"
+                  title="点击刷新"
+                  onClick={() => { setCaptchaCode(''); void reloadCaptcha() }}
+                  className="h-11 w-[120px] shrink-0 cursor-pointer rounded-lg border border-border/60"
+                />
+              )}
+            </div>
+          )}
           {isRegistering && (
             <>
               <Input
@@ -151,6 +215,26 @@ export default function LoginScreen() {
                 autoComplete="email"
                 className="h-11"
               />
+              <div className="flex items-center gap-2">
+                <Input
+                  aria-label="验证码"
+                  value={captchaCode}
+                  onChange={(event) => setCaptchaCode(event.target.value)}
+                  placeholder="验证码（不区分大小写）"
+                  maxLength={4}
+                  autoComplete="off"
+                  className="h-11 flex-1"
+                />
+                {captcha && (
+                  <img
+                    src={captcha.image}
+                    alt="验证码，点击刷新"
+                    title="点击刷新"
+                    onClick={() => { setCaptchaCode(''); void reloadCaptcha() }}
+                    className="h-11 w-[120px] shrink-0 cursor-pointer rounded-lg border border-border/60"
+                  />
+                )}
+              </div>
             </>
           )}
         </div>

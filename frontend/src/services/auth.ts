@@ -11,6 +11,13 @@ export interface RegisterPayload {
   nickname: string
   phone?: string
   email?: string
+  captchaId: string
+  captchaCode: string
+}
+
+export interface CaptchaData {
+  captchaId: string
+  image: string
 }
 
 export interface UserProfile {
@@ -25,9 +32,17 @@ export interface UserProfile {
   isFollowing: boolean
 }
 
-export async function login(account: string, password: string): Promise<void> {
-  const tokens = await request<TokenPair>('/auth/login', { method: 'POST', body: JSON.stringify({ username: account, password }) })
+export async function login(account: string, password: string, captcha?: { captchaId: string; captchaCode: string }): Promise<void> {
+  const tokens = await request<TokenPair>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username: account, password, ...captcha }),
+  })
   saveTokens(tokens.accessToken, tokens.refreshToken)
+}
+
+/** 获取图形验证码（注册必用；登录连续失败后使用）。 */
+export async function getCaptcha(): Promise<CaptchaData> {
+  return request<CaptchaData>('/auth/captcha')
 }
 
 export async function register(payload: RegisterPayload): Promise<void> {

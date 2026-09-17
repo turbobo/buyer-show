@@ -16,4 +16,9 @@ public class LoginRequest {
 
     @NotBlank(message = "密码不能为空")
     private String password;
+
+    /** 验证码（连续失败后必填） */
+    private String captchaId;
+
+    private String captchaCode;
 }
