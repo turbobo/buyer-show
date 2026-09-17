@@ -1,4 +1,4 @@
-// 我的评论页：当前用户全部评论（含待审/未通过徽标，仅本人可见），支持删除与触底加载
+// 我的评论：面板组件（主页「评论」Tab 内嵌与直链页共用）——全部评论/收藏的评论，支持删除与触底加载
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Bookmark, Home, Loader2, Trash2 } from 'lucide-react'
@@ -22,7 +22,10 @@ function formatTime(value: string): string {
   return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
-export default function MyCommentsScreen() {
+/**
+ * 我的评论面板（主页「评论」Tab 与直链页共用；不含页面外壳导航）。
+ */
+export function MyCommentsPanel() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const [comments, setComments] = useState<UserComment[]>([])
@@ -99,28 +102,10 @@ export default function MyCommentsScreen() {
     }
   }
 
-  const navBar = (
-    <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
-      <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-        <div className="flex items-center gap-1 -ml-3">
-          <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Button aria-label="返回首页" variant="ghost" size="icon" className="md:hidden" onClick={() => navigate('/')}>
-            <Home className="h-5 w-5" />
-          </Button>
-        </div>
-        <h1 className="flex-1 truncate text-lg font-bold text-foreground">我的评论</h1>
-      </div>
-    </nav>
-  )
-
   return (
-    <div className="min-h-screen bg-background">
-      {navBar}
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        {/* 分类 Tab：我的评论 / 收藏的评论 */}
-        <div className="mb-4 flex items-center gap-1 rounded-full bg-muted/50 p-1">
+    <>
+      {/* 分类切换：我的评论 / 收藏的评论 */}
+      <div className="mb-4 flex items-center gap-1 rounded-full bg-muted/50 p-1">
           <button
             type="button"
             onClick={() => setActiveTab('mine')}
@@ -212,9 +197,7 @@ export default function MyCommentsScreen() {
             )}
           </div>
         )}
-      </main>
 
-      {/* ─── 删除二次确认（U34：统一 ConfirmDialog） ─── */}
       <ConfirmDialog
         open={confirmDelete !== null}
         title="删除这条评论？"
@@ -225,6 +208,31 @@ export default function MyCommentsScreen() {
         onConfirm={() => void handleDelete()}
         onCancel={() => setConfirmDelete(null)}
       />
+    </>
+  )
+}
+
+/** 直链页（/profile/comments）：Stack 导航 + 面板（旧链接兼容，站内主入口在个人主页「评论」Tab）。 */
+export default function MyCommentsScreen() {
+  const navigate = useNavigate()
+  return (
+    <div className="min-h-screen bg-background">
+      <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
+        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
+          <div className="flex items-center gap-1 -ml-3">
+            <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Button aria-label="返回首页" variant="ghost" size="icon" className="md:hidden" onClick={() => navigate('/')}>
+              <Home className="h-5 w-5" />
+            </Button>
+          </div>
+          <h1 className="flex-1 truncate text-lg font-bold text-foreground">我的评论</h1>
+        </div>
+      </nav>
+      <main className="mx-auto max-w-5xl px-4 py-6">
+        <MyCommentsPanel />
+      </main>
     </div>
   )
 }

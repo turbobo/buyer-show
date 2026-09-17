@@ -1,8 +1,8 @@
 // 用户身份区（菜单一致性规范）：头像 + 昵称，点击展开下拉菜单
-// 菜单项：我的主页 / 编辑资料 / 退出登录（退出走宿主二次确认）
+// 菜单项：我的主页 / 编辑资料 / 修改密码 / 退出登录（「我的评论」已迁至个人主页「评论」Tab；退出走宿主二次确认）
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { KeyRound, LogOut, MessageSquare, Pencil, UserRound } from 'lucide-react'
+import { KeyRound, LogOut, Pencil, UserRound } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import type { UserProfile } from '@/services/auth'
 
@@ -77,15 +77,6 @@ export function UserMenu({ user, onLogoutRequest }: { user: UserProfile; onLogou
           >
             <Pencil className="h-4 w-4 text-muted-foreground" />
             编辑资料
-          </button>
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => go('/profile/comments')}
-            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-foreground transition-colors hover:bg-muted/60"
-          >
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-            我的评论
           </button>
           <button
             type="button"

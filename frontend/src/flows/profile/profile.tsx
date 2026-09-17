@@ -13,15 +13,17 @@ import { startConversation } from '@/services/messages'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDialog } from '@/components/ui/app-dialog'
 import { ErrorState } from '@/components/ui/error-state'
+import { MyCommentsPanel } from '@/flows/profile/my-comments'
 import { smartBack } from '@/lib/smart-back'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
-type ProfileTab = 'posts' | 'favorites' | 'likes'
+type ProfileTab = 'posts' | 'favorites' | 'likes' | 'comments'
 
 const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'posts', label: '分享' },
   { key: 'favorites', label: '收藏' },
   { key: 'likes', label: '赞过' },
+  { key: 'comments', label: '评论' },
 ]
 
 /** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标；已封禁帖子提供申诉入口） */
@@ -134,6 +136,8 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const isLoggedIn = getAccessToken() != null
   const isOwn = self || (profile != null && getTokenUserId() === profile.id)
+  // 「评论」仅在本人主页可见（隐私：评论互动上下文不对外）
+  const visibleTabs = isOwn ? PROFILE_TABS : PROFILE_TABS.filter((tab) => tab.key !== 'comments')
 
   const loadPage = useCallback(async (nextCursor?: string, append = false) => {
     if (!self && !params.userId) return
@@ -150,6 +154,15 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     try {
       const targetProfile = profileRef.current
         ?? (self ? await getCurrentUserProfile() : await getUserProfile(params.userId ?? ''))
+      // 「评论」Tab 由 MyCommentsPanel 自行加载，跳过帖子请求
+      if (activeTab === 'comments') {
+        profileRef.current = targetProfile
+        setProfile(targetProfile)
+        setPosts([])
+        setCursor(null)
+        setHasMore(false)
+        return
+      }
       const page = activeTab === 'favorites'
         ? await getUserFavorites(targetProfile.id, nextCursor)
         : activeTab === 'likes'
@@ -380,7 +393,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
 
         <section className="mt-6">
           <div role="tablist" aria-label="帖子分类" className="sticky top-14 z-40 mb-4 flex border-b border-border bg-background">
-            {PROFILE_TABS.map((tab) => (
+            {visibleTabs.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -397,35 +410,41 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
               </button>
             ))}
           </div>
-          {isListLoading ? (
-            <div className="columns-2 gap-3 space-y-3 md:columns-3">
-              {Array.from({ length: 6 }).map((_, index) => (
-                <Skeleton key={index} className="aspect-[3/4] break-inside-avoid rounded-xl" />
-              ))}
-            </div>
+          {activeTab === 'comments' ? (
+            <MyCommentsPanel />
           ) : (
             <>
-              {posts.length === 0 && (
-                <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">{emptyText}</p>
-              )}
-              <div className="columns-2 gap-3 space-y-3 md:columns-3">
-                {posts.map((post) => (
-                  <div key={post.id} className="break-inside-avoid">
-                    <PostGridItem
-                      post={post}
-                      manageable={isOwn && activeTab === 'posts'}
-                      onDeleteRequest={setPendingDelete}
-                      onAppealRequest={setAppealTarget}
-                    />
+              {isListLoading ? (
+                <div className="columns-2 gap-3 space-y-3 md:columns-3">
+                  {Array.from({ length: 6 }).map((_, index) => (
+                    <Skeleton key={index} className="aspect-[3/4] break-inside-avoid rounded-xl" />
+                  ))}
+                </div>
+              ) : (
+                <>
+                  {posts.length === 0 && (
+                    <p className="rounded-xl bg-card p-12 text-center text-sm text-muted-foreground">{emptyText}</p>
+                  )}
+                  <div className="columns-2 gap-3 space-y-3 md:columns-3">
+                    {posts.map((post) => (
+                      <div key={post.id} className="break-inside-avoid">
+                        <PostGridItem
+                          post={post}
+                          manageable={isOwn && activeTab === 'posts'}
+                          onDeleteRequest={setPendingDelete}
+                          onAppealRequest={setAppealTarget}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </>
+              )}
+              <div ref={loadMoreRef} className="py-8 text-center">
+                {isLoadingMore && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
+                {!hasMore && posts.length > 0 && <span className="text-xs text-muted-foreground">已经到底啦</span>}
               </div>
             </>
           )}
-          <div ref={loadMoreRef} className="py-8 text-center">
-            {isLoadingMore && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
-            {!hasMore && posts.length > 0 && <span className="text-xs text-muted-foreground">已经到底啦</span>}
-          </div>
         </section>
       </main>
 
