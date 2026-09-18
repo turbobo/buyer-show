@@ -224,7 +224,7 @@ public class PostService {
         post.setProductName(request.getProductName());
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
-        post.setProductRating(request.getProductRating());
+        post.setProductRating(normalizeRating(request.getProductRating()));
         post.setLikeCount(0);
         post.setCommentCount(0);
         post.setFavoriteCount(0);
@@ -238,6 +238,16 @@ public class PostService {
                 .id(post.getId())
                 .moderationStatus(post.getModerationStatus())
                 .build();
+    }
+
+    /**
+     * 评分归一化：前端「未评分」传 0 或 null，落库统一 null（DB 约束 chk_post_rating 仅允许 1-5 或 NULL）。
+     *
+     * @param rating 前端评分（0=未评分）
+     * @return 归一化后的评分
+     */
+    private Integer normalizeRating(Integer rating) {
+        return rating != null && rating >= 1 && rating <= 5 ? rating : null;
     }
 
     /**
@@ -295,7 +305,7 @@ public class PostService {
         post.setProductName(request.getProductName());
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
-        post.setProductRating(request.getProductRating());
+        post.setProductRating(normalizeRating(request.getProductRating()));
         post.setModerationStatus(decision.getStatus().getValue());
         post.setModerationReason(decision.getReason());
         postMapper.updateById(post);

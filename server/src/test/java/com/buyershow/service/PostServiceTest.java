@@ -23,6 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -124,6 +125,32 @@ class PostServiceTest {
         assertEquals("编辑后的标题", captor.getValue().getTitle());
         verify(postMapper).clearModerationAudit(50L);
         assertEquals(50L, dto.getId());
+    }
+
+    @Test
+    void testCreatePostNormalizesUnratedToNull() {
+        loginAs(10L);
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(uploadService.publishImages(eq(10L), anyList()))
+                .thenReturn(List.of("http://cdn/published/a.jpg"));
+        when(postMapper.selectPostDetailRow(any(), eq(10L))).thenReturn(ownedRow(60L));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())
+                        .moderationStatus(ModerationStatus.APPROVED.getValue()).build());
+
+        CreatePostRequest request = new CreatePostRequest();
+        request.setTitle("未评分发布");
+        request.setContent("未评分发布正文内容");
+        request.setImages(List.of("pending/10/a.jpg"));
+        request.setProductRating(0);
+
+        postService.createPost(request);
+
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postMapper).insert(captor.capture());
+        assertNull(captor.getValue().getProductRating());
+        verify(userMapper).adjustPostCount(10L, 1);
     }
 
     @Test
@@ -238,6 +265,12 @@ class PostServiceTest {
     private PostQueryRow row(Long id) {
         PostQueryRow row = new PostQueryRow();
         row.setId(id);
+        return row;
+    }
+
+    private PostQueryRow ownedRow(Long id) {
+        PostQueryRow row = row(id);
+        row.setUserId(10L);
         return row;
     }
 }

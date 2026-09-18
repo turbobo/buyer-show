@@ -73,6 +73,15 @@ export default defineConfig(({ mode }) => ({
     // 体积分析（P4.5）：npm run build:report 生成 dist/stats.html
     ...(mode === 'report' ? [visualizer({ open: false, gzipSize: true, filename: 'dist/stats.html' })] : []),
   ],
+  // dev 代理：本地开发与 E2E 时将 /api 转发到后端（默认 http://localhost:8080，可用环境变量覆盖）
+  server: {
+    proxy: {
+      '/api': {
+        target: process.env.API_PROXY_TARGET ?? 'http://localhost:8080',
+        changeOrigin: true,
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),

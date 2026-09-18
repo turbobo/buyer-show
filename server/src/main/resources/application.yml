@@ -81,7 +81,8 @@ minio:
 
 # CORS
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  # 5273 为 Playwright E2E 专用 vite dev 端口
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,http://localhost:5273}
 
 # SpringDoc
 springdoc:
