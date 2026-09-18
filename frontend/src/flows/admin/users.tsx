@@ -20,6 +20,8 @@ import {
   type AdminUser,
   type AdminUserPost,
 } from '@/services/admin'
+import { PostPreviewDialog } from './post-preview-dialog'
+import { UserPostsPanel } from './user-posts-panel'
 
 type StatusFilter = 'all' | 'active' | 'banned'
 
@@ -37,13 +39,6 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 
 const PAGE_SIZE = 20
 
-const POST_STATUS_FILTERS: { key: number | undefined; label: string }[] = [
-  { key: undefined, label: '全部' },
-  { key: 0, label: '公开中' },
-  { key: 2, label: '已封禁' },
-  { key: 1, label: '待审' },
-]
-
 function userStatusBadge(status: number) {
   if (status === 1) {
     return { text: '已封禁', className: 'bg-destructive/10 text-destructive' }
@@ -52,16 +47,6 @@ function userStatusBadge(status: number) {
     return { text: '已注销', className: 'bg-muted text-muted-foreground' }
   }
   return null
-}
-
-function postStatusBadge(moderationStatus: number) {
-  if (moderationStatus === 2) {
-    return { text: '已封禁', className: 'bg-destructive/10 text-destructive' }
-  }
-  if (moderationStatus === 1) {
-    return { text: '待审', className: 'bg-yellow-500/10 text-yellow-600' }
-  }
-  return { text: '公开中', className: 'bg-emerald-500/10 text-emerald-600' }
 }
 
 /**
@@ -168,15 +153,6 @@ export default function AdminUsersScreen() {
       setPreviewLoadingId(null)
     }
   }
-
-  const toPostBrief = (detail: AdminPostDetail): AdminUserPost => ({
-    id: detail.id,
-    title: detail.title,
-    coverImage: detail.images?.[0] ?? null,
-    moderationStatus: detail.moderationStatus,
-    status: detail.status,
-    createdAt: detail.createdAt,
-  })
 
   const refreshAfterPostAction = async (postId: number) => {
     await loadPosts(postsPage)
@@ -338,117 +314,23 @@ export default function AdminUsersScreen() {
               </div>
 
               {isExpanded && (
-                <div className="border-t border-border/60 p-3">
-                  {/* 搜索与状态筛选 */}
-                  <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <div className="relative min-w-0 flex-1 sm:max-w-52">
-                      <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        value={postsSearch}
-                        onChange={(event) => setPostsSearch(event.target.value)}
-                        onKeyDown={(event) => { if (event.key === 'Enter') setPostsKeyword(postsSearch.trim()) }}
-                        placeholder="搜索帖子标题"
-                        className="h-8 pl-8 text-xs"
-                        aria-label="搜索该用户帖子"
-                      />
-                    </div>
-                    <Button size="sm" variant="outline" className="h-8" onClick={() => setPostsKeyword(postsSearch.trim())}>
-                      搜索
-                    </Button>
-                    <div className="flex gap-1">
-                      {POST_STATUS_FILTERS.map((item) => (
-                        <Button
-                          key={item.label}
-                          size="sm"
-                          variant={postsStatusFilter === item.key ? 'default' : 'outline'}
-                          className={`h-8 ${postsStatusFilter === item.key ? 'bg-coral text-white hover:bg-coral-dark' : ''}`}
-                          onClick={() => setPostsStatusFilter(item.key)}
-                        >
-                          {item.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {isPostsLoading && userPosts.length === 0 ? (
-                    <div className="space-y-2">
-                      {Array.from({ length: 3 }).map((_, index) => (
-                        <Skeleton key={index} className="h-14 rounded-lg" />
-                      ))}
-                    </div>
-                  ) : userPosts.length === 0 ? (
-                    <p className="py-4 text-center text-xs text-muted-foreground">
-                      {postsKeyword || postsStatusFilter !== undefined ? '没有符合条件的帖子' : '该用户暂无帖子'}
-                    </p>
-                  ) : (
-                    <div className="space-y-2">
-                      {userPosts.map((post) => {
-                        const postBadge = postStatusBadge(post.moderationStatus)
-                        return (
-                          <div key={post.id} className="flex items-center gap-3 rounded-lg border border-border/60 p-2">
-                            <span
-                              className="h-10 w-10 shrink-0 rounded bg-muted"
-                              style={post.coverImage?.startsWith('http')
-                                ? { background: `url(${post.coverImage}) center / cover` }
-                                : undefined}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-sm text-foreground">{post.title}</p>
-                              <span className={`mt-0.5 inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${postBadge.className}`}>
-                                {postBadge.text}
-                              </span>
-                            </div>
-                            <div className="flex shrink-0 items-center gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                disabled={previewLoadingId === post.id}
-                                onClick={() => void openPreview(post)}
-                              >
-                                {previewLoadingId === post.id ? '加载中...' : '查看'}
-                              </Button>
-                              {post.moderationStatus === 2 ? (
-                                <Button size="sm" variant="outline" onClick={() => setConfirm({ kind: 'unbanPost', post })}>
-                                  解封
-                                </Button>
-                              ) : post.moderationStatus === 0 ? (
-                                <Button size="sm" variant="destructive" onClick={() => setConfirm({ kind: 'banPost', post })}>
-                                  封禁
-                                </Button>
-                              ) : (
-                                <span className="px-2 text-xs text-muted-foreground">待审核</span>
-                              )}
-                            </div>
-                          </div>
-                        )
-                      })}
-                      {/* 分页器 */}
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-xs text-muted-foreground">
-                          共 {postsTotal} 条 · 第 {postsPage}/{Math.max(Math.ceil(postsTotal / PAGE_SIZE), 1)} 页
-                        </span>
-                        <div className="flex gap-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={postsPage <= 1 || isPostsLoading}
-                            onClick={() => void loadPosts(postsPage - 1)}
-                          >
-                            上一页
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={postsPage >= Math.ceil(postsTotal / PAGE_SIZE) || isPostsLoading}
-                            onClick={() => void loadPosts(postsPage + 1)}
-                          >
-                            下一页
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <UserPostsPanel
+                  posts={userPosts}
+                  total={postsTotal}
+                  page={postsPage}
+                  isLoading={isPostsLoading}
+                  search={postsSearch}
+                  onSearchChange={setPostsSearch}
+                  onSearchSubmit={setPostsKeyword}
+                  hasFilter={postsKeyword !== '' || postsStatusFilter !== undefined}
+                  statusFilter={postsStatusFilter}
+                  onStatusFilterChange={setPostsStatusFilter}
+                  previewLoadingId={previewLoadingId}
+                  onPreview={(post) => void openPreview(post)}
+                  onBan={(post) => setConfirm({ kind: 'banPost', post })}
+                  onUnban={(post) => setConfirm({ kind: 'unbanPost', post })}
+                  onPageChange={(targetPage) => void loadPosts(targetPage)}
+                />
               )}
             </div>
           )
@@ -472,69 +354,12 @@ export default function AdminUsersScreen() {
 
       {/* ─── 帖子管理预览（查看后再决定是否封禁） ─── */}
       {previewPost && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="帖子预览"
-        >
-          <div className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl">
-            {previewPost.images?.[0]?.startsWith('http') && (
-              <div
-                className="h-44 w-full shrink-0 bg-muted"
-                style={{ background: `url(${previewPost.images[0]}) center / cover` }}
-              />
-            )}
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-lg font-bold text-foreground">{previewPost.title}</h3>
-                <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${postStatusBadge(previewPost.moderationStatus).className}`}>
-                  {postStatusBadge(previewPost.moderationStatus).text}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap text-sm text-foreground/80">{previewPost.content}</p>
-              {(previewPost.productName || previewPost.productPrice != null) && (
-                <p className="text-sm text-coral">
-                  ¥{previewPost.productPrice ?? '—'} · {previewPost.productSource ?? '—'}
-                  {previewPost.productName ? ` · ${previewPost.productName}` : ''}
-                  {previewPost.productRating != null ? ` · ${previewPost.productRating}分` : ''}
-                </p>
-              )}
-              {previewPost.moderationReason && (
-                <p className="rounded-lg bg-destructive/10 p-2 text-xs text-destructive">
-                  当前状态说明：{previewPost.moderationReason}
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                作者：{previewPost.userNickname ?? `用户${previewPost.userId}`}
-                {' · '}发布于 {previewPost.createdAt?.slice(0, 16).replace('T', ' ')}
-                {' · '}赞 {previewPost.likeCount} · 评论 {previewPost.commentCount}
-              </p>
-            </div>
-            <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/60 p-4">
-              <a
-                href={`/posts/${previewPost.id}`}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-coral underline-offset-2 hover:underline"
-              >
-                前台查看 ↗
-              </a>
-              <div className="flex gap-2">
-                {previewPost.moderationStatus === 2 ? (
-                  <Button variant="outline" onClick={() => setConfirm({ kind: 'unbanPost', post: toPostBrief(previewPost) })}>
-                    解封
-                  </Button>
-                ) : previewPost.moderationStatus === 0 ? (
-                  <Button variant="destructive" onClick={() => setConfirm({ kind: 'banPost', post: toPostBrief(previewPost) })}>
-                    封禁
-                  </Button>
-                ) : null}
-                <Button variant="outline" onClick={() => setPreviewPost(null)}>关闭</Button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <PostPreviewDialog
+          post={previewPost}
+          onClose={() => setPreviewPost(null)}
+          onBan={(post) => setConfirm({ kind: 'banPost', post })}
+          onUnban={(post) => setConfirm({ kind: 'unbanPost', post })}
+        />
       )}
 
       {/* ─── 确认弹窗（封禁用户/帖子需填理由；U34：统一 AppDialog） ─── */}

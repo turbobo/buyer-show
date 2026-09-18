@@ -2,11 +2,9 @@
 // SCREEN 1 of 2: Messages Center | PLATFORM: Web (responsive) | ENTRY: /messages | EXIT: Chat
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCheck, Heart, Home, Loader2, MessageCircle, Search, Send, Image, Mic, MoreVertical, Phone, ShieldCheck, UserPlus, Video } from 'lucide-react'
+import { ArrowLeft, CheckCheck, Home, Loader2, MessageCircle, Search, Send, Image, Mic, MoreVertical, Phone, ShieldCheck, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { getNotifications, getUnreadCount, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
 import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
 import { getTokenUserId } from '@/services/http'
@@ -20,120 +18,8 @@ import {
   type ChatMessage,
   type ConversationItem,
 } from '@/services/messages'
-
-// ─── Conversation List Item（真实数据） ───
-function formatConversationTime(value: string | null): string {
-  if (!value) return ''
-  const date = new Date(value.replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return ''
-  const now = new Date()
-  const sameDay = date.toDateString() === now.toDateString()
-  return sameDay
-    ? date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-    : date.toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
-}
-
-function ConversationItemView({ conv, isActive, onClick }: { conv: ConversationItem; isActive: boolean; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-xl p-3 text-left transition-all ${isActive ? 'bg-coral-light' : 'hover:bg-muted/50'}`}
-    >
-      <Avatar className="h-12 w-12 shrink-0">
-        <AvatarFallback className="bg-coral-light text-coral-contrast text-sm font-bold">{conv.peerNickname[0]}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold text-foreground">
-            {conv.peerNickname}
-            {conv.peerOnline && <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" aria-label="在线" />}
-          </span>
-          <span className="shrink-0 text-xs text-muted-foreground">{formatConversationTime(conv.lastMessageAt)}</span>
-        </div>
-        <p className="mt-0.5 truncate text-xs text-muted-foreground">{conv.lastMessage ?? ''}</p>
-      </div>
-      {conv.unreadCount > 0 && (
-        <Badge className="h-5 min-w-5 justify-center border-0 bg-coral px-1.5 text-xs text-white">{conv.unreadCount}</Badge>
-      )}
-    </button>
-  )
-}
-
-// ─── Message Bubble（真实数据） ───
-function MessageBubble({ message, isSent }: { message: ChatMessage; isSent: boolean }) {
-  return (
-    <div className={`flex ${isSent ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[75%] whitespace-pre-wrap break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-          isSent
-            ? 'rounded-br-md bg-coral text-white'
-            : 'rounded-bl-md border border-border/60 bg-card text-foreground'
-        }`}
-      >
-        {message.content}
-      </div>
-    </div>
-  )
-}
-
-// ─── Notification Item（真实数据） ───
-function notificationIcon(type: AppNotification['type']) {
-  switch (type) {
-    case 'like': return <Heart className="h-3 w-3 text-red-500" />
-    case 'comment': return <MessageCircle className="h-3 w-3 text-blue-500" />
-    case 'follow': return <UserPlus className="h-3 w-3 text-green-500" />
-    case 'system': return <ShieldCheck className="h-3 w-3 text-coral" />
-    default: return <MessageCircle className="h-3 w-3 text-muted-foreground" />
-  }
-}
-
-function notificationText(notification: AppNotification): string {
-  switch (notification.type) {
-    case 'like': return `赞了你的帖子${notification.content ? `「${notification.content}」` : ''}`
-    case 'comment': return `评论了你的帖子${notification.content ? `：${notification.content}` : ''}`
-    case 'follow': return '关注了你'
-    case 'system': return notification.content || '系统通知'
-    default: return notification.content || '新通知'
-  }
-}
-
-function formatNotificationTime(value: string): string {
-  const date = new Date(value.replace(' ', 'T'))
-  if (Number.isNaN(date.getTime())) return value
-  return date.toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
-
-function NotificationItem({ notification, onClick }: { notification: AppNotification; onClick: () => void }) {
-  const system = notification.type === 'system'
-  const displayName = system ? '系统通知' : notification.actorNickname
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex w-full items-start gap-3 rounded-xl p-3 text-left transition-colors hover:bg-muted/50 ${
-        notification.isRead === 0 ? 'bg-coral-light/30' : ''
-      }`}
-    >
-      <div className="relative shrink-0">
-        <Avatar className="h-9 w-9">
-          <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">{displayName?.[0] ?? '?'}</AvatarFallback>
-        </Avatar>
-        <span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full border border-border/40 bg-card">
-          {notificationIcon(notification.type)}
-        </span>
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-sm leading-relaxed text-foreground">
-          <span className="font-semibold">{displayName}</span>{' '}
-          <span className="text-foreground/70">{notificationText(notification)}</span>
-        </p>
-        <span className="text-xs text-muted-foreground">{formatNotificationTime(notification.createdAt)}</span>
-      </div>
-      {notification.isRead === 0 && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-coral" />}
-    </button>
-  )
-}
+import { ConversationItemView, MessageBubble } from './chat-views'
+import { NotificationItem } from './notification-views'
 
 // ═══════════════════════════════════
 // MAIN EXPORT: Messages Screen

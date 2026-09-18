@@ -1,281 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Home, MessageCircle, Pencil, Send, Share2 } from 'lucide-react'
+import { ArrowLeft, Flag, Home, MessageCircle, Pencil } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Separator } from '@/components/ui/separator'
 import { createComment, encodeCursor, getComments, toggleCommentFavorite, toggleCommentLike, updateComment, type ApiComment } from '@/services/comments'
+import { PostImageCarousel } from './image-carousel'
+import { CommentItem, updateCommentTree } from './comment-item'
+import { PostContent, buildPostJsonLd } from './post-content'
+import { DetailError, DetailSkeleton } from './detail-states'
+import { ActionBar } from './action-bar'
+import { AppealDialog } from './appeal-dialog'
 import { ApiError, getTokenUserId } from '@/services/http'
 import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost, type ApiPostSummary, type CursorPage } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
-import { AppDialog } from '@/components/ui/app-dialog'
 import { PostStructuredData } from '@/components/structured-data'
 import { useToast } from '@/components/ui/toast'
 import { trackPostView, trackPostLike, trackPostFavorite, trackCommentCreate } from '@/services/analytics'
 
-function imageBackground(image?: string): string {
-  if (image?.startsWith('http')) {
-    const encoded = encodeURI(image).replace(/[()]/g, encodeURIComponent)
-    return `url("${encoded}") center / cover`
-  }
-  return image || 'linear-gradient(135deg,#fecdd3,#fda4af)'
-}
-
-/* ─── 图片轮播组件 ─── */
-function PostImageCarousel({ images, title, onImageClick }: { images: string[]; title: string; onImageClick?: (index: number) => void }) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [activeIndex, setActiveIndex] = useState(0)
-  const hasMultiple = images.length > 1
-
-  const scrollTo = (index: number) => {
-    const el = scrollRef.current
-    if (!el) return
-    const target = Math.max(0, Math.min(index, images.length - 1))
-    el.scrollTo({ left: el.offsetWidth * target, behavior: 'smooth' })
-  }
-
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el) return
-    const index = Math.round(el.scrollLeft / el.offsetWidth)
-    setActiveIndex(Math.max(0, Math.min(index, images.length - 1)))
-  }
-
-  return (
-    <div className="relative">
-      <div
-        ref={scrollRef}
-        onScroll={handleScroll}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') scrollTo(activeIndex - 1)
-          if (e.key === 'ArrowRight') scrollTo(activeIndex + 1)
-        }}
-        tabIndex={0}
-        className="flex snap-x snap-mandatory overflow-x-hidden outline-none focus-visible:ring-2 focus-visible:ring-coral"
-        role="region"
-        aria-label={`${title} 商品图片`}
-      >
-        {images.map((image, index) => (
-          <div
-            key={index}
-            className="w-full flex-none snap-center bg-muted cursor-zoom-in"
-            style={{ aspectRatio: '4 / 3', background: imageBackground(image) }}
-            onClick={() => onImageClick?.(index)}
-          />
-        ))}
-      </div>
-
-      {hasMultiple && activeIndex > 0 && (
-        <button
-          type="button"
-          onClick={() => scrollTo(activeIndex - 1)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
-          aria-label="上一张图片"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-      )}
-      {hasMultiple && activeIndex < images.length - 1 && (
-        <button
-          type="button"
-          onClick={() => scrollTo(activeIndex + 1)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-md transition-opacity hover:bg-white"
-          aria-label="下一张图片"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      )}
-
-      {hasMultiple && (
-        <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-          {images.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => scrollTo(index)}
-              className={`block h-1.5 rounded-full transition-all ${
-                index === activeIndex ? 'w-4 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
-              }`}
-              aria-label={`跳转到第 ${index + 1} 张图片`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ─── 评论项组件 ─── */
-interface CommentItemProps {
-  comment: ApiComment
-  onReply: (comment: ApiComment) => void
-  onReport: (commentId: number) => void
-  onLike: (comment: ApiComment) => void
-  onFavorite: (comment: ApiComment) => void
-  onEdit: (comment: ApiComment, content: string) => Promise<void>
-  currentUserId: number | null
-}
-
-const COMMENT_EDIT_WINDOW_MS = 5 * 60 * 1000
-
 /** 顶级评论分页大小（超过时显示「查看更多评论」）。 */
 const COMMENT_PAGE_SIZE = 20
-
-/** 发布后 5 分钟内可编辑。 */
-function isWithinEditWindow(createdAt: string): boolean {
-  const time = new Date(createdAt.replace(' ', 'T')).getTime()
-  return !Number.isNaN(time) && Date.now() - time < COMMENT_EDIT_WINDOW_MS
-}
-
-/** 在评论树中定位并更新指定评论（含嵌套回复）。 */
-function updateCommentTree(list: ApiComment[], commentId: number, updater: (comment: ApiComment) => ApiComment): ApiComment[] {
-  return list.map((comment) => {
-    if (comment.id === commentId) {
-      return updater(comment)
-    }
-    if (comment.replies.length > 0) {
-      return { ...comment, replies: updateCommentTree(comment.replies, commentId, updater) }
-    }
-    return comment
-  })
-}
-
-function CommentItem({ comment, onReply, onReport, onLike, onFavorite, onEdit, currentUserId }: CommentItemProps) {
-  const isRoot = comment.parentId == null
-  const [isEditing, setIsEditing] = useState(false)
-  const [editContent, setEditContent] = useState(comment.content)
-  const [isSavingEdit, setIsSavingEdit] = useState(false)
-
-  const isOwn = currentUserId != null && comment.userId === currentUserId
-  const editable = isOwn && isWithinEditWindow(comment.createdAt)
-
-  const handleSaveEdit = async () => {
-    if (!editContent.trim()) return
-    setIsSavingEdit(true)
-    try {
-      await onEdit(comment, editContent.trim())
-      setIsEditing(false)
-    } catch {
-      // 错误已由主组件提示，保持编辑态
-    } finally {
-      setIsSavingEdit(false)
-    }
-  }
-
-  return (
-    <div className="flex gap-3">
-      <Avatar className="mt-0.5 h-8 w-8 shrink-0">
-        <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">
-          {comment.userNickname?.[0] ?? '用'}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">{comment.userNickname ?? `用户${comment.userId}`}</span>
-          <span className="text-xs text-muted-foreground">{comment.createdAt}</span>
-          {comment.editedAt && <span className="text-xs text-muted-foreground">· 已编辑</span>}
-          {comment.moderationStatus === 1 && (
-            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">待审核</span>
-          )}
-        </div>
-        {isEditing ? (
-          <div className="mt-1.5 space-y-2">
-            <Textarea
-              value={editContent}
-              maxLength={1000}
-              aria-label="编辑评论内容"
-              onChange={(event) => setEditContent(event.target.value)}
-              className="min-h-20"
-            />
-            <div className="flex justify-end gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={isSavingEdit}
-                onClick={() => { setIsEditing(false); setEditContent(comment.content) }}
-              >
-                取消
-              </Button>
-              <Button
-                size="sm"
-                className="bg-coral text-white hover:bg-coral-dark"
-                disabled={isSavingEdit || !editContent.trim()}
-                onClick={() => void handleSaveEdit()}
-              >
-                {isSavingEdit ? '保存中...' : '保存'}
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{comment.content}</p>
-        )}
-        <div className="mt-1.5 flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => onLike(comment)}
-            aria-label={comment.isLiked ? '取消点赞' : '点赞'}
-            className={`flex items-center gap-1 text-xs transition-colors ${
-              comment.isLiked ? 'text-coral' : 'text-muted-foreground hover:text-coral'
-            }`}
-          >
-            <Heart className={`h-3.5 w-3.5 ${comment.isLiked ? 'fill-coral' : ''}`} />
-            {comment.likeCount > 0 ? comment.likeCount : '赞'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onFavorite(comment)}
-            aria-label={comment.isFavorited ? '取消收藏' : '收藏'}
-            className={`flex items-center gap-1 text-xs transition-colors ${
-              comment.isFavorited ? 'text-coral' : 'text-muted-foreground hover:text-coral'
-            }`}
-          >
-            <Bookmark className={`h-3.5 w-3.5 ${comment.isFavorited ? 'fill-coral' : ''}`} />
-            {comment.isFavorited ? '已收藏' : '收藏'}
-          </button>
-          {isRoot && (
-            <button type="button" onClick={() => onReply(comment)} className="text-xs text-muted-foreground hover:text-coral">
-              回复
-            </button>
-          )}
-          <button type="button" onClick={() => onReport(comment.id)} className="text-xs text-muted-foreground hover:text-coral">
-            举报
-          </button>
-          {editable && !isEditing && (
-            <button
-              type="button"
-              onClick={() => { setEditContent(comment.content); setIsEditing(true) }}
-              className="text-xs text-muted-foreground hover:text-coral"
-            >
-              编辑
-            </button>
-          )}
-        </div>
-        {comment.replies.length > 0 && (
-          <div className="mt-3 space-y-3 border-l-2 border-border/60 pl-4">
-            {comment.replies.map((reply) => (
-              <CommentItem
-                key={reply.id}
-                comment={reply}
-                onReply={onReply}
-                onReport={onReport}
-                onLike={onLike}
-                onFavorite={onFavorite}
-                onEdit={onEdit}
-                currentUserId={currentUserId}
-              />
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function isAuthError(error: unknown): boolean {
   return error instanceof ApiError && [1002, 1003, 1007].includes(error.code)
@@ -533,79 +279,21 @@ export default function PostDetailScreen() {
     }
   }
 
-  if (isLoading) return (isModal ? (
-    <div
-      className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 md:p-6"
-      onClick={(event) => { if (event.target === event.currentTarget) closeModal() }}
-    >
-      <div className="mx-auto w-full max-w-2xl bg-background p-6 shadow-xl md:my-6 md:rounded-2xl">
-        <Skeleton className="mb-4 aspect-[4/3] w-full rounded-2xl" />
-        <Skeleton className="mb-2 h-6 w-3/4" />
-        <Skeleton className="mb-4 h-4 w-1/2" />
-        <Skeleton className="h-20 w-full" />
-      </div>
-    </div>
-  ) : (
-    <div className="min-h-screen bg-background">
-      <div className="sticky top-0 z-50 border-b border-border bg-card/95 md:top-14">
-        <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-          <Skeleton className="h-8 w-8 rounded-full" />
-          <Skeleton className="h-7 w-7 rounded-full" />
-          <Skeleton className="h-4 w-24" />
-        </div>
-      </div>
-      <div className="mx-auto max-w-5xl px-4 py-6">
-        <Skeleton className="mb-4 aspect-[4/3] w-full rounded-2xl" />
-        <Skeleton className="mb-2 h-6 w-3/4" />
-        <Skeleton className="mb-4 h-4 w-1/2" />
-        <Skeleton className="h-20 w-full" />
-      </div>
-    </div>
-  ))
+  if (isLoading) return <DetailSkeleton isModal={isModal} closeModal={closeModal} />
   if (!post || loadError) {
-    return isModal ? (
-      <div
-        className="fixed inset-0 z-[60] overflow-y-auto bg-black/50 md:p-6"
-        onClick={(event) => { if (event.target === event.currentTarget) closeModal() }}
-      >
-        <div className="mx-auto mt-16 w-full max-w-md bg-background p-8 text-center shadow-xl md:rounded-2xl">
-          <p className="mb-2 text-lg font-semibold text-foreground">{loadError ? '加载失败' : '帖子不存在'}</p>
-          <p className="mb-6 text-sm text-muted-foreground">{loadError ?? '该帖子可能已被删除或无权查看'}</p>
-          <div className="flex justify-center gap-3">
-            <Button variant="outline" onClick={() => void load()}>重新加载</Button>
-            <Button onClick={closeModal} className="bg-coral text-white hover:bg-coral-dark">关闭</Button>
-          </div>
-        </div>
-      </div>
-    ) : (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-8">
-        <p className="mb-2 text-lg font-semibold text-foreground">{loadError ? '加载失败' : '帖子不存在'}</p>
-        <p className="mb-6 text-sm text-muted-foreground">{loadError ?? '该帖子可能已被删除或无权查看'}</p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => void load()}>重新加载</Button>
-          <Button onClick={() => navigate('/')} className="bg-coral text-white hover:bg-coral-dark">返回首页</Button>
-        </div>
-      </div>
+    return (
+      <DetailError
+        isModal={isModal}
+        loadError={loadError}
+        onRetry={() => void load()}
+        onCloseModal={closeModal}
+        onGoHome={() => navigate('/')}
+      />
     )
   }
 
   // JSON-LD 结构化数据（SEO）
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'SocialMediaPosting',
-    headline: post.title,
-    articleBody: post.content.substring(0, 200),
-    author: {
-      '@type': 'Person',
-      name: post.userNickname,
-    },
-    datePublished: post.createdAt,
-    interactionStatistic: [
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/LikeAction', userInteractionCount: post.likeCount },
-      { '@type': 'InteractionCounter', interactionType: 'https://schema.org/CommentAction', userInteractionCount: post.commentCount },
-    ],
-    ...(post.images.length > 0 ? { image: post.images } : {}),
-  }
+  const jsonLd = buildPostJsonLd(post)
 
   const fallbackImages = ['linear-gradient(135deg,#fecdd3,#fda4af)']
   const displayImages = post.images.length > 0 ? post.images : fallbackImages
@@ -759,49 +447,21 @@ export default function PostDetailScreen() {
 
       {/* ─── 底部操作栏 ─── */}
       {post.moderationStatus === 0 && (
-        <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-card/95 backdrop-blur-sm">
-          <div className="mx-auto flex h-16 max-w-5xl items-center gap-2 px-4">
-            <div className="relative flex-1">
-              <Input
-                aria-label="评论内容"
-                value={commentText}
-                onChange={(event) => setCommentText(event.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void handleSubmitComment() } }}
-                placeholder={replyTarget ? `回复 ${replyTarget.userNickname ?? '用户'}...` : '说点什么...'}
-                className="h-10 rounded-full bg-muted/50 pr-10"
-              />
-              <Button
-                aria-label="发送评论"
-                disabled={isCommentSubmitting || !commentText.trim()}
-                size="icon"
-                className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 rounded-full bg-coral text-white hover:bg-coral-dark disabled:opacity-40"
-                onClick={() => void handleSubmitComment()}
-              >
-                <Send className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <Button aria-label={post.isLiked ? '取消点赞' : '点赞'} disabled={isLikeSubmitting} variant="ghost" size="icon" onClick={() => void handleLike()}>
-              <Heart className={`h-5 w-5 ${post.isLiked ? 'fill-coral text-coral' : ''}`} />
-            </Button>
-            <Button aria-label={post.isFavorited ? '取消收藏' : '收藏'} disabled={isFavoriteSubmitting} variant="ghost" size="icon" onClick={() => void handleFavorite()}>
-              <Bookmark className={`h-5 w-5 ${post.isFavorited ? 'fill-coral text-coral' : ''}`} />
-            </Button>
-            <Button aria-label="分享" variant="ghost" size="icon" onClick={() => void handleShare()}>
-              <Share2 className="h-5 w-5" />
-            </Button>
-          </div>
-          {replyTarget && (
-            <div className="mx-auto max-w-5xl px-4 pb-2">
-              <button
-                type="button"
-                onClick={() => setReplyTarget(null)}
-                className="flex items-center gap-1 text-xs text-coral hover:underline"
-              >
-                回复 {replyTarget.userNickname ?? '用户'} ×
-              </button>
-            </div>
-          )}
-        </div>
+        <ActionBar
+          commentText={commentText}
+          replyTarget={replyTarget}
+          isCommentSubmitting={isCommentSubmitting}
+          isLikeSubmitting={isLikeSubmitting}
+          isFavoriteSubmitting={isFavoriteSubmitting}
+          isLiked={post.isLiked}
+          isFavorited={post.isFavorited}
+          onCommentTextChange={setCommentText}
+          onSubmitComment={() => void handleSubmitComment()}
+          onClearReply={() => setReplyTarget(null)}
+          onLike={() => void handleLike()}
+          onFavorite={() => void handleFavorite()}
+          onShare={() => void handleShare()}
+        />
       )}
 
       {showFullscreen && (
@@ -813,97 +473,16 @@ export default function PostDetailScreen() {
       )}
 
       {/* 发起申诉（U34：统一 AppDialog） */}
-      <AppDialog
-        open={isAppealOpen && post !== null}
-        onOpenChange={(next) => { if (!next) { setIsAppealOpen(false); setAppealReason('') } }}
-        title="发起申诉"
-        description={post ? `「${post.title}」已被下架，无法修改。提交申诉后由管理员复核，请说明理由。` : undefined}
-        footer={(
-          <>
-            <Button
-              variant="outline"
-              disabled={isAppealSubmitting}
-              onClick={() => { setIsAppealOpen(false); setAppealReason('') }}
-            >
-              取消
-            </Button>
-            <Button
-              className="bg-coral text-white hover:bg-coral-dark"
-              disabled={isAppealSubmitting || !appealReason.trim()}
-              onClick={() => void handleSubmitAppeal()}
-            >
-              {isAppealSubmitting ? '提交中...' : '提交申诉'}
-            </Button>
-          </>
-        )}
-      >
-        <Textarea
-          value={appealReason}
-          maxLength={500}
-          onChange={(event) => setAppealReason(event.target.value)}
-          className="min-h-24"
-          placeholder="申诉理由（必填，最多500字）"
-          aria-label="申诉理由"
-        />
-      </AppDialog>
+      <AppealDialog
+        post={post}
+        isOpen={isAppealOpen}
+        isSubmitting={isAppealSubmitting}
+        reason={appealReason}
+        onReasonChange={setAppealReason}
+        onSubmit={() => void handleSubmitAppeal()}
+        onClose={() => { setIsAppealOpen(false); setAppealReason('') }}
+      />
     </div>
     </div>
-  )
-}
-
-/* ─── 帖子内容子组件 ─── */
-function PostContent({ post }: { post: ApiPost }) {
-  const { toast } = useToast()
-
-  const copyText = async (text: string, successMessage: string) => {
-    try {
-      await navigator.clipboard.writeText(text)
-      toast('success', successMessage)
-    } catch {
-      toast('error', '复制失败，请手动复制')
-    }
-  }
-
-  return (
-    <>
-      <h1 className="mb-4 text-2xl font-bold">{post.title}</h1>
-      <p className="mb-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground/80">{post.content}</p>
-      {post.productName && (
-        <div className="mb-4 rounded-xl border border-border/60 bg-background p-4">
-          <p className="font-semibold">{post.productName}</p>
-          <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
-          <div className="mt-3 flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 text-xs"
-              onClick={() => void copyText(
-                [post.productName, post.productPrice != null ? `¥${post.productPrice}` : null, post.productSource]
-                  .filter(Boolean)
-                  .join(' · '),
-                `商品信息已复制，可在${post.productSource ?? '来源平台'}搜索`,
-              )}
-            >
-              复制商品信息
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="h-8 text-xs"
-              onClick={() => void copyText(`${window.location.origin}/posts/${post.id}`, '链接已复制')}
-            >
-              复制链接
-            </Button>
-          </div>
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2">
-        {post.tags.map((tag) => <span key={tag} className="text-xs text-coral">#{tag}</span>)}
-      </div>
-      <Separator className="my-4" />
-      <p className="text-sm text-muted-foreground">
-        {post.likeCount} 赞 · {post.commentCount} 评论 · {post.favoriteCount} 收藏
-      </p>
-    </>
   )
 }

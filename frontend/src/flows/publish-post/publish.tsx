@@ -1,30 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { ArrowLeft, Check, Home, ImagePlus, Star, X } from 'lucide-react'
+import { ArrowLeft, Home, Star } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Textarea } from '@/components/ui/textarea'
 import { createPost, getPost, updatePost } from '@/services/posts'
 import { getHotTagStats, type TagStat } from '@/services/tags'
 import { deleteUploadedImage, uploadImage, validateImageFile } from '@/services/uploads'
 import { useToast } from '@/components/ui/toast'
+import { ImageGrid, MAX_IMAGES, type ImageItem } from './image-grid'
+import { PublishInitializing, PublishResult } from './publish-states'
 
 const SOURCES = ['天猫', '京东', '拼多多', '线下门店', '海淘', '其他']
-const MAX_IMAGES = 9
-
-interface ImageItem {
-  /** 唯一标识：新上传用本地预览地址，已有图用其 URL */
-  key: string
-  /** 展示地址（objectURL 或完整 URL） */
-  preview: string
-  /** 新选择的本地文件（编辑模式加载的已有图没有该字段） */
-  file?: File
-  /** 已有图片的存储 URL（编辑模式） */
-  url?: string
-}
 
 const DRAFT_KEY = 'buyer-show.post-draft'
 
@@ -67,7 +56,6 @@ export default function PublishScreen() {
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const navigateTimerRef = useRef<number | null>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 用 ref 追踪所有预览 URL，仅在组件卸载时清理
   const previewUrlsRef = useRef<string[]>([])
@@ -284,41 +272,11 @@ export default function PublishScreen() {
   }
 
   if (result) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="space-y-4 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
-            <Check className="h-8 w-8 text-green-600" />
-          </div>
-          <h1 className="text-xl font-bold">{result}</h1>
-        </div>
-      </div>
-    )
+    return <PublishResult message={result} />
   }
 
   if (isInitializing) {
-    return (
-      <div className="min-h-screen bg-background">
-        <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:top-14">
-          <div className="mx-auto flex h-14 max-w-5xl items-center gap-3 px-4">
-            <div className="flex items-center gap-1 -ml-3">
-              <Button aria-label="返回上一页" variant="ghost" size="icon" onClick={() => smartBack()}>
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <Button aria-label="返回首页" variant="ghost" size="icon" className="md:hidden" onClick={() => navigate('/')}>
-                <Home className="h-5 w-5" />
-              </Button>
-            </div>
-            <h1 className="flex-1 truncate text-lg font-bold text-foreground">编辑分享</h1>
-          </div>
-        </nav>
-        <main className="mx-auto max-w-3xl space-y-6 p-4 py-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton key={index} className="h-40 rounded-2xl" />
-          ))}
-        </main>
-      </div>
-    )
+    return <PublishInitializing />
   }
 
   return (
@@ -399,48 +357,7 @@ export default function PublishScreen() {
             </label>
 
             {/* 图片预览网格 */}
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-              {images.map((img, index) => (
-                <div key={img.key} className="group relative aspect-square overflow-hidden rounded-xl border border-border/60">
-                  <img
-                    src={img.preview}
-                    alt={`图片 ${index + 1}`}
-                    className="h-full w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveImage(index)}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-100 md:opacity-0 md:transition-opacity md:group-hover:opacity-100"
-                    aria-label={`删除第 ${index + 1} 张图片`}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                  {index === 0 && (
-                    <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                      封面
-                    </span>
-                  )}
-                </div>
-              ))}
-
-              {images.length < MAX_IMAGES && (
-                <label className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-coral hover:text-coral">
-                  <ImagePlus className="mb-1 h-6 w-6" />
-                  <span className="text-xs">添加图片</span>
-                  <input
-                    ref={fileInputRef}
-                    className="sr-only"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    multiple
-                    onChange={handleFileChange}
-                  />
-                </label>
-              )}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              支持 JPEG、PNG、WebP，单张最大 10MB，最多 {MAX_IMAGES} 张
-            </p>
+            <ImageGrid images={images} onRemove={handleRemoveImage} onFileChange={handleFileChange} />
           </div>
         </section>
 
