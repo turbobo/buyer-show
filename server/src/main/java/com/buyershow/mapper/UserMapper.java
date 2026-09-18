@@ -6,9 +6,13 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
+import java.time.LocalDateTime;
+
 @Mapper
 public interface UserMapper extends BaseMapper<User> {
 
+    @Update("UPDATE users SET last_login_at = #{loginAt} WHERE id = #{userId}")
+    int updateLastLogin(@Param("userId") Long userId, @Param("loginAt") LocalDateTime loginAt);
     @Update("UPDATE users SET post_count = GREATEST(post_count + #{delta}, 0) WHERE id = #{userId} AND status = 0")
     int adjustPostCount(@Param("userId") Long userId, @Param("delta") int delta);
 

@@ -157,6 +157,8 @@ export interface AdminUser {
   status: number
   postCount: number
   createdAt: string
+  /** 最后登录时间（从未登录为 null） */
+  lastLoginAt: string | null
 }
 
 export interface AdminUserPost {

@@ -288,7 +288,7 @@ export default function AdminUsersScreen() {
                     )}
                   </div>
                   <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                    发帖 {user.postCount} · 注册于 {user.createdAt?.slice(0, 10) ?? '—'}
+                    发帖 {user.postCount} · 注册于 {user.createdAt?.slice(0, 10) ?? '—'} · 最后登录 {user.lastLoginAt?.slice(0, 16).replace('T', ' ') ?? '从未'}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>

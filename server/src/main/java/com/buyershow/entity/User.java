@@ -33,6 +33,9 @@ public class User {
     /** 0=正常 1=封禁 2=注销 */
     private Integer status;
 
+    /** 最后登录时间（登录成功后更新，管理后台展示） */
+    private LocalDateTime lastLoginAt;
+
     @JsonIgnore
     private String openid;
 

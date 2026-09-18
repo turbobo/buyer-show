@@ -204,6 +204,7 @@ public class AdminUserService {
                 .status(user.getStatus())
                 .postCount(user.getPostCount())
                 .createdAt(user.getCreatedAt())
+                .lastLoginAt(user.getLastLoginAt())
                 .build();
     }
 

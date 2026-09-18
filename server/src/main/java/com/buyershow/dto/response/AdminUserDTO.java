@@ -23,4 +23,6 @@ public class AdminUserDTO {
     private Integer status;
     private Integer postCount;
     private LocalDateTime createdAt;
+    /** 最后登录时间（从未登录为 null，前端展示「从未」） */
+    private LocalDateTime lastLoginAt;
 }

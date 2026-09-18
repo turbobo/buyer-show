@@ -1,7 +1,10 @@
 package com.buyershow.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
+import com.buyershow.dto.response.AdminUserDTO;
 import com.buyershow.dto.response.ModerationPostDTO;
 import com.buyershow.entity.Post;
 import com.buyershow.entity.User;
@@ -13,6 +16,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -143,6 +147,25 @@ class AdminUserServiceTest {
                 () -> service.getPostDetail(9L));
 
         assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), exception.getCode());
+    }
+
+    @Test
+    void testListUsersIncludesLastLoginAt() {
+        authenticate(1);
+        User u = user(5L, 0, 0);
+        u.setPostCount(3);
+        u.setCreatedAt(LocalDateTime.of(2026, 9, 1, 10, 0));
+        u.setLastLoginAt(LocalDateTime.of(2026, 9, 18, 6, 47));
+        Page<User> entityPage = new Page<>(1, 10);
+        entityPage.setRecords(List.of(u));
+        when(userMapper.selectPage(any(), any())).thenReturn(entityPage);
+
+        IPage<AdminUserDTO> result = service.listUsers(1, 10, null, null);
+
+        AdminUserDTO dto = result.getRecords().get(0);
+        assertEquals(LocalDateTime.of(2026, 9, 18, 6, 47), dto.getLastLoginAt());
+        assertEquals(LocalDateTime.of(2026, 9, 1, 10, 0), dto.getCreatedAt());
+        assertEquals(3, dto.getPostCount());
     }
 
     private void authenticate(int role) {

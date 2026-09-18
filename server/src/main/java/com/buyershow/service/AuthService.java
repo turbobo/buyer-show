@@ -20,6 +20,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Slf4j
@@ -155,6 +156,13 @@ public class AuthService {
 
         // 登录成功，清除计数
         loginRateLimiter.clearAttempts(identifier, clientIp);
+
+        // 更新最后登录时间（冗余字段，失败不影响登录主流程）
+        try {
+            userMapper.updateLastLogin(user.getId(), LocalDateTime.now());
+        } catch (Exception exception) {
+            log.warn("更新最后登录时间失败: userId={}, message={}", user.getId(), exception.getMessage());
+        }
 
         return buildTokenPair(user);
     }

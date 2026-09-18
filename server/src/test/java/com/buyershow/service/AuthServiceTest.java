@@ -17,6 +17,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -24,6 +25,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -141,6 +144,21 @@ class AuthServiceTest {
 
         assertEquals("token-access", tokens.getAccessToken());
         assertEquals(Long.valueOf(7L), tokens.getUserId());
+        verify(userMapper).updateLastLogin(eq(7L), any(LocalDateTime.class));
+    }
+
+    @Test
+    void testLoginToleratesLastLoginUpdateFailure() {
+        User user = activeUser();
+        when(userMapper.selectList(any())).thenReturn(List.of(user));
+        when(passwordEncoder.matches("secret123", "hashed")).thenReturn(true);
+        stubTokens();
+        doThrow(new RuntimeException("db down")).when(userMapper)
+                .updateLastLogin(eq(7L), any(LocalDateTime.class));
+
+        TokenPair tokens = authService.login(loginRequest("13800138000"), "127.0.0.1");
+
+        assertEquals("token-access", tokens.getAccessToken());
     }
 
     @Test
