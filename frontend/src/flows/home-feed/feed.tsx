@@ -13,6 +13,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorState } from '@/components/ui/error-state'
 import { clearTokens, getTokenRole } from '@/services/http'
+import { useUiStore } from '@/stores/ui-store'
 import { useToast } from '@/components/ui/toast'
 import { UserMenu } from '@/components/layout/user-menu'
 import { useUnreadCount } from '@/hooks/use-unread-count'
@@ -145,6 +146,7 @@ export default function HomeFeedScreen() {
     setIsLoggingOut(true)
     clearTokens()
     clearSessionCache()
+    useUiStore.getState().setUnreadCount(0)
     setIsLoggingOut(false)
     setShowLogoutConfirm(false)
     toast('success', '已退出登录')

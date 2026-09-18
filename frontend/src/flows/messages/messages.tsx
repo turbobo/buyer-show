@@ -5,8 +5,9 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, CheckCheck, Home, Loader2, MessageCircle, Search, Send, Image, Mic, MoreVertical, Phone, ShieldCheck, Video } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getNotifications, getUnreadCount, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
-import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
+import { getNotifications, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
+import { useUnreadCount } from '@/hooks/use-unread-count'
+import { useUiStore } from '@/stores/ui-store'
 import { getTokenUserId } from '@/services/http'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
@@ -38,7 +39,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const [isSending, setIsSending] = useState(false)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
-  const [unreadCount, setUnreadCount] = useState(0)
+  const unreadCount = useUnreadCount()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // 会话列表加载
@@ -88,11 +89,9 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     messagesEndRef.current?.scrollIntoView({ block: 'end' })
   }, [messages])
 
-  // 进入消息页拉取未读数（徽标展示）
+  // 进入消息页拉取未读数（全局徽标由 ui-store 统一维护）
   useEffect(() => {
-    getUnreadCount()
-      .then((data) => setUnreadCount(data.count ?? 0))
-      .catch(() => { /* 未登录/网络异常时保持 0 */ })
+    void useUiStore.getState().refreshUnreadCount()
   }, [])
 
   // 切换到通知 Tab 时加载真实通知
@@ -102,7 +101,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     getNotifications(50)
       .then((items) => {
         setNotifications(items)
-        setUnreadCount(items.filter((item) => item.isRead === 0).length)
+        void useUiStore.getState().refreshUnreadCount()
       })
       .catch(() => { /* 保持现有列表 */ })
       .finally(() => setIsLoadingNotifications(false))
@@ -112,8 +111,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     try {
       await markAllAsRead()
       setNotifications((current) => current.map((item) => ({ ...item, isRead: 1 })))
-      setUnreadCount(0)
-      window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT))
+      useUiStore.getState().setUnreadCount(0)
     } catch {
       /* 静默失败，下次进入重试 */
     }

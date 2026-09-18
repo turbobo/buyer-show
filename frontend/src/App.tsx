@@ -6,6 +6,7 @@ import { AppTabBar } from './components/layout/app-tabbar'
 import { DesktopHeader } from './components/layout/desktop-header'
 import { smartBack } from './lib/smart-back'
 import { Skeleton } from './components/ui/skeleton'
+import { useUiStore } from './stores/ui-store'
 
 // 路由级懒加载 — 首页 Feed 立即加载，其余按需
 const HomeFeedScreen = lazy(() => import('./flows/home-feed/feed'))
@@ -105,6 +106,31 @@ function ScrollRestoration() {
   return null
 }
 
+// 未读通知数全局轮询（单一循环替代各入口各自轮询）：路由变化刷新 + 15s 轮询（页面隐藏暂停）；未登录时清零
+function UnreadCountPoller() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (!getAccessToken()) {
+      useUiStore.getState().setUnreadCount(0)
+      return
+    }
+    const refresh = () => {
+      // 页面隐藏时跳过轮询，恢复可见时由 visibilitychange 立即补一次
+      if (document.hidden) return
+      void useUiStore.getState().refreshUnreadCount()
+    }
+    refresh()
+    const timer = window.setInterval(refresh, 15000)
+    const handleVisibility = () => { if (!document.hidden) refresh() }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      window.clearInterval(timer)
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [pathname])
+  return null
+}
+
 // PC 键盘导航：Esc 返回上一页（弹窗打开时交由弹窗自行处理）
 function EscapeBack() {
   const { pathname } = useLocation()
@@ -125,6 +151,7 @@ function AnimatedRoutes() {
   return (
     <>
       {/* 全局层（禁止放入 .page-transition：其 transform 动画会影响内部 fixed/sticky 定位） */}
+      <UnreadCountPoller />
       <ScrollRestoration />
       <EscapeBack />
       <DesktopHeader />

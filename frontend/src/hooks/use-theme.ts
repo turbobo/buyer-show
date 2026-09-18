@@ -1,20 +1,20 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { useUiStore } from '@/stores/ui-store'
 
-type Theme = 'light' | 'dark' | 'system'
-
-const THEME_KEY = 'buyer-show.theme'
-
+/**
+ * 主题偏好：状态与持久化由 ui-store 单一管理（多入口共享同一事实源），
+ * 本 hook 仅负责订阅状态 + 将主题应用到 DOM（documentElement 的 dark class 与系统主题监听）。
+ */
 export function useTheme() {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === 'undefined') return 'system'
-    return (localStorage.getItem(THEME_KEY) as Theme) || 'system'
-  })
+  const theme = useUiStore((s) => s.theme)
+  const setTheme = useUiStore((s) => s.setTheme)
+  const toggleTheme = useUiStore((s) => s.toggleTheme)
 
   useEffect(() => {
     const root = document.documentElement
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
 
-    const applyTheme = (t: Theme) => {
+    const applyTheme = (t: typeof theme) => {
       if (t === 'dark') {
         root.classList.add('dark')
       } else if (t === 'light') {
@@ -32,7 +32,7 @@ export function useTheme() {
     applyTheme(theme)
 
     const handleSystemChange = () => {
-      if (theme === 'system') {
+      if (useUiStore.getState().theme === 'system') {
         applyTheme('system')
       }
     }
@@ -43,16 +43,6 @@ export function useTheme() {
       mediaQuery.removeEventListener('change', handleSystemChange)
     }
   }, [theme])
-
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme)
-    localStorage.setItem(THEME_KEY, newTheme)
-  }
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark'
-    setTheme(newTheme)
-  }
 
   return { theme, setTheme, toggleTheme }
 }

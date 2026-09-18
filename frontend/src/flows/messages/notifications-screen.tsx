@@ -4,7 +4,7 @@ import { ArrowLeft, Heart, Home, MessageCircle, UserPlus, Bell, CheckCheck, Shie
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getNotifications, markAllAsRead, type Notification } from '@/services/notifications'
-import { NOTIFICATIONS_UPDATED_EVENT } from '@/hooks/use-unread-count'
+import { useUiStore } from '@/stores/ui-store'
 import { smartBack } from '@/lib/smart-back'
 
 function getNotificationIcon(type: string) {
@@ -125,7 +125,7 @@ export function NotificationsScreen() {
       await markAllAsRead()
       setNotifications(prev => prev.map(n => ({ ...n, isRead: 1 })))
       setHasUnread(false)
-      window.dispatchEvent(new Event(NOTIFICATIONS_UPDATED_EVENT))
+      void useUiStore.getState().refreshUnreadCount()
     } catch (err) {
       console.error('Failed to mark all as read:', err)
     }
