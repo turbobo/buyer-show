@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { keepPreviousData, useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { Clock, Heart, Loader2, Plus, Search, TrendingUp, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -6,18 +7,18 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getFeed, type ApiPostSummary } from '@/services/posts'
+import { getFeed, type ApiPostSummary, type CursorPage } from '@/services/posts'
 import { getHotTagStats, type TagStat } from '@/services/tags'
 import { CHANNELS, TABBAR_ORDER, PC_CHANNEL_ORDER, isChannelActive, type ChannelKey } from '@/lib/navigation'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorState } from '@/components/ui/error-state'
 import { clearTokens, getTokenRole } from '@/services/http'
-import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { useToast } from '@/components/ui/toast'
 import { UserMenu } from '@/components/layout/user-menu'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useTheme } from '@/hooks/use-theme'
+import { useMe, useSessionCache } from '@/hooks/use-me'
 import { Moon, Sun } from 'lucide-react'
 import {
   addSearchHistory,
@@ -294,47 +295,40 @@ export default function HomeFeedScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { theme, toggleTheme } = useTheme()
-  const [posts, setPosts] = useState<ApiPostSummary[]>([])
+  const queryClient = useQueryClient()
+  const [activeTag, setActiveTag] = useState('全部')
+  const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
+  const feedTag = activeTag === '全部' ? undefined : activeTag
+  const feedQueryKey = ['feed', feedTag, feedSort] as const
+  // Feed 游标分页（P4.1）：按 标签+排序 独立缓存，返回列表秒开；切换时保留旧数据避免闪烁；
+  // 旧请求由 AbortSignal 自动取消（替代原 requestVersion 手动版本守卫）
+  const feedQuery = useInfiniteQuery({
+    queryKey: feedQueryKey,
+    queryFn: ({ pageParam, signal }) => getFeed(pageParam, feedTag, feedSort, signal),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => (lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined),
+    staleTime: 30_000,
+    placeholderData: keepPreviousData,
+  })
+  const posts = useMemo(() => feedQuery.data?.pages.flatMap((page) => page.list) ?? [], [feedQuery.data])
   const columnCount = useColumnCount()
   const distributedColumns = useMemo(() => distributePosts(posts, columnCount), [posts, columnCount])
-  const [cursor, setCursor] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(false)
+  const hasMore = feedQuery.hasNextPage
+  const isInitialLoading = feedQuery.isPending
+  const isFetchingMore = feedQuery.isFetchingNextPage
+  const feedError = feedQuery.error instanceof Error ? feedQuery.error.message : null
   const loadMoreRef = useRef<HTMLDivElement>(null)
-  const [activeTag, setActiveTag] = useState('全部')
   const [hotTagStats, setHotTagStats] = useState<TagStat[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+  // 当前用户资料（P4.1：全站共享缓存，与 Header/UserMenu 同一事实源）
+  const { currentUser } = useMe()
+  const { clearSessionCache } = useSessionCache()
   const [activeTab, setActiveTab] = useState<TabKey>('home')
   const unreadCount = useUnreadCount()
   const [searchQuery, setSearchQuery] = useState('')
-  const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
   const [isSearchFocused, setIsSearchFocused] = useState(false)
-  const requestVersion = useRef(0)
   const [pullY, setPullY] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const pullYRef = useRef(0)
-
-  const loadFeed = useCallback(async (nextCursor?: string, append = false) => {
-    const version = ++requestVersion.current
-    const tag = activeTag === '全部' ? undefined : activeTag
-    setIsLoading(true)
-    setError(null)
-    try {
-      const page = await getFeed(nextCursor, tag, feedSort)
-      if (version !== requestVersion.current) return
-      setPosts((current) => append ? [...current, ...page.list] : page.list)
-      setCursor(page.nextCursor)
-      setHasMore(page.hasMore)
-    } catch (requestError) {
-      if (version !== requestVersion.current) return
-      setError(requestError instanceof Error ? requestError.message : '加载失败，请稍后重试')
-    } finally {
-      if (version === requestVersion.current) setIsLoading(false)
-    }
-  }, [activeTag, feedSort])
-
-  useEffect(() => { void loadFeed() }, [loadFeed])
 
   // 热门标签（真实聚合；接口为空时仅显示「全部」）
   useEffect(() => {
@@ -344,9 +338,13 @@ export default function HomeFeedScreen() {
   const refreshFeed = useCallback(async () => {
     if (isRefreshing) return
     setIsRefreshing(true)
-    await loadFeed()
+    // 下拉刷新语义：重拉第一页后丢弃后续旧页（与替换式加载一致，滚动后按新游标继续）
+    await feedQuery.refetch()
+    queryClient.setQueryData<InfiniteData<CursorPage<ApiPostSummary>>>(feedQueryKey, (old) => (
+      old ? { pages: [old.pages[0]], pageParams: [old.pageParams[0]] } : old
+    ))
     setIsRefreshing(false)
-  }, [isRefreshing, loadFeed])
+  }, [isRefreshing, feedQuery, queryClient, feedQueryKey])
 
   // 下拉刷新（移动端触屏）：顶部下拉超过阈值后重新加载
   useEffect(() => {
@@ -378,27 +376,21 @@ export default function HomeFeedScreen() {
     }
   }, [refreshFeed])
 
-  // 触底自动加载更多
+  // 触底自动加载更多（标签切换中 isPlaceholderData 时不触发，避免用旧游标请求新查询）
   useEffect(() => {
     const el = loadMoreRef.current
-    if (!el || !hasMore) return
+    if (!el || !hasMore || feedQuery.isPlaceholderData) return
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting && !isLoading && cursor) {
-          void loadFeed(cursor, true)
+        if (entries[0]?.isIntersecting && !isFetchingMore) {
+          void feedQuery.fetchNextPage()
         }
       },
       { rootMargin: '200px' },
     )
     observer.observe(el)
     return () => observer.disconnect()
-  }, [hasMore, isLoading, cursor, loadFeed])
-
-  useEffect(() => {
-    getCurrentUserProfile()
-      .then(setCurrentUser)
-      .catch(() => { /* 未登录或请求失败，保持 null */ })
-  }, [])
+  }, [hasMore, isFetchingMore, feedQuery.isPlaceholderData, feedQuery.fetchNextPage])
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -417,7 +409,7 @@ export default function HomeFeedScreen() {
   const handleConfirmLogout = () => {
     setIsLoggingOut(true)
     clearTokens()
-    setCurrentUser(null)
+    clearSessionCache()
     setIsLoggingOut(false)
     setShowLogoutConfirm(false)
     toast('success', '已退出登录')
@@ -607,7 +599,7 @@ export default function HomeFeedScreen() {
           <Badge variant="secondary" className="border-0 bg-coral-light text-coral-contrast">{posts.length} 篇分享</Badge>
           <span className="text-xs text-muted-foreground">{activeTag}</span>
         </div>
-        {isLoading && posts.length === 0 && (
+        {isInitialLoading && posts.length === 0 && (
           <div className="flex items-start gap-3">
             {Array.from({ length: columnCount }).map((_, columnIndex) => (
               <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-3">
@@ -618,10 +610,10 @@ export default function HomeFeedScreen() {
             ))}
           </div>
         )}
-        {error && (
-          <ErrorState message={error} onRetry={() => void loadFeed()} />
+        {feedError && (
+          <ErrorState message={feedError} onRetry={() => void feedQuery.refetch()} />
         )}
-        {!isLoading && !error && posts.length === 0 && (
+        {!isInitialLoading && !feedError && posts.length === 0 && (
           <div className="rounded-xl bg-card">
             <EmptyState
               icon={TrendingUp}
@@ -646,7 +638,7 @@ export default function HomeFeedScreen() {
         </div>
         {hasMore && (
           <div ref={loadMoreRef} className="py-8 text-center">
-            {isLoading && <span className="text-sm text-muted-foreground">加载中...</span>}
+            {isFetchingMore && <span className="text-sm text-muted-foreground">加载中...</span>}
           </div>
         )}
       </main>

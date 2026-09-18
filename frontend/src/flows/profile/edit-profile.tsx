@@ -14,6 +14,7 @@ import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
 import { updateProfile } from '@/services/users'
 import { uploadImage, validateImageFile } from '@/services/uploads'
 import { smartBack } from '@/lib/smart-back'
+import { useSessionCache } from '@/hooks/use-me'
 
 const NICKNAME_MAX = 20
 const BIO_MAX = 100
@@ -26,6 +27,7 @@ const NICKNAME_EXISTS_CODE = 2003
 export default function EditProfileScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { setMe } = useSessionCache()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [nickname, setNickname] = useState('')
   const [bio, setBio] = useState('')
@@ -116,11 +118,13 @@ export default function EditProfileScreen() {
     setNicknameError(null)
     setIsSaving(true)
     try {
-      await updateProfile({
+      const updated = await updateProfile({
         nickname: trimmedNickname,
         bio: bio.trim(),
         avatarUrl: avatarUrl ?? undefined,
       })
+      // 同步全站会话缓存：Header/UserMenu 头像与昵称即时更新（P4.1）
+      setMe(updated)
       toast('success', '资料已更新')
       navigate('/profile', { replace: true })
     } catch (requestError) {

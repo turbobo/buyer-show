@@ -7,6 +7,7 @@ import { login, register, getCaptcha, type CaptchaData } from '@/services/auth'
 import { ApiError } from '@/services/http'
 import { trackLogin, trackRegister } from '@/services/analytics'
 import { useToast } from '@/components/ui/toast'
+import { useSessionCache } from '@/hooks/use-me'
 
 const PHONE_REGEX = /^1[3-9]\d{9}$/
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -14,6 +15,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 export default function LoginScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
+  const { invalidateMe } = useSessionCache()
   const [searchParams] = useSearchParams()
   const redirect = searchParams.get('redirect')
   const safeRedirect = redirect?.startsWith('/') && !redirect.startsWith('//') ? redirect : '/'
@@ -82,6 +84,8 @@ export default function LoginScreen() {
         trackLogin('password')
         toast('success', '登录成功')
       }
+      // 使 me 缓存失效：登录/注册后 Header/Feed 拉取新会话资料
+      void invalidateMe()
       navigate(safeRedirect)
     } catch (requestError) {
       const message = requestError instanceof Error ? requestError.message : '认证失败'

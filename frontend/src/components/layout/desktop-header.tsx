@@ -10,28 +10,19 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useTheme } from '@/hooks/use-theme'
 import { useToast } from '@/components/ui/toast'
 import { useUnreadCount } from '@/hooks/use-unread-count'
-import { clearTokens, getAccessToken, getTokenRole } from '@/services/http'
-import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
+import { clearTokens, getTokenRole } from '@/services/http'
+import { useMe, useSessionCache } from '@/hooks/use-me'
 
 export function DesktopHeader() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { theme, toggleTheme } = useTheme()
   const { toast } = useToast()
-  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+  // 当前用户资料（P4.1：全站共享缓存，登录/登出/编辑资料由缓存同步，不再随路由重复拉取）
+  const { currentUser } = useMe()
+  const { clearSessionCache } = useSessionCache()
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-
-  // 登录态同步：随路由变化重新获取（Header 常驻 App 层，登录/登出后不会重新挂载）
-  useEffect(() => {
-    if (!getAccessToken()) {
-      setCurrentUser(null)
-      return
-    }
-    getCurrentUserProfile()
-      .then(setCurrentUser)
-      .catch(() => setCurrentUser(null))
-  }, [pathname])
 
   // 登出确认弹窗：Esc 关闭
   useEffect(() => {
@@ -52,7 +43,7 @@ export function DesktopHeader() {
   const handleConfirmLogout = () => {
     setIsLoggingOut(true)
     clearTokens()
-    setCurrentUser(null)
+    clearSessionCache()
     setIsLoggingOut(false)
     setShowLogoutConfirm(false)
     toast('success', '已退出登录')

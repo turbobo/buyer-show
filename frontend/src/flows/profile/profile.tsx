@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Heart, Home, Loader2, MessageSquare, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -7,7 +8,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Textarea } from '@/components/ui/textarea'
 import { getAccessToken, getTokenUserId } from '@/services/http'
-import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
+import type { UserProfile } from '@/services/auth'
+import { fetchMe } from '@/hooks/use-me'
 import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
 import { startConversation } from '@/services/messages'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -116,6 +118,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const location = useLocation()
   const params = useParams<{ userId: string }>()
   const { toast } = useToast()
+  const queryClient = useQueryClient()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -153,7 +156,8 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     }
     try {
       const targetProfile = profileRef.current
-        ?? (self ? await getCurrentUserProfile() : await getUserProfile(params.userId ?? ''))
+        // 本人主页复用 me 共享缓存（fresh 强制重拉，结果回写缓存同步 Header/UserMenu）
+        ?? (self ? await fetchMe(queryClient, { fresh: true }) : await getUserProfile(params.userId ?? ''))
       // 「评论」Tab 由 MyCommentsPanel 自行加载，跳过帖子请求
       if (activeTab === 'comments') {
         profileRef.current = targetProfile
@@ -180,7 +184,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       setIsListLoading(false)
       setIsLoadingMore(false)
     }
-  }, [self, params.userId, activeTab])
+  }, [self, params.userId, activeTab, queryClient])
 
   useEffect(() => { void loadPage() }, [loadPage])
 

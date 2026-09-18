@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App'
 import { ToastProvider } from './components/ui/toast'
@@ -9,6 +10,18 @@ import { initErrorMonitoring } from './services/error-monitoring'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Root element not found')
+
+// 服务端状态缓存（P4.1）：去重、共享、精准失效；窗口聚焦不自动重拉（保持现状行为）
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      gcTime: 5 * 60_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+})
 
 // 初始化监控服务
 initErrorMonitoring()
@@ -47,8 +60,10 @@ if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <ToastProvider>
-      <App />
-    </ToastProvider>
+    <QueryClientProvider client={queryClient}>
+      <ToastProvider>
+        <App />
+      </ToastProvider>
+    </QueryClientProvider>
   </StrictMode>,
 )

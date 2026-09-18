@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { ArrowLeft, Bookmark, ChevronLeft, ChevronRight, Flag, Heart, Home, MessageCircle, Pencil, Send, Share2 } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
@@ -10,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import { createComment, encodeCursor, getComments, toggleCommentFavorite, toggleCommentLike, updateComment, type ApiComment } from '@/services/comments'
 import { ApiError, getTokenUserId } from '@/services/http'
-import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost } from '@/services/posts'
+import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost, type ApiPostSummary, type CursorPage } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
 import { AppDialog } from '@/components/ui/app-dialog'
@@ -289,6 +290,20 @@ export default function PostDetailScreen() {
   const isModal = (location.state as { modal?: boolean } | null)?.modal === true
   const closeModal = useCallback(() => navigate(-1), [navigate])
   const { toast } = useToast()
+  const queryClient = useQueryClient()
+  /** 详情页互动后同步 Feed 列表缓存（P4.1：精准局部更新，免整列表重拉）；无缓存时静默跳过 */
+  const patchFeedPost = useCallback((patch: (item: ApiPostSummary) => Partial<ApiPostSummary>) => {
+    queryClient.setQueriesData<InfiniteData<CursorPage<ApiPostSummary>>>(
+      { queryKey: ['feed'] },
+      (old) => old && {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          list: page.list.map((item) => (item.id === Number(postId) ? { ...item, ...patch(item) } : item)),
+        })),
+      },
+    )
+  }, [queryClient, postId])
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
   const [commentSort, setCommentSort] = useState<'latest' | 'hot'>('latest')
@@ -364,6 +379,7 @@ export default function PostDetailScreen() {
           ? { ...item, replies: [...item.replies, comment] }
           : item)
         : [...current, comment])
+      patchFeedPost((item) => ({ commentCount: item.commentCount + 1 }))
       toast('success', comment.moderationStatus === 1 ? '评论已提交，审核通过后公开展示' : '评论发布成功')
     } catch (requestError) {
       handleActionError(requestError, '评论发布失败')
@@ -382,6 +398,11 @@ export default function PostDetailScreen() {
         isLiked: result.liked,
         likeCount: Math.max(0, current.likeCount + (result.liked ? 1 : -1)),
       }))
+      // Feed 卡片同步（仅当缓存中的状态与本次切换相反时才增减计数）
+      patchFeedPost((item) => ({
+        isLiked: result.liked,
+        likeCount: item.likeCount + (result.liked === item.isLiked ? 0 : result.liked ? 1 : -1),
+      }))
       toast('success', result.liked ? '已点赞' : '已取消点赞')
     } catch (requestError) {
       handleActionError(requestError, '点赞失败')
@@ -399,6 +420,10 @@ export default function PostDetailScreen() {
         ...current,
         isFavorited: result.favorited,
         favoriteCount: Math.max(0, current.favoriteCount + (result.favorited ? 1 : -1)),
+      }))
+      patchFeedPost((item) => ({
+        isFavorited: result.favorited,
+        favoriteCount: item.favoriteCount + (result.favorited === item.isFavorited ? 0 : result.favorited ? 1 : -1),
       }))
       toast('success', result.favorited ? '已收藏' : '已取消收藏')
     } catch (requestError) {
