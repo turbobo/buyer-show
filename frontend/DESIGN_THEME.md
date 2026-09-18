@@ -16,6 +16,7 @@
 | `warm-bg / warm-100..300` | — | 页面底 / 浅底 / 分隔线 |
 
 语义色走 shadcn 变量：`background / foreground / muted-foreground / card / border / destructive`。
+图表色板 `chart-1..5`：珊瑚橙 / 青绿 / 蓝 / 紫 / 暖黄（light/dark 各一档亮度，定义于 index.css）。
 **硬规则**：组件内**禁止**裸色值（`bg-[#..]`、`text-[rgb(..)]`、行内 hex 样式色）；状态色使用既有语义/状态 token。
 
 ## 2. 间距 / 圆角 / 阴影 / 字体
