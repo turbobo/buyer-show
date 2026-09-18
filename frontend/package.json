@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:report": "tsc -b && vite build --mode report",
+    "size:check": "npm run build && node scripts/check-bundle-size.mjs",
     "lint": "oxlint",
     "check:ui": "bash scripts/ui-consistency-check.sh",
     "preview": "vite preview",
@@ -40,6 +42,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "jsdom": "^29.1.1",
     "oxlint": "^1.79.0",
+    "rollup-plugin-visualizer": "^7.1.1",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",

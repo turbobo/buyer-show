@@ -23,8 +23,8 @@ const queryClient = new QueryClient({
   },
 })
 
-// 初始化监控服务
-initErrorMonitoring()
+// 初始化监控服务（Sentry 懒加载：无 DSN 时不请求 SDK）
+void initErrorMonitoring()
 initPerformanceMonitoring()
 
 // Start analytics auto-flush

@@ -2,9 +2,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vitest/config'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
@@ -69,6 +70,8 @@ export default defineConfig({
         ],
       },
     }),
+    // 体积分析（P4.5）：npm run build:report 生成 dist/stats.html
+    ...(mode === 'report' ? [visualizer({ open: false, gzipSize: true, filename: 'dist/stats.html' })] : []),
   ],
   resolve: {
     alias: {
@@ -80,4 +83,4 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
   },
-})
+}))
