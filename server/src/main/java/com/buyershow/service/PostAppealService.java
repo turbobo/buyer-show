@@ -17,6 +17,7 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -103,6 +104,7 @@ public class PostAppealService {
      * @param reason 处理说明（可空）
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void handleAppeal(Long appealId, String action, String reason) {
         Long adminId = requireAdminId();
         PostAppeal appeal = postAppealMapper.selectById(appealId);

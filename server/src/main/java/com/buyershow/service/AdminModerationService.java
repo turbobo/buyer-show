@@ -24,6 +24,7 @@ import com.buyershow.mapper.ContentReportMapper;
 import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -96,6 +97,7 @@ public class AdminModerationService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void moderatePost(Long postId, ModerateContentRequest request) {
         Long adminId = requireAdminId();
         int newStatus = resolveModerationStatus(request.getAction()).getValue();
@@ -169,6 +171,7 @@ public class AdminModerationService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void handleReport(Long reportId, HandleReportRequest request) {
         Long adminId = requireAdminId();
         ContentReport report = contentReportMapper.selectById(reportId);

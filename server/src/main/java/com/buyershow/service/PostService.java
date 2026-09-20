@@ -20,6 +20,8 @@ import com.buyershow.mapper.UserMapper;
 import com.buyershow.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,6 +45,15 @@ public class PostService {
     private final UploadService uploadService;
     private final NotificationService notificationService;
 
+    /**
+     * Feed 首屏缓存（P1.2 业务缓存）：仅匿名用户 + 无游标（第一页）命中，
+     * 登录用户 Feed 含 isLiked/isFavorited 用户维度，不缓存；
+     * 写操作（发帖/删帖/审核/封禁/标签）主动 allEntries 失效，另设 60s TTL 兜底。
+     */
+    @Cacheable(cacheNames = "feed:anonymous",
+            key = "T(com.buyershow.common.util.CursorUtils).feedCacheKey(#tag, #sort, #requestedLimit)",
+            condition = "T(com.buyershow.common.security.SecurityUtils).getCurrentUserId() == null"
+                    + " && (#cursor == null || #cursor.isEmpty())")
     public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit, String sort) {
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
@@ -180,7 +191,10 @@ public class PostService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "user:profile", key = "#root.target.getCurrentUserIdSafe()")
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "user:profile", key = "#root.target.getCurrentUserIdSafe()"),
+            @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
+    })
     public PostDTO createPost(CreatePostRequest request) {
         Long userId = requireCurrentUserId();
 
@@ -259,6 +273,7 @@ public class PostService {
      * @return 更新后的帖子详情
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public PostDTO updatePost(Long postId, CreatePostRequest request) {
         Long userId = requireCurrentUserId();
         Post post = postMapper.selectById(postId);
@@ -316,6 +331,7 @@ public class PostService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void deletePost(Long postId) {
         Long currentUserId = requireCurrentUserId();
         Post post = postMapper.selectById(postId);

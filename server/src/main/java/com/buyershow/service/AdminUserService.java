@@ -18,6 +18,7 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +71,7 @@ public class AdminUserService {
      * @param reason 封禁理由（可空，写入日志）
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void banUser(Long userId, String reason) {
         Long adminId = requireAdminId();
         User target = requireUser(userId);
@@ -92,6 +94,7 @@ public class AdminUserService {
      * @param userId 目标用户ID
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void unbanUser(Long userId) {
         Long adminId = requireAdminId();
         requireUser(userId);
@@ -149,6 +152,7 @@ public class AdminUserService {
      * @param reason 封禁理由（可空，默认"管理员封禁"）
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void banPost(Long postId, String reason) {
         Long adminId = requireAdminId();
         Post post = postMapper.selectById(postId);
@@ -171,6 +175,7 @@ public class AdminUserService {
      * @param postId 帖子ID
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public void unbanPost(Long postId) {
         Long adminId = requireAdminId();
         Post post = postMapper.selectById(postId);

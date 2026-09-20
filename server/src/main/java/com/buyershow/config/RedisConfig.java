@@ -50,16 +50,8 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        ObjectMapper om = new ObjectMapper();
-        om.registerModule(new JavaTimeModule());
-        om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
-        om.activateDefaultTyping(
-                LaissezFaireSubTypeValidator.instance,
-                ObjectMapper.DefaultTyping.NON_FINAL,
-                JsonTypeInfo.As.PROPERTY);
-
         GenericJackson2JsonRedisSerializer jsonSerializer =
-                new GenericJackson2JsonRedisSerializer(om);
+                new GenericJackson2JsonRedisSerializer(createCacheObjectMapper());
 
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(10))
@@ -73,6 +65,8 @@ public class RedisConfig {
         perCacheConfigs.put("user:profile", defaultConfig.entryTtl(Duration.ofMinutes(10)));
         perCacheConfigs.put("post:detail", defaultConfig.entryTtl(Duration.ofMinutes(5)));
         perCacheConfigs.put("rate:login", defaultConfig.entryTtl(Duration.ofMinutes(15)));
+        // 匿名 Feed 首屏：写操作主动失效（allEntries）+ 60s TTL 兜底
+        perCacheConfigs.put("feed:anonymous", defaultConfig.entryTtl(Duration.ofSeconds(60)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)
@@ -82,6 +76,11 @@ public class RedisConfig {
     }
 
     private GenericJackson2JsonRedisSerializer createJsonSerializer() {
+        return new GenericJackson2JsonRedisSerializer(createCacheObjectMapper());
+    }
+
+    /** 缓存与 RedisTemplate 共用的 ObjectMapper：JSON 类型信息 + Java 时间模块，供序列化往返回归测试复用。 */
+    static ObjectMapper createCacheObjectMapper() {
         ObjectMapper om = new ObjectMapper();
         om.registerModule(new JavaTimeModule());
         om.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
@@ -89,6 +88,6 @@ public class RedisConfig {
                 LaissezFaireSubTypeValidator.instance,
                 ObjectMapper.DefaultTyping.NON_FINAL,
                 JsonTypeInfo.As.PROPERTY);
-        return new GenericJackson2JsonRedisSerializer(om);
+        return om;
     }
 }

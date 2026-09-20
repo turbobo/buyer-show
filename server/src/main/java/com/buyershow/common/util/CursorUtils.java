@@ -30,4 +30,9 @@ public final class CursorUtils {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "分页游标格式错误");
         }
     }
+
+    /** 匿名 Feed 首屏缓存 key（tag|sort|limit），供 Spring Cache SpEL 使用。 */
+    public static String feedCacheKey(String tag, String sort, int limit) {
+        return (tag == null ? "" : tag) + "|" + (sort == null ? "" : sort) + "|" + limit;
+    }
 }

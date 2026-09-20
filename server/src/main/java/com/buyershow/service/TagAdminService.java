@@ -11,6 +11,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +57,7 @@ public class TagAdminService {
      * @return 受影响帖子数
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public int renameTag(TagOperationRequest request) {
         Long adminId = requireAdmin();
         String source = normalizeTag(request.getSource());
@@ -76,6 +78,7 @@ public class TagAdminService {
      * @return 受影响帖子数
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public int mergeTag(TagOperationRequest request) {
         Long adminId = requireAdmin();
         String source = normalizeTag(request.getSource());
@@ -96,6 +99,7 @@ public class TagAdminService {
      * @return 受影响帖子数
      */
     @Transactional
+    @CacheEvict(cacheNames = "feed:anonymous", allEntries = true)
     public int deleteTag(TagOperationRequest request) {
         Long adminId = requireAdmin();
         String source = normalizeTag(request.getSource());
