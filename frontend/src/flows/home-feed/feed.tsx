@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { Clock, Loader2, Moon, Plus, Search, Sun, TrendingUp, X } from 'lucide-react'
+import { Clock, Loader2, Moon, Plus, Search, Sun, TrendingUp, Users, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -27,20 +27,30 @@ type TabKey = ChannelKey
 
 const PULL_THRESHOLD = 56
 
+/** Feed 排序三档（G1 新增「关注」：登录后看关注对象的动态时间线） */
+const SORT_OPTIONS = [
+  { key: 'new', label: '最新', icon: Clock },
+  { key: 'hot', label: '热门', icon: TrendingUp },
+  { key: 'following', label: '关注', icon: Users },
+] as const
+type FeedSort = (typeof SORT_OPTIONS)[number]['key']
+
 export default function HomeFeedScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { theme, toggleTheme } = useTheme()
   const queryClient = useQueryClient()
   const [activeTag, setActiveTag] = useState('全部')
-  const [feedSort, setFeedSort] = useState<'new' | 'hot'>('new')
+  const [feedSort, setFeedSort] = useState<FeedSort>('new')
+  const isFollowingFeed = feedSort === 'following'
   const feedTag = activeTag === '全部' ? undefined : activeTag
   const feedQueryKey = ['feed', feedTag, feedSort] as const
   // Feed 游标分页（P4.1）：按 标签+排序 独立缓存，返回列表秒开；切换时保留旧数据避免闪烁；
-  // 旧请求由 AbortSignal 自动取消（替代原 requestVersion 手动版本守卫）
+  // 旧请求由 AbortSignal 自动取消（替代原 requestVersion 手动版本守卫）；关注流（G1）传 scope=following
   const feedQuery = useInfiniteQuery({
     queryKey: feedQueryKey,
-    queryFn: ({ pageParam, signal }) => getFeed(pageParam, feedTag, feedSort, signal),
+    queryFn: ({ pageParam, signal }) =>
+      getFeed(pageParam, feedTag, isFollowingFeed ? 'new' : feedSort, isFollowingFeed ? 'following' : 'all', signal),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => (lastPage.hasMore && lastPage.nextCursor ? lastPage.nextCursor : undefined),
     staleTime: 30_000,
@@ -149,6 +159,8 @@ export default function HomeFeedScreen() {
     useUiStore.getState().setUnreadCount(0)
     setIsLoggingOut(false)
     setShowLogoutConfirm(false)
+    // 关注流需登录，登出后回退「最新」档避免请求 1003 错误态
+    if (feedSort === 'following') setFeedSort('new')
     toast('success', '已退出登录')
     // 受保护路由登出后回首页；公开页（首页）原地切换为游客态
     if (/^\/(profile|publish|messages|notifications|admin)(\/|$)/.test(location.pathname)) {
@@ -186,6 +198,16 @@ export default function HomeFeedScreen() {
       navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
       setIsSearchFocused(false)
     }
+  }
+
+  // 排序档切换：关注流需登录（后端仅对登录用户返回关注内容），未登录时引导登录
+  const handleFeedSortChange = (key: FeedSort) => {
+    if (key === 'following' && !currentUser) {
+      toast('info', '登录后即可查看关注动态')
+      navigate('/login')
+      return
+    }
+    setFeedSort(key)
   }
 
   return (
@@ -303,18 +325,23 @@ export default function HomeFeedScreen() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => setFeedSort(feedSort === 'new' ? 'hot' : 'new')}
-            aria-label={feedSort === 'hot' ? '切换到最新' : '切换到热门'}
-            className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
-              feedSort === 'hot' ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
-            title={feedSort === 'hot' ? '切换到最新' : '切换到热门'}
-          >
-            {feedSort === 'hot' ? <TrendingUp className="h-4 w-4" /> : <Clock className="h-4 w-4" />}
-            <span className="hidden sm:inline">{feedSort === 'hot' ? '热门' : '最新'}</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handleFeedSortChange(key)}
+                aria-label={label}
+                title={label}
+                className={`flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium transition-colors ${
+                  feedSort === key ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                }`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="hidden sm:inline">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -352,16 +379,30 @@ export default function HomeFeedScreen() {
         )}
         {!isInitialLoading && !feedError && posts.length === 0 && (
           <div className="rounded-xl bg-card">
-            <EmptyState
-              icon={TrendingUp}
-              title="暂无公开分享"
-              action={(
-                <Button onClick={() => navigate('/publish')} className="mt-2 bg-coral text-white hover:bg-coral-dark">
-                  <Plus className="mr-1.5 h-4 w-4" />
-                  去发布
-                </Button>
-              )}
-            />
+            {isFollowingFeed ? (
+              <EmptyState
+                icon={Users}
+                title="关注一些感兴趣的买家吧"
+                description="关注后，TA 的分享会出现在这里"
+                action={(
+                  <Button onClick={() => setFeedSort('new')} className="mt-2 bg-coral text-white hover:bg-coral-dark">
+                    <TrendingUp className="mr-1.5 h-4 w-4" />
+                    去逛逛最新分享
+                  </Button>
+                )}
+              />
+            ) : (
+              <EmptyState
+                icon={TrendingUp}
+                title="暂无公开分享"
+                action={(
+                  <Button onClick={() => navigate('/publish')} className="mt-2 bg-coral text-white hover:bg-coral-dark">
+                    <Plus className="mr-1.5 h-4 w-4" />
+                    去发布
+                  </Button>
+                )}
+              />
+            )}
           </div>
         )}
         <div className="flex items-start gap-3">

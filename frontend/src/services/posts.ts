@@ -45,11 +45,18 @@ export interface CreatePostPayload {
   productRating?: number
 }
 
-export function getFeed(cursor?: string, tag?: string, sort = 'new', signal?: AbortSignal): Promise<CursorPage<ApiPostSummary>> {
+export function getFeed(
+  cursor?: string,
+  tag?: string,
+  sort = 'new',
+  scope: 'all' | 'following' = 'all',
+  signal?: AbortSignal,
+): Promise<CursorPage<ApiPostSummary>> {
   const params = new URLSearchParams()
   if (cursor) params.set('cursor', cursor)
   if (tag) params.set('tag', tag)
   if (sort && sort !== 'new') params.set('sort', sort)
+  if (scope && scope !== 'all') params.set('scope', scope)
   const suffix = params.size > 0 ? `?${params.toString()}` : ''
   return request<CursorPage<ApiPostSummary>>(`/posts${suffix}`, { signal })
 }

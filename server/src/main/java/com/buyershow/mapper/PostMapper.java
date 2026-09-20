@@ -48,6 +48,42 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("limit") int limit,
             @Param("currentUserId") Long currentUserId);
 
+    /**
+     * 关注流（G1）：当前用户关注对象的公开帖，按发帖时间倒序游标分页；
+     * follows 子查询走 idx_follow_follower_feed 索引，主表走 idx_post_feed。
+     */
+    @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{viewerId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{viewerId} AND f.post_id = p.id) AS favorited",
+            "FROM posts p FORCE INDEX (idx_post_feed)",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE p.status = 0 AND p.moderation_status = 0",
+            "  AND p.user_id IN (SELECT following_id FROM follows WHERE follower_id = #{viewerId})",
+            "<if test='tag != null and tag != \"\"'>",
+            "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
+            "</if>",
+            "<if test='cursorId != null'>",
+            "  AND p.id &lt; #{cursorId}",
+            "</if>",
+            "ORDER BY p.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectFollowingFeedRows(
+            @Param("viewerId") Long viewerId,
+            @Param("cursorId") Long cursorId,
+            @Param("tag") String tag,
+            @Param("limit") int limit);
+
     @Select({
             "<script>",
             "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",

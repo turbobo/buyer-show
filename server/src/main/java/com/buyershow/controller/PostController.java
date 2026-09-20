@@ -27,8 +27,9 @@ public class PostController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String tag,
             @RequestParam(defaultValue = "20") int limit,
-            @RequestParam(defaultValue = "new") String sort) {
-        return R.ok(postService.getFeed(cursor, tag, limit, sort));
+            @RequestParam(defaultValue = "new") String sort,
+            @RequestParam(defaultValue = "all") String scope) {
+        return R.ok(postService.getFeed(cursor, tag, limit, sort, scope));
     }
 
     @GetMapping("/{id}")

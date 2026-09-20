@@ -78,9 +78,18 @@ describe('posts service', () => {
       vi.mocked(http.request).mockResolvedValueOnce(mockFeed)
 
       const controller = new AbortController()
-      await getFeed(undefined, undefined, 'new', controller.signal)
+      await getFeed(undefined, undefined, 'new', 'all', controller.signal)
 
       expect(http.request).toHaveBeenCalledWith('/posts', { signal: controller.signal })
+    })
+
+    it('should include scope param when scope is following', async () => {
+      const mockFeed = { list: [], nextCursor: null, hasMore: false }
+      vi.mocked(http.request).mockResolvedValueOnce(mockFeed)
+
+      await getFeed(undefined, undefined, 'new', 'following')
+
+      expect(http.request).toHaveBeenCalledWith('/posts?scope=following', { signal: undefined })
     })
   })
 

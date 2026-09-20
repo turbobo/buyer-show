@@ -46,23 +46,29 @@ public class PostService {
     private final NotificationService notificationService;
 
     /**
-     * Feed 首屏缓存（P1.2 业务缓存）：仅匿名用户 + 无游标（第一页）命中，
-     * 登录用户 Feed 含 isLiked/isFavorited 用户维度，不缓存；
+     * Feed 首屏缓存（P1.2 业务缓存）：仅匿名用户 + 无游标（第一页）+ 全站 scope 命中，
+     * 登录用户 Feed 含 isLiked/isFavorited 用户维度，关注流需登录且内容因人而异，均不缓存；
      * 写操作（发帖/删帖/审核/封禁/标签）主动 allEntries 失效，另设 60s TTL 兜底。
      */
     @Cacheable(cacheNames = "feed:anonymous",
             key = "T(com.buyershow.common.util.CursorUtils).feedCacheKey(#tag, #sort, #requestedLimit)",
             condition = "T(com.buyershow.common.security.SecurityUtils).getCurrentUserId() == null"
-                    + " && (#cursor == null || #cursor.isEmpty())")
-    public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit, String sort) {
+                    + " && (#cursor == null || #cursor.isEmpty())"
+                    + " && (#scope == null || #scope.isEmpty() || #scope.equals('all'))")
+    public CursorPage<PostDTO> getFeed(String cursor, String tag, int requestedLimit, String sort, String scope) {
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
         Long currentUserId = SecurityUtils.getCurrentUserId();
         String normalizedTag = tag == null || tag.isBlank() ? null : tag.trim();
         boolean isHotSort = "hot".equalsIgnoreCase(sort);
+        boolean isFollowingScope = "following".equalsIgnoreCase(scope);
 
         List<PostQueryRow> rows;
-        if (isHotSort && cursorId == null) {
+        if (isFollowingScope) {
+            // 关注流（G1）：必须登录，按发帖时间倒序（不支持热门排序）
+            Long viewerId = requireCurrentUserId();
+            rows = postMapper.selectFollowingFeedRows(viewerId, cursorId, normalizedTag, limit + 1);
+        } else if (isHotSort && cursorId == null) {
             // Hot sort only works for first page (no cursor support for score-based sorting)
             rows = postMapper.selectHotFeedRows(normalizedTag, limit + 1, currentUserId);
         } else {

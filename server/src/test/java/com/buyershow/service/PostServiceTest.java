@@ -223,6 +223,32 @@ class PostServiceTest {
         assertFalse(page.isHasMore());
     }
 
+    @Test
+    void testGetFeedFollowingScopeRequiresLogin() {
+        SecurityContextHolder.clearContext();
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.getFeed(null, null, 20, "new", "following"));
+
+        assertEquals(ErrorCode.TOKEN_INVALID.getCode(), exception.getCode());
+        verify(postMapper, never()).selectFollowingFeedRows(any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void testGetFeedFollowingScopeReturnsFollowingPosts() {
+        loginAs(10L);
+        when(postMapper.selectFollowingFeedRows(eq(10L), isNull(), isNull(), eq(21)))
+                .thenReturn(List.of(row(100L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.getFeed(null, null, 20, "new", "following");
+
+        assertEquals(1, page.getList().size());
+        assertFalse(page.isHasMore());
+        verify(postMapper).selectFollowingFeedRows(10L, null, null, 21);
+    }
+
     private PostQueryRow cursorRow(Long id, Long cursorKey) {
         PostQueryRow row = row(id);
         row.setCursorKey(cursorKey);
