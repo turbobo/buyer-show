@@ -65,6 +65,11 @@ export function getPost(postId: string): Promise<ApiPost> {
   return request<ApiPost>(`/posts/${postId}`)
 }
 
+/** 相关推荐（G3）：同标签最新帖召回，不足时补最新公开帖 */
+export function getRelatedPosts(postId: string, limit = 6): Promise<ApiPostSummary[]> {
+  return request<ApiPostSummary[]>(`/posts/${postId}/related?limit=${limit}`)
+}
+
 export function createPost(payload: CreatePostPayload): Promise<ApiPost> {
   return request<ApiPost>('/posts', { method: 'POST', body: JSON.stringify(payload) })
 }

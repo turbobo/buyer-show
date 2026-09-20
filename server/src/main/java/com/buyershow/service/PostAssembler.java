@@ -71,4 +71,25 @@ public class PostAssembler {
             throw new BusinessException(ErrorCode.SYSTEM_ERROR, "帖子数据解析失败");
         }
     }
+
+    /** 序列化为 JSON 字符串数组（G3 相关推荐：供 JSON_OVERLAPS SQL 参数使用）。 */
+    public String toJsonArray(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "[]";
+        }
+        try {
+            return objectMapper.writeValueAsString(values);
+        } catch (JsonProcessingException e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "帖子标签序列化失败");
+        }
+    }
+
+    /** 解析标签 JSON 列表（G3 相关推荐），非法数据回退空列表。 */
+    public List<String> parseTagList(String tagsJson) {
+        try {
+            return parseStringList(tagsJson);
+        } catch (BusinessException e) {
+            return Collections.emptyList();
+        }
+    }
 }

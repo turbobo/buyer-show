@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -35,6 +36,14 @@ public class PostController {
     @GetMapping("/{id}")
     public R<PostDTO> getPostDetail(@PathVariable Long id) {
         return R.ok(postService.getPostDetail(id));
+    }
+
+    /** 相关推荐（G3）：同标签最新帖召回，不足时补最新公开帖。 */
+    @GetMapping("/{id}/related")
+    public R<List<PostDTO>> getRelatedPosts(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "6") int limit) {
+        return R.ok(postService.getRelatedPosts(id, limit));
     }
 
     @PostMapping

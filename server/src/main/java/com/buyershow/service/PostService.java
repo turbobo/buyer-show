@@ -35,6 +35,8 @@ public class PostService {
 
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 50;
+    private static final int RELATED_POSTS_DEFAULT = 6;
+    private static final int RELATED_POSTS_MAX = 12;
 
     private final PostMapper postMapper;
     private final UserMapper userMapper;
@@ -194,6 +196,48 @@ public class PostService {
             dto.setImages(Collections.emptyList());
         }
         return dto;
+    }
+
+    /**
+     * 相关推荐（G3）：同标签最新帖召回（v1 规则召回）；无标签或同标签帖不足时用最新公开帖补足，避免区块过空。
+     *
+     * @param postId 当前帖子 ID
+     * @param requestedLimit 推荐条数（默认 6，上限 12）
+     * @return 推荐帖子列表（不含当前帖，按发帖时间倒序）
+     */
+    public List<PostDTO> getRelatedPosts(Long postId, int requestedLimit) {
+        int limit = requestedLimit <= 0 ? RELATED_POSTS_DEFAULT : Math.min(requestedLimit, RELATED_POSTS_MAX);
+        Long currentUserId = SecurityUtils.getCurrentUserId();
+        PostQueryRow current = postMapper.selectPostDetailRow(postId, currentUserId);
+        if (current == null) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+
+        List<String> tags = postAssembler.parseTagList(current.getTagsJson());
+        List<PostQueryRow> rows = tags.isEmpty()
+                ? new ArrayList<>()
+                : postMapper.selectRelatedRows(postId, postAssembler.toJsonArray(tags), limit, currentUserId);
+        if (rows.size() < limit) {
+            rows = new ArrayList<>(rows);
+            rows.addAll(fillWithLatest(currentUserId, postId, rows, limit));
+        }
+        return rows.stream().map(postAssembler::toPostDTO).toList();
+    }
+
+    private List<PostQueryRow> fillWithLatest(Long currentUserId, Long excludePostId, List<PostQueryRow> existing, int targetSize) {
+        List<PostQueryRow> latest = postMapper.selectFeedRows(null, null, targetSize + 1, currentUserId);
+        List<PostQueryRow> fill = new ArrayList<>();
+        for (PostQueryRow row : latest) {
+            if (fill.size() >= targetSize - existing.size()) {
+                break;
+            }
+            boolean isDuplicate = row.getId().equals(excludePostId)
+                    || existing.stream().anyMatch(existingRow -> existingRow.getId().equals(row.getId()));
+            if (!isDuplicate) {
+                fill.add(row);
+            }
+        }
+        return fill;
     }
 
     @Transactional

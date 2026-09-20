@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { ArrowLeft, Flag, Home, MessageCircle, Pencil } from 'lucide-react'
+import { ArrowLeft, Flag, Home, MessageCircle, Pencil, Sparkles } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { smartBack } from '@/lib/smart-back'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -13,7 +13,7 @@ import { DetailError, DetailSkeleton } from './detail-states'
 import { ActionBar } from './action-bar'
 import { AppealDialog } from './appeal-dialog'
 import { ApiError, getTokenUserId } from '@/services/http'
-import { getPost, createPostAppeal, toggleFavorite, toggleLike, type ApiPost, type ApiPostSummary, type CursorPage } from '@/services/posts'
+import { getPost, getRelatedPosts, createPostAppeal, toggleFavorite, toggleLike, type ApiPost, type ApiPostSummary, type CursorPage } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
 import { PostStructuredData } from '@/components/structured-data'
@@ -52,6 +52,8 @@ export default function PostDetailScreen() {
   }, [queryClient, postId])
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
+  /** G3 相关推荐（猜你喜欢）；加载失败静默降级为空列表 */
+  const [relatedPosts, setRelatedPosts] = useState<ApiPostSummary[]>([])
   const [commentSort, setCommentSort] = useState<'latest' | 'hot'>('latest')
   const [commentLikeSubmitting, setCommentLikeSubmitting] = useState<Set<number>>(new Set())
   const [isLoadingMoreComments, setIsLoadingMoreComments] = useState(false)
@@ -95,7 +97,17 @@ export default function PostDetailScreen() {
     try {
       const postData = await getPost(postId)
       setPost(postData)
-      setComments(postData.moderationStatus === 0 ? await getComments(postId, 'latest', undefined, COMMENT_PAGE_SIZE) : [])
+      if (postData.moderationStatus === 0) {
+        // 评论与相关推荐并行加载；推荐失败仅隐藏区块，不影响详情页
+        const [commentList, relatedList] = await Promise.all([
+          getComments(postId, 'latest', undefined, COMMENT_PAGE_SIZE),
+          getRelatedPosts(postId).catch(() => []),
+        ])
+        setComments(commentList)
+        setRelatedPosts(relatedList)
+      } else {
+        setComments([])
+      }
     } catch (requestError) {
       setLoadError(requestError instanceof Error ? requestError.message : '加载失败')
     } finally {
@@ -441,6 +453,48 @@ export default function PostDetailScreen() {
                 </Button>
               </div>
             )}
+          </section>
+        )}
+
+        {/* ─── 猜你喜欢（G3：同标签相关推荐） ─── */}
+        {post.moderationStatus === 0 && relatedPosts.length > 0 && (
+          <section className="mt-6 rounded-2xl border border-border/60 bg-card p-5">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-foreground" />
+              <h2 className="font-semibold">猜你喜欢</h2>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {relatedPosts.map((item) => {
+                const thumbnail = item.thumbnails?.[0] ?? item.images?.[0]
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className="group overflow-hidden rounded-xl border border-border/60 bg-background text-left transition-shadow hover:shadow-md"
+                    onClick={() => navigate(`/posts/${item.id}`, { state: { modal: true } })}
+                  >
+                    <div className="aspect-square w-full overflow-hidden bg-muted">
+                      {thumbnail ? (
+                        <img
+                          src={thumbnail}
+                          alt={item.title}
+                          loading="lazy"
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full items-center justify-center text-xs text-muted-foreground">暂无图片</div>
+                      )}
+                    </div>
+                    <div className="p-2.5">
+                      <p className="line-clamp-2 text-xs font-medium leading-relaxed text-foreground">{item.title}</p>
+                      <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                        {item.userNickname} · {item.likeCount} 赞
+                      </p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
           </section>
         )}
       </main>

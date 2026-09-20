@@ -249,6 +249,54 @@ class PostServiceTest {
         verify(postMapper).selectFollowingFeedRows(10L, null, null, 21);
     }
 
+    @Test
+    void testGetRelatedPostsPostNotFound() {
+        SecurityContextHolder.clearContext();
+        when(postMapper.selectPostDetailRow(99L, null)).thenReturn(null);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.getRelatedPosts(99L, 6));
+
+        assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), exception.getCode());
+    }
+
+    @Test
+    void testGetRelatedPostsWithTags() {
+        SecurityContextHolder.clearContext();
+        PostQueryRow current = row(50L);
+        current.setTagsJson("[\"美食\"]");
+        when(postMapper.selectPostDetailRow(50L, null)).thenReturn(current);
+        when(postAssembler.parseTagList("[\"美食\"]")).thenReturn(List.of("美食"));
+        when(postAssembler.toJsonArray(List.of("美食"))).thenReturn("[\"美食\"]");
+        when(postMapper.selectRelatedRows(eq(50L), eq("[\"美食\"]"), eq(6), isNull()))
+                .thenReturn(List.of(row(48L), row(47L), row(46L), row(45L), row(44L), row(43L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        List<PostDTO> related = postService.getRelatedPosts(50L, 6);
+
+        assertEquals(6, related.size());
+        verify(postMapper, never()).selectFeedRows(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void testGetRelatedPostsNoTagsFallsBackToLatest() {
+        SecurityContextHolder.clearContext();
+        PostQueryRow current = row(50L);
+        when(postMapper.selectPostDetailRow(50L, null)).thenReturn(current);
+        when(postAssembler.parseTagList(null)).thenReturn(List.of());
+        when(postMapper.selectFeedRows(isNull(), isNull(), eq(7), isNull()))
+                .thenReturn(List.of(row(50L), row(48L), row(47L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        List<PostDTO> related = postService.getRelatedPosts(50L, 6);
+
+        assertEquals(2, related.size());
+        assertEquals(48L, related.get(0).getId());
+        verify(postMapper, never()).selectRelatedRows(any(), any(), anyInt(), any());
+    }
+
     private PostQueryRow cursorRow(Long id, Long cursorKey) {
         PostQueryRow row = row(id);
         row.setCursorKey(cursorKey);
