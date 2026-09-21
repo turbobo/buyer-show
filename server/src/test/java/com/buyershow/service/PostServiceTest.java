@@ -355,6 +355,50 @@ class PostServiceTest {
     }
 
     @Test
+    void testGetFeedRecommendRequiresLogin() {
+        SecurityContextHolder.clearContext();
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.getFeed(null, null, 20, "recommend", "all"));
+
+        assertEquals(ErrorCode.TOKEN_INVALID.getCode(), exception.getCode());
+        verify(postMapper, never()).selectPreferredTags(any(), anyInt());
+        verify(postMapper, never()).selectRecommendFeedRows(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void testGetFeedRecommendColdStartFallsBackToHot() {
+        loginAs(10L);
+        when(postMapper.selectPreferredTags(10L, 5)).thenReturn(List.of());
+        when(postMapper.selectHotFeedRows(isNull(), eq(21), eq(10L)))
+                .thenReturn(List.of(row(100L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.getFeed(null, null, 20, "recommend", "all");
+
+        assertEquals(1, page.getList().size());
+        verify(postMapper).selectHotFeedRows(null, 21, 10L);
+        verify(postMapper, never()).selectRecommendFeedRows(any(), any(), anyInt(), any());
+    }
+
+    @Test
+    void testGetFeedRecommendWithPreferences() {
+        loginAs(10L);
+        when(postMapper.selectPreferredTags(10L, 5)).thenReturn(List.of("美食", "数码"));
+        when(postAssembler.toJsonArray(List.of("美食", "数码"))).thenReturn("[\"美食\",\"数码\"]");
+        when(postMapper.selectRecommendFeedRows(eq("[\"美食\",\"数码\"]"), isNull(), eq(21), eq(10L)))
+                .thenReturn(List.of(row(88L), row(77L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        CursorPage<PostDTO> page = postService.getFeed(null, null, 20, "recommend", "all");
+
+        assertEquals(2, page.getList().size());
+        verify(postMapper, never()).selectHotFeedRows(any(), anyInt(), any());
+    }
+
+    @Test
     void testGetRelatedPostsPostNotFound() {
         SecurityContextHolder.clearContext();
         when(postMapper.selectPostDetailRow(99L, null)).thenReturn(null);

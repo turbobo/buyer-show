@@ -424,6 +424,71 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("currentUserId") Long currentUserId);
 
 
+    /**
+     * G13：聚合当前用户近 90 天的偏好标签画像。
+     * 数据源：自己发帖 tags（权重 3）、收藏帖 tags（权重 2）、点赞帖 tags（权重 1）；
+     * 按权重倒序取前 topN（同权重按标签名排序保证稳定）。
+     */
+    @Select("<script>"
+            + "SELECT tag, SUM(weight) AS weight FROM ("
+            + "  SELECT jt.tag AS tag, 3 AS weight FROM posts p, "
+            + "  JSON_TABLE(p.tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt "
+            + "  WHERE p.user_id = #{userId} AND p.status = 0 "
+            + "    AND p.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) "
+            + "  UNION ALL "
+            + "  SELECT jt.tag, 2 FROM favorites f, posts p, "
+            + "  JSON_TABLE(p.tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt "
+            + "  WHERE f.post_id = p.id AND p.status = 0 AND f.user_id = #{userId} "
+            + "    AND f.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) "
+            + "  UNION ALL "
+            + "  SELECT jt.tag, 1 FROM likes l, posts p, "
+            + "  JSON_TABLE(p.tags, '$[*]' COLUMNS(tag VARCHAR(100) PATH '$')) AS jt "
+            + "  WHERE l.post_id = p.id AND p.status = 0 AND l.user_id = #{userId} "
+            + "    AND l.created_at >= DATE_SUB(NOW(), INTERVAL 90 DAY) "
+            + ") t GROUP BY tag ORDER BY weight DESC, tag ASC LIMIT #{topN}"
+            + "</script>")
+    List<String> selectPreferredTags(@Param("userId") Long userId, @Param("topN") int topN);
+
+
+    /**
+     * G13：个性化推荐流（仅第一页，分数排序无游标，与热门一致）。
+     * 候选：近 30 天公开帖，排除自己发的与双向拉黑；偏好标签命中 +50 分加成，叠加热度分。
+     */
+    @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited",
+            "FROM posts p",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE p.status = 0 AND p.moderation_status = 0",
+            "  AND p.user_id &lt;&gt; #{currentUserId}",
+            "  AND p.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
+            "<if test=\"tag != null and tag != ''\">",
+            "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
+            "</if>",
+            "ORDER BY (CASE WHEN JSON_OVERLAPS(p.tags, CAST(#{tagsJson} AS JSON)) THEN 50 ELSE 0 END",
+            "  + p.like_count * 3 + p.comment_count * 5 + p.favorite_count * 2) DESC, p.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectRecommendFeedRows(
+            @Param("tagsJson") String tagsJson,
+            @Param("tag") String tag,
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
+
+
     @Select("SELECT id, created_at FROM posts WHERE status = 0 AND moderation_status = 0 ORDER BY id DESC LIMIT 1000")
     List<Post> selectPublicPosts();
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { Clock, Hash, Loader2, Moon, Plus, Search, Star, Sun, TrendingUp, Users, X } from 'lucide-react'
+import { Clock, Hash, Loader2, Moon, Plus, Search, Sparkles, Star, Sun, TrendingUp, Users, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -28,12 +28,13 @@ type TabKey = ChannelKey
 
 const PULL_THRESHOLD = 56
 
-/** Feed 排序四档（G1 关注 / G10 精选：运营打标的优质内容流） */
+/** Feed 排序五档（G1 关注 / G10 精选：运营打标的优质内容流 / G13 推荐：偏好标签加权重排） */
 const SORT_OPTIONS = [
   { key: 'new', label: '最新', icon: Clock },
   { key: 'hot', label: '热门', icon: TrendingUp },
   { key: 'following', label: '关注', icon: Users },
   { key: 'featured', label: '精选', icon: Star },
+  { key: 'recommend', label: '推荐', icon: Sparkles },
 ] as const
 type FeedSort = (typeof SORT_OPTIONS)[number]['key']
 
@@ -179,8 +180,8 @@ export default function HomeFeedScreen() {
     useUiStore.getState().setUnreadCount(0)
     setIsLoggingOut(false)
     setShowLogoutConfirm(false)
-    // 关注流需登录，登出后回退「最新」档避免请求 1003 错误态
-    if (feedSort === 'following') setFeedSort('new')
+    // 关注/推荐流需登录，登出后回退「最新」档避免请求 1003 错误态
+    if (feedSort === 'following' || feedSort === 'recommend') setFeedSort('new')
     toast('success', '已退出登录')
     // 受保护路由登出后回首页；公开页（首页）原地切换为游客态
     if (/^\/(profile|publish|messages|notifications|admin)(\/|$)/.test(location.pathname)) {
@@ -231,10 +232,10 @@ export default function HomeFeedScreen() {
     }
   }
 
-  // 排序档切换：关注流需登录（后端仅对登录用户返回关注内容），未登录时引导登录
+  // 排序档切换：关注/推荐流需登录（后端仅对登录用户返回内容），未登录时引导登录
   const handleFeedSortChange = (key: FeedSort) => {
-    if (key === 'following' && !currentUser) {
-      toast('info', '登录后即可查看关注动态')
+    if ((key === 'following' || key === 'recommend') && !currentUser) {
+      toast('info', key === 'recommend' ? '登录后即可获得个性化推荐' : '登录后即可查看关注动态')
       navigate('/login')
       return
     }

@@ -52,6 +52,8 @@ public class PostService {
     private static final int RELATED_POSTS_MAX = 12;
     /** 降级高亮片段两侧保留字符数（G5）。 */
     private static final int FALLBACK_HIGHLIGHT_MARGIN = 40;
+    /** G13：推荐偏好标签画像 TopN（发帖/收藏/点赞行为聚合）。 */
+    private static final int RECOMMEND_TAG_LIMIT = 5;
 
     private final PostMapper postMapper;
     private final UserMapper userMapper;
@@ -83,12 +85,16 @@ public class PostService {
         boolean isHotSort = "hot".equalsIgnoreCase(sort);
         boolean isFollowingScope = "following".equalsIgnoreCase(scope);
         boolean isFeaturedSort = "featured".equalsIgnoreCase(sort);
+        boolean isRecommendSort = "recommend".equalsIgnoreCase(sort);
 
         List<PostQueryRow> rows;
         if (isFollowingScope) {
             // 关注流（G1）：必须登录，按发帖时间倒序（不支持热门排序）
             Long viewerId = requireCurrentUserId();
             rows = postMapper.selectFollowingFeedRows(viewerId, cursorId, normalizedTag, limit + 1);
+        } else if (isRecommendSort && cursorId == null) {
+            // 推荐流（G13）：需登录，偏好标签加权重排，仅第一页（分数排序无游标，同热门）
+            rows = selectRecommendFeedRows(normalizedTag, limit);
         } else if (isHotSort && cursorId == null) {
             // Hot sort only works for first page (no cursor support for score-based sorting)
             rows = postMapper.selectHotFeedRows(normalizedTag, limit + 1, currentUserId);
@@ -100,6 +106,23 @@ public class PostService {
         }
 
         return toCursorPage(rows, limit);
+    }
+
+    /**
+     * G13：推荐流查询——聚合偏好标签画像后按「偏好命中 +50 分加成 + 热度分」重排；
+     * 冷启动（无行为画像）回退热门流。
+     *
+     * @param normalizedTag 可选标签过滤（null 表示全部）
+     * @param limit 返回条数
+     */
+    private List<PostQueryRow> selectRecommendFeedRows(String normalizedTag, int limit) {
+        Long viewerId = requireCurrentUserId();
+        List<String> preferredTags = postMapper.selectPreferredTags(viewerId, RECOMMEND_TAG_LIMIT);
+        if (preferredTags.isEmpty()) {
+            return postMapper.selectHotFeedRows(normalizedTag, limit + 1, viewerId);
+        }
+        return postMapper.selectRecommendFeedRows(
+                postAssembler.toJsonArray(preferredTags), normalizedTag, limit + 1, viewerId);
     }
 
     /**
