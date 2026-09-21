@@ -3,6 +3,7 @@ package com.buyershow.service;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.ModerationStatus;
 import com.buyershow.common.exception.BusinessException;
+import com.buyershow.common.search.SearchHitResult;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.CursorPage;
@@ -16,10 +17,12 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -53,8 +56,11 @@ class PostServiceTest {
     private final ContentModerationService contentModerationService = mock(ContentModerationService.class);
     private final UploadService uploadService = mock(UploadService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final PostSearchIndexService postSearchIndexService = mock(PostSearchIndexService.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final PostService postService = new PostService(postMapper, userMapper, likeMapper,
-            favoriteMapper, postAssembler, contentModerationService, uploadService, notificationService);
+            favoriteMapper, postAssembler, contentModerationService, uploadService, notificationService,
+            postSearchIndexService, eventPublisher);
 
     @Test
     void testListUserPostsReturnsCursorPage() {
@@ -449,5 +455,63 @@ class PostServiceTest {
         PostQueryRow row = row(id);
         row.setUserId(10L);
         return row;
+    }
+
+    // ─── G5 ES 搜索 ───
+
+    @Test
+    void testSearchPostsUsesEsOrderWithHighlights() {
+        SecurityContextHolder.clearContext();
+        when(postSearchIndexService.search("咖啡", 20)).thenReturn(SearchHitResult.builder()
+                .ids(List.of(30L, 20L, 10L))
+                .highlights(Map.of(30L, Map.of("title", "手冲<em>咖啡</em>教程")))
+                .build());
+        // 回查时 20L 已被删（二次过滤），结果保持 ES 打分顺序
+        when(postMapper.selectPublicRowsByIds(eq(List.of(30L, 20L, 10L)), any()))
+                .thenReturn(List.of(row(30L), row(10L)));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        List<PostDTO> result = postService.searchPosts("咖啡", 20);
+
+        assertEquals(2, result.size());
+        assertEquals(30L, result.get(0).getId());
+        assertEquals(10L, result.get(1).getId());
+        assertEquals("手冲<em>咖啡</em>教程", result.get(0).getHighlights().get("title"));
+        assertNull(result.get(1).getHighlights());
+        verify(postMapper, never()).searchPosts(any(), anyInt(), any());
+    }
+
+    @Test
+    void testSearchPostsReturnsEmptyWhenEsNoHits() {
+        SecurityContextHolder.clearContext();
+        when(postSearchIndexService.search("不存在", 20)).thenReturn(SearchHitResult.builder()
+                .ids(List.of())
+                .highlights(Map.of())
+                .build());
+
+        List<PostDTO> result = postService.searchPosts("不存在", 20);
+
+        assertTrue(result.isEmpty());
+        verify(postMapper, never()).searchPosts(any(), anyInt(), any());
+    }
+
+    @Test
+    void testSearchPostsFallsBackToMysqlWhenEsFails() {
+        SecurityContextHolder.clearContext();
+        when(postSearchIndexService.search("关键词", 20)).thenThrow(new RuntimeException("es down"));
+        PostQueryRow matched = row(7L);
+        matched.setTitle("今日好物分享：关键词盘点");
+        when(postMapper.searchPosts(eq("关键词"), eq(20), any()))
+                .thenReturn(List.of(matched));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
+
+        List<PostDTO> result = postService.searchPosts("关键词", 20);
+
+        assertEquals(1, result.size());
+        assertEquals(7L, result.get(0).getId());
+        // 降级路径同样生成 <em> 高亮片段，保证前端体验一致
+        assertEquals("今日好物分享：<em>关键词</em>盘点", result.get(0).getHighlights().get("title"));
     }
 }

@@ -1,5 +1,6 @@
 // 搜索页：关键词输入 + 搜索历史/热门推荐 + 结果列表（Flow 1 Screen 2）
 import { useCallback, useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Clock, Home, Loader2, Search as SearchIcon, Trash2, TrendingUp } from 'lucide-react'
 import { smartBack } from '@/lib/smart-back'
@@ -20,6 +21,20 @@ import type { ApiPostSummary } from '@/services/posts'
 function postCover(post: ApiPostSummary): string | null {
   const image = post.thumbnails?.[0] ?? post.images[0]
   return image?.startsWith('http') ? image : null
+}
+
+/**
+ * 高亮片段拆分渲染（G5）：按 <em>/</em> 切分，奇数段渲染为高亮样式。
+ * 仅把 <em> 标记当分隔符处理，其余内容全部按文本渲染（React 转义），无 HTML 注入风险。
+ */
+export function renderHighlight(fragment: string): ReactNode[] {
+  return fragment.split(/<em>|<\/em>/).map((part, index) =>
+    index % 2 === 1 ? (
+      <em key={index} className="font-medium not-italic text-coral">{part}</em>
+    ) : (
+      part
+    ),
+  )
 }
 
 export default function SearchScreen() {
@@ -203,7 +218,14 @@ export default function SearchScreen() {
                     <div className="h-20 w-20 shrink-0 rounded-lg bg-muted" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <h3 className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">{post.title}</h3>
+                    <h3 className="line-clamp-2 text-sm font-medium leading-relaxed text-foreground">
+                      {post.highlights?.title ? renderHighlight(post.highlights.title) : post.title}
+                    </h3>
+                    {post.highlights?.content && (
+                      <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                        {renderHighlight(post.highlights.content)}
+                      </p>
+                    )}
                     <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Avatar className="h-5 w-5">
                         <AvatarFallback className="bg-coral-light text-[8px] font-bold text-coral-contrast">

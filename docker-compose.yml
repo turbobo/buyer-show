@@ -71,6 +71,7 @@ services:
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_USERNAME: app
       SPRING_RABBITMQ_PASSWORD: devpassword
+      ES_URIS: http://elasticsearch:9200
       MINIO_ENDPOINT: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9000
     depends_on:
@@ -79,6 +80,8 @@ services:
       redis:
         condition: service_started
       rabbitmq:
+        condition: service_started
+      elasticsearch:
         condition: service_started
 
   web:

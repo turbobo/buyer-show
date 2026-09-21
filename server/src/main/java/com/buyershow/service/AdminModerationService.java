@@ -9,6 +9,7 @@ import com.buyershow.common.PostStatus;
 import com.buyershow.common.CommentStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.common.search.PostIndexEvents;
 import com.buyershow.dto.request.HandleReportRequest;
 import com.buyershow.dto.request.ModerateContentRequest;
 import com.buyershow.dto.response.ModerationCommentDTO;
@@ -25,6 +26,7 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,6 +50,7 @@ public class AdminModerationService {
     private final NotificationService notificationService;
     private final AdminUserService adminUserService;
     private final AdminAuditService adminAuditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public IPage<ModerationPostDTO> listPendingPosts(long page, long size) {
         requireAdminId();
@@ -117,12 +120,16 @@ public class AdminModerationService {
             postMapper.updateById(imageUpdate);
             notificationService.notifySystem(post.getUserId(),
                     String.format("你的帖子「%s」已审核通过", abbreviate(post.getTitle(), 50)), "post", postId);
+            // G5：审核通过同步入搜索索引（事务提交后异步，失败仅告警）
+            eventPublisher.publishEvent(new PostIndexEvents.PostIndexRequested(postId));
         } else {
             uploadService.deletePendingImages(post.getUserId(), post.getImages());
             notificationService.notifySystem(post.getUserId(),
                     String.format("你的帖子「%s」未通过审核%s，如有异议可发起申诉", abbreviate(post.getTitle(), 50),
                             reason != null ? "（" + reason + "）" : ""),
                     "post", postId);
+            // G5：驳回时移除索引文档（此前已公开再被驳回的帖子）
+            eventPublisher.publishEvent(new PostIndexEvents.PostIndexRemoved(postId));
         }
         String auditDetail = newStatus == ModerationStatus.APPROVED.getValue()
                 ? "审核通过"
@@ -222,6 +229,8 @@ public class AdminModerationService {
         LocalDateTime now = LocalDateTime.now();
         if (report.getContentType() == ContentReportService.TYPE_POST) {
             postMapper.rejectApproved(report.getContentId(), REPORT_REJECT_REASON, adminId, now);
+            // G5：下架同步移除索引文档（事务提交后异步，失败仅告警）
+            eventPublisher.publishEvent(new PostIndexEvents.PostIndexRemoved(report.getContentId()));
             return;
         }
 

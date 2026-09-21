@@ -12,6 +12,7 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -39,7 +40,9 @@ class AdminUserServiceTest {
     private final UserMapper userMapper = mock(UserMapper.class);
     private final PostMapper postMapper = mock(PostMapper.class);
     private final AdminAuditService adminAuditService = mock(AdminAuditService.class);
-    private final AdminUserService service = new AdminUserService(userMapper, postMapper, adminAuditService);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final AdminUserService service = new AdminUserService(
+            userMapper, postMapper, adminAuditService, eventPublisher);
 
     @AfterEach
     void tearDown() {

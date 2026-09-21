@@ -17,6 +17,7 @@ import os
 import random
 import subprocess
 import tempfile
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -161,8 +162,13 @@ def main():
         check("点赞切换", like.get("code") == 0)
         check("收藏切换", fav.get("code") == 0)
 
-        # 8. 搜索
+        # 8. 搜索（G5 后走 ES：发帖同步索引为事务提交后异步，短暂轮询等待）
         search = req(f"/posts/search?keyword={urllib.parse.quote(f'冒烟测试帖{STAMP}')}&limit=5")
+        for _ in range(5):
+            if any(item["id"] == post_id for item in search.get("data", [])):
+                break
+            time.sleep(1)
+            search = req(f"/posts/search?keyword={urllib.parse.quote(f'冒烟测试帖{STAMP}')}&limit=5")
         check("搜索命中新帖", any(item["id"] == post_id for item in search.get("data", [])))
 
     # 9. 通知未读

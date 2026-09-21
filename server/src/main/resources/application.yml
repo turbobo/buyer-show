@@ -43,6 +43,12 @@ spring:
     username: ${RABBITMQ_USERNAME:app}
     password: ${RABBITMQ_PASSWORD:devpassword}
 
+  # Elasticsearch（G5 搜索增强：帖子索引/检索；不可用时搜索自动降级 MySQL LIKE）
+  elasticsearch:
+    uris: ${ES_URIS:http://localhost:9200}
+    connection-timeout: 2s
+    socket-timeout: 3s
+
   # Multipart upload boundary
   servlet:
     multipart:

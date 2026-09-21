@@ -20,6 +20,8 @@ export interface ApiPost {
   appealStatus?: number | null
   /** G4：正文中 @提及 的用户（昵称 + userId），详情页实时解析，供正文高亮跳转 */
   mentions?: Array<{ nickname: string; userId: number }>
+  /** G5：搜索命中高亮片段（字段名 title/content -> 含 <em> 标记的片段），仅搜索接口返回 */
+  highlights?: Record<string, string>
   isLiked: boolean
   isFavorited: boolean
   createdAt: string

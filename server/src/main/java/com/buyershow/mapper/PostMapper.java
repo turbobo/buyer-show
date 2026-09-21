@@ -2,6 +2,7 @@ package com.buyershow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.buyershow.dto.response.PostIndexRow;
 import com.buyershow.dto.response.PostQueryRow;
 import com.buyershow.dto.response.TagStatDTO;
 import com.buyershow.entity.Post;
@@ -407,5 +408,45 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("userId") Long userId,
             @Param("title") String title,
             @Param("content") String content);
+
+    // ─── G5 ES 搜索索引同步 ───
+
+    /** 单帖索引行（仅公开且审核通过口径）。 */
+    @Select("SELECT p.id, p.title, p.content, CAST(p.tags AS CHAR) AS tagsJson," +
+            "       p.product_name AS productName, p.user_id AS userId, u.nickname AS userNickname," +
+            "       u.status AS userStatus, p.like_count AS likeCount, p.created_at AS createdAt " +
+            "FROM posts p JOIN users u ON u.id = p.user_id " +
+            "WHERE p.id = #{postId} AND p.status = 0 AND p.moderation_status = 0")
+    PostIndexRow selectIndexRow(@Param("postId") Long postId);
+
+    /** 索引行列表：userId 为空时全量（rebuildAll），否则按用户（解封重建）。 */
+    @Select("<script>" +
+            "SELECT p.id, p.title, p.content, CAST(p.tags AS CHAR) AS tagsJson," +
+            "       p.product_name AS productName, p.user_id AS userId, u.nickname AS userNickname," +
+            "       u.status AS userStatus, p.like_count AS likeCount, p.created_at AS createdAt " +
+            "FROM posts p JOIN users u ON u.id = p.user_id " +
+            "WHERE p.status = 0 AND p.moderation_status = 0 " +
+            "<if test='userId != null'>AND p.user_id = #{userId}</if> ORDER BY p.id" +
+            "</script>")
+    List<PostIndexRow> selectIndexRows(@Param("userId") Long userId);
+
+    /** ES 命中后按 id 回查公开帖（保持调用方传入顺序由服务层组装；含 isLiked/isFavorited）。 */
+    @Select("<script>" +
+            "SELECT p.id, p.user_id AS userId, p.title, p.content, CAST(p.images AS CHAR) AS imagesJson," +
+            "       CAST(p.tags AS CHAR) AS tagsJson," +
+            "       p.product_name AS productName, p.product_price AS productPrice," +
+            "       p.product_source AS productSource, p.product_rating AS productRating," +
+            "       p.like_count AS likeCount, p.comment_count AS commentCount," +
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt," +
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl," +
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked," +
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited " +
+            "FROM posts p JOIN users u ON u.id = p.user_id AND u.status = 0 " +
+            "WHERE p.status = 0 AND p.moderation_status = 0 AND p.id IN " +
+            "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            "</script>")
+    List<PostQueryRow> selectPublicRowsByIds(
+            @Param("ids") List<Long> ids,
+            @Param("currentUserId") Long currentUserId);
 
 }

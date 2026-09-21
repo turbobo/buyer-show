@@ -6,6 +6,8 @@ import com.buyershow.common.PostStatus;
 import com.buyershow.common.UserStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.common.search.PostIndexEvents;
+import com.buyershow.common.search.SearchHitResult;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.common.util.MentionExtractor;
 import com.buyershow.dto.request.CreatePostRequest;
@@ -21,16 +23,23 @@ import com.buyershow.mapper.PostMapper;
 import com.buyershow.mapper.UserMapper;
 import com.buyershow.service.NotificationService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PostService {
@@ -39,6 +48,8 @@ public class PostService {
     private static final int MAX_PAGE_SIZE = 50;
     private static final int RELATED_POSTS_DEFAULT = 6;
     private static final int RELATED_POSTS_MAX = 12;
+    /** 降级高亮片段两侧保留字符数（G5）。 */
+    private static final int FALLBACK_HIGHLIGHT_MARGIN = 40;
 
     private final PostMapper postMapper;
     private final UserMapper userMapper;
@@ -48,6 +59,8 @@ public class PostService {
     private final ContentModerationService contentModerationService;
     private final UploadService uploadService;
     private final NotificationService notificationService;
+    private final PostSearchIndexService postSearchIndexService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Feed 首屏缓存（P1.2 业务缓存）：仅匿名用户 + 无游标（第一页）+ 全站 scope 命中，
@@ -310,6 +323,8 @@ public class PostService {
         PostDTO result = createPostInTransaction(userId, request, decision, publishedImages, mergedTags);
         // G4：正文 @提及 通知（异步，失败仅告警）
         notifyMentions(userId, result.getId(), request.getContent(), request.getTitle());
+        // G5：同步搜索索引（事务提交后异步；仅公开且审核通过才入索引，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.PostIndexRequested(result.getId()));
         return getPostDetail(result.getId());
     }
 
@@ -420,6 +435,8 @@ public class PostService {
 
         // G4：正文 @提及 通知（异步，失败仅告警）
         notifyMentions(userId, postId, request.getContent(), request.getTitle());
+        // G5：同步搜索索引（事务提交后异步；重新过审后待审帖不入索引，审核通过时由管理端同步）
+        eventPublisher.publishEvent(new PostIndexEvents.PostIndexRequested(postId));
 
         return getPostDetail(postId);
     }
@@ -441,6 +458,8 @@ public class PostService {
         }
 
         userMapper.adjustPostCount(post.getUserId(), -1);
+        // G5：删除搜索索引文档（事务提交后异步，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.PostIndexRemoved(postId));
     }
 
     @Transactional
@@ -515,12 +534,87 @@ public class PostService {
         }
     }
 
+    /**
+     * 搜索帖子（G5）：ES 优先（相关性排序 + 高亮片段），ES 不可用自动降级 MySQL LIKE。
+     * 命中后按 ES 打分顺序回查公开帖（二次过滤，保证与 Feed 口径一致且附带 isLiked/isFavorited）。
+     *
+     * @param keyword 关键词
+     * @param limit 返回条数（0 或负数取默认 20，上限 50）
+     * @return 帖子列表（ES 命中时附 highlights 高亮片段）
+     */
     public List<PostDTO> searchPosts(String keyword, int limit) {
+        int normalizedLimit = normalizePageSize(limit);
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        List<PostQueryRow> rows = postMapper.searchPosts(keyword, limit, currentUserId);
+        List<PostDTO> esResult = tryEsSearch(keyword, normalizedLimit, currentUserId);
+        if (esResult != null) {
+            return esResult;
+        }
+        List<PostQueryRow> rows = postMapper.searchPosts(keyword, normalizedLimit, currentUserId);
         return rows.stream()
-                .map(postAssembler::toPostDTO)
+                .map(row -> {
+                    PostDTO dto = postAssembler.toPostDTO(row);
+                    // 降级路径也生成 <em> 高亮片段，保证前端渲染体验一致
+                    dto.setHighlights(buildFallbackHighlights(keyword, row));
+                    return dto;
+                })
                 .toList();
+    }
+
+    /** ES 搜索尝试：异常或不可用时返回 null，由调用方降级 MySQL LIKE。 */
+    private List<PostDTO> tryEsSearch(String keyword, int limit, Long currentUserId) {
+        try {
+            SearchHitResult hit = postSearchIndexService.search(keyword, limit);
+            if (hit.getIds().isEmpty()) {
+                return Collections.emptyList();
+            }
+            List<PostQueryRow> rows = postMapper.selectPublicRowsByIds(hit.getIds(), currentUserId);
+            Map<Long, PostQueryRow> rowById = rows.stream()
+                    .collect(Collectors.toMap(PostQueryRow::getId, Function.identity()));
+            List<PostDTO> result = new ArrayList<>();
+            for (Long postId : hit.getIds()) {
+                PostQueryRow row = rowById.get(postId);
+                if (row == null) {
+                    continue;
+                }
+                PostDTO dto = postAssembler.toPostDTO(row);
+                dto.setHighlights(hit.getHighlights().get(postId));
+                result.add(dto);
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("Elasticsearch search failed, fallback to MySQL LIKE. keyword: {}", keyword, e);
+            return null;
+        }
+    }
+
+    /** MySQL 降级路径的高亮片段：命中标题/正文时截取关键词附近内容并加 <em> 标记。 */
+    private Map<String, String> buildFallbackHighlights(String keyword, PostQueryRow row) {
+        Map<String, String> highlights = new HashMap<>();
+        if (row.getTitle() != null && row.getTitle().contains(keyword)) {
+            highlights.put("title", highlightPlain(row.getTitle(), keyword));
+        }
+        if (row.getContent() != null && row.getContent().contains(keyword)) {
+            highlights.put("content", highlightPlain(row.getContent(), keyword));
+        }
+        return highlights;
+    }
+
+    /** 关键词首次出现位置前后各取 FALLBACK_HIGHLIGHT_MARGIN 字符，两侧截断补省略号。 */
+    private String highlightPlain(String text, String keyword) {
+        int index = text.indexOf(keyword);
+        int start = Math.max(0, index - FALLBACK_HIGHLIGHT_MARGIN);
+        int end = Math.min(text.length(), index + keyword.length() + FALLBACK_HIGHLIGHT_MARGIN);
+        StringBuilder fragment = new StringBuilder();
+        if (start > 0) {
+            fragment.append("…");
+        }
+        fragment.append(text, start, index)
+                .append("<em>").append(keyword).append("</em>")
+                .append(text, index + keyword.length(), end);
+        if (end < text.length()) {
+            fragment.append("…");
+        }
+        return fragment.toString();
     }
 
     public boolean isDuplicateContent(Long userId, String title, String content) {

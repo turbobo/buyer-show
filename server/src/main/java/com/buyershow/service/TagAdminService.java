@@ -3,6 +3,7 @@ package com.buyershow.service;
 import com.buyershow.common.ErrorCode;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.common.search.PostIndexEvents;
 import com.buyershow.dto.request.TagOperationRequest;
 import com.buyershow.dto.response.TagStatDTO;
 import com.buyershow.entity.Post;
@@ -12,6 +13,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class TagAdminService {
     private final PostMapper postMapper;
     private final AdminAuditService adminAuditService;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 标签聚合统计（按使用量倒序，可按关键词过滤）。
@@ -66,6 +69,10 @@ public class TagAdminService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "新标签与原名相同");
         }
         int affected = replaceTag(source, target);
+        // G5：标签变更影响索引中 tags 字段，事务提交后异步全量重建（失败仅告警）
+        if (affected > 0) {
+            eventPublisher.publishEvent(new PostIndexEvents.AllRebuildRequested());
+        }
         adminAuditService.log(adminId, "RENAME_TAG", "TAG", 0L,
                 String.format("「%s」→「%s」（影响 %d 篇）", source, target, affected));
         return affected;
@@ -87,6 +94,10 @@ public class TagAdminService {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "目标标签与来源相同");
         }
         int affected = replaceTag(source, target);
+        // G5：标签合并影响索引中 tags 字段，事务提交后异步全量重建（失败仅告警）
+        if (affected > 0) {
+            eventPublisher.publishEvent(new PostIndexEvents.AllRebuildRequested());
+        }
         adminAuditService.log(adminId, "MERGE_TAG", "TAG", 0L,
                 String.format("「%s」并入「%s」（影响 %d 篇）", source, target, affected));
         return affected;
@@ -111,6 +122,10 @@ public class TagAdminService {
                     .toList();
             updatePostTags(post.getId(), new ArrayList<>(updated));
             affected++;
+        }
+        // G5：标签删除影响索引中 tags 字段，事务提交后异步全量重建（失败仅告警）
+        if (affected > 0) {
+            eventPublisher.publishEvent(new PostIndexEvents.AllRebuildRequested());
         }
         adminAuditService.log(adminId, "DELETE_TAG", "TAG", 0L,
                 String.format("「%s」（影响 %d 篇）", source, affected));

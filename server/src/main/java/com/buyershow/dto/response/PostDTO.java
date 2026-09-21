@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -41,4 +42,7 @@ public class PostDTO {
 
     /** 正文 @提及的昵称到用户映射（G4；仅详情接口实时解析返回，供前端高亮跳转）。 */
     private List<MentionDTO> mentions;
+
+    /** ES 搜索高亮片段（G5；字段名 -> 含 <em> 标记的 HTML 片段，仅搜索接口返回，前端拆分渲染）。 */
+    private Map<String, String> highlights;
 }

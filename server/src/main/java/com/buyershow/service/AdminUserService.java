@@ -9,6 +9,7 @@ import com.buyershow.common.UserRole;
 import com.buyershow.common.UserStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
+import com.buyershow.common.search.PostIndexEvents;
 import com.buyershow.dto.response.AdminUserDTO;
 import com.buyershow.dto.response.AdminUserPostDTO;
 import com.buyershow.dto.response.ModerationPostDTO;
@@ -19,6 +20,7 @@ import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -42,6 +44,7 @@ public class AdminUserService {
     private final UserMapper userMapper;
     private final PostMapper postMapper;
     private final AdminAuditService adminAuditService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 用户列表（昵称/用户名模糊搜索 + 状态筛选 + 分页）。
@@ -84,6 +87,8 @@ public class AdminUserService {
         if (userMapper.banUser(userId) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可封禁正常状态的用户");
         }
+        // G5：封禁用户时移除其全部索引文档（事务提交后异步，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.UserPostsRemoved(userId));
         adminAuditService.log(adminId, "BAN_USER", "USER", userId, trimToNull(reason));
         log.info("Admin ban user. adminId: {}, targetUserId: {}, reason: {}", adminId, userId, trimToNull(reason));
     }
@@ -101,6 +106,8 @@ public class AdminUserService {
         if (userMapper.unbanUser(userId) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可解封已封禁的用户");
         }
+        // G5：解封后重建该用户公开帖索引（事务提交后异步，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.UserPostsRebuildRequested(userId));
         adminAuditService.log(adminId, "UNBAN_USER", "USER", userId, null);
         log.info("Admin unban user. adminId: {}, targetUserId: {}", adminId, userId);
     }
@@ -165,6 +172,8 @@ public class AdminUserService {
         if (affected == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可封禁公开中的帖子");
         }
+        // G5：封禁帖子同步移除索引文档（事务提交后异步，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.PostIndexRemoved(postId));
         adminAuditService.log(adminId, "BAN_POST", "POST", postId, finalReason);
         log.info("Admin ban post. adminId: {}, postId: {}, reason: {}", adminId, postId, finalReason);
     }
@@ -185,6 +194,8 @@ public class AdminUserService {
         if (postMapper.approveRejected(postId, adminId, LocalDateTime.now()) == 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "仅可解封已封禁的帖子");
         }
+        // G5：解封后重新入搜索索引（事务提交后异步，失败仅告警）
+        eventPublisher.publishEvent(new PostIndexEvents.PostIndexRequested(postId));
         adminAuditService.log(adminId, "UNBAN_POST", "POST", postId, null);
         log.info("Admin unban post. adminId: {}, postId: {}", adminId, postId);
     }

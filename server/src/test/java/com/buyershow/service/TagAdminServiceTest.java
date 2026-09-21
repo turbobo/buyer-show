@@ -10,6 +10,7 @@ import com.buyershow.mapper.PostMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -34,7 +35,9 @@ class TagAdminServiceTest {
 
     private final PostMapper postMapper = mock(PostMapper.class);
     private final AdminAuditService adminAuditService = mock(AdminAuditService.class);
-    private final TagAdminService service = new TagAdminService(postMapper, adminAuditService, new ObjectMapper());
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final TagAdminService service = new TagAdminService(
+            postMapper, adminAuditService, new ObjectMapper(), eventPublisher);
 
     @AfterEach
     void tearDown() {
