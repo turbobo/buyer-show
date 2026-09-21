@@ -106,6 +106,13 @@ public class UserController {
         return R.ok(userService.updateCurrentUserProfile(request));
     }
 
+    /** 注销账号（软注销，不可逆）：软删全部帖子 + 置注销状态，之后登录被拒。 */
+    @DeleteMapping("/me")
+    public R<Void> deactivateCurrentUser() {
+        userService.deactivateCurrentUser();
+        return R.ok();
+    }
+
     /** 拉黑用户（G6）：内容互不可见 + 禁私信 + 自动双向取关。 */
     @PostMapping("/{userId}/block")
     public R<Boolean> blockUser(@PathVariable Long userId) {

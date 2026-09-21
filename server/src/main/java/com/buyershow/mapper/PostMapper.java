@@ -291,6 +291,14 @@ public interface PostMapper extends BaseMapper<Post> {
     @Update("UPDATE posts SET status = 2 WHERE id = #{postId} AND user_id = #{userId} AND status <> 2")
     int softDeleteOwned(@Param("postId") Long postId, @Param("userId") Long userId);
 
+    /** 账号注销：批量软删本人全部未删除帖子。 */
+    @Update("UPDATE posts SET status = 2 WHERE user_id = #{userId} AND status <> 2")
+    int softDeleteAllByUserId(@Param("userId") Long userId);
+
+    /** 账号注销：查本人全部未删除帖子 ID（用于 ES 索引异步清理）。 */
+    @Select("SELECT id FROM posts WHERE user_id = #{userId} AND status <> 2")
+    List<Long> selectPostIdsByUserId(@Param("userId") Long userId);
+
     @Update("UPDATE posts SET status = 2 WHERE id = #{postId} AND status <> 2")
     int softDeleteAsAdmin(@Param("postId") Long postId);
 

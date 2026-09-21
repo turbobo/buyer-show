@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Ban, BarChart3, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Ban, BarChart3, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/components/ui/toast'
 import { Textarea } from '@/components/ui/textarea'
-import { getAccessToken, getTokenUserId } from '@/services/http'
+import { clearTokens, getAccessToken, getTokenUserId } from '@/services/http'
 import type { UserProfile } from '@/services/auth'
-import { fetchMe } from '@/hooks/use-me'
-import { blockUser, getBlockedUsers, getMyFolders, getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow, unblockUser, type BlockedUser, type FavoriteFolder } from '@/services/users'
+import { fetchMe, useSessionCache } from '@/hooks/use-me'
+import { blockUser, deactivateAccount, getBlockedUsers, getMyFolders, getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow, unblockUser, type BlockedUser, type FavoriteFolder } from '@/services/users'
 import { startConversation } from '@/services/messages'
 import { FavoriteFolderManager } from '@/flows/profile/favorite-folder-manager'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -18,6 +18,7 @@ import { AppDialog } from '@/components/ui/app-dialog'
 import { ErrorState } from '@/components/ui/error-state'
 import { MyCommentsPanel } from '@/flows/profile/my-comments'
 import { smartBack } from '@/lib/smart-back'
+import { useUiStore } from '@/stores/ui-store'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
 type ProfileTab = 'posts' | 'favorites' | 'likes' | 'comments' | 'blocks'
@@ -140,6 +141,9 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [appealTarget, setAppealTarget] = useState<ApiPostSummary | null>(null)
   const [appealReason, setAppealReason] = useState('')
   const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
+  /** 注销账号（软注销，不可逆）：ConfirmDialog 二次确认 + 成功清会话跳首页 */
+  const [pendingDeactivate, setPendingDeactivate] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
   /** G7 收藏夹：夹列表 + 当前筛选（null=全部） + 管理弹窗 */
   const [folders, setFolders] = useState<FavoriteFolder[]>([])
   const [activeFolderId, setActiveFolderId] = useState<number | null>(null)
@@ -148,6 +152,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const profileRef = useRef<UserProfile | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const isLoggedIn = getAccessToken() != null
+  const { clearSessionCache } = useSessionCache()
   const isOwn = self || (profile != null && getTokenUserId() === profile.id)
   // 「评论」仅在本人主页可见（隐私：评论互动上下文不对外）；「拉黑」管理仅本人可见
   const visibleTabs = isOwn
@@ -370,6 +375,24 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     }
   }
 
+  /** 注销账号：软删全部帖子并置注销状态，不可逆；成功后清会话缓存回首页。 */
+  const handleConfirmDeactivate = async () => {
+    setIsDeactivating(true)
+    try {
+      await deactivateAccount()
+      clearTokens()
+      clearSessionCache()
+      useUiStore.getState().setUnreadCount(0)
+      setPendingDeactivate(false)
+      toast('success', '账号已注销，感谢使用')
+      navigate('/')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '注销失败，请稍后重试')
+    } finally {
+      setIsDeactivating(false)
+    }
+  }
+
   const emptyText = activeTab === 'favorites'
     ? '还没有收藏'
     : activeTab === 'likes'
@@ -467,6 +490,13 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                     onClick={() => navigate('/profile/creator-stats')}
                   >
                     <BarChart3 className="mr-1 h-4 w-4" />创作数据
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => setPendingDeactivate(true)}
+                  >
+                    <UserX className="mr-1 h-4 w-4" />注销账号
                   </Button>
                 </>
               ) : (
@@ -720,6 +750,18 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           aria-label="申诉理由"
         />
       </AppDialog>
+
+      {/* ─── 注销账号确认（软注销，不可逆） ─── */}
+      <ConfirmDialog
+        open={pendingDeactivate}
+        title="确定注销账号？"
+        description="注销后你的全部分享将不可见、账号无法登录，且不可恢复。"
+        confirmText="确认注销"
+        destructive
+        isSubmitting={isDeactivating}
+        onConfirm={() => void handleConfirmDeactivate()}
+        onCancel={() => setPendingDeactivate(false)}
+      />
 
       {/* ─── 收藏夹管理（G7） ─── */}
       <FavoriteFolderManager

@@ -91,6 +91,11 @@ export function updateProfile(payload: UpdateProfilePayload): Promise<UserProfil
   return request<UserProfile>('/users/me', { method: 'PUT', body: JSON.stringify(payload) })
 }
 
+/** 注销账号（软注销，不可逆）：软删全部帖子并置注销状态，之后登录被拒。 */
+export function deactivateAccount(): Promise<void> {
+  return request<void>('/users/me', { method: 'DELETE' })
+}
+
 /* ─── G7 收藏夹 ─── */
 
 export interface FavoriteFolder {
