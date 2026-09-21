@@ -59,6 +59,7 @@ public class PostService {
     private final ContentModerationService contentModerationService;
     private final UploadService uploadService;
     private final NotificationService notificationService;
+    private final FavoriteFolderService favoriteFolderService;
     private final PostSearchIndexService postSearchIndexService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -136,14 +137,15 @@ public class PostService {
      * @param userId 目标用户ID
      * @param cursor 游标（上一页最后一条收藏关系的ID编码）
      * @param requestedLimit 每页数量
+     * @param folderId 收藏夹筛选（G7）：null 表示全部收藏夹；仅限本人主页按夹浏览时传入
      * @return 帖子游标页
      */
-    public CursorPage<PostDTO> listUserFavorites(Long userId, String cursor, int requestedLimit) {
+    public CursorPage<PostDTO> listUserFavorites(Long userId, String cursor, int requestedLimit, Long folderId) {
         requireActiveUser(userId);
         int limit = normalizePageSize(requestedLimit);
         Long cursorId = CursorUtils.decode(cursor);
         Long currentUserId = SecurityUtils.getCurrentUserId();
-        List<PostQueryRow> rows = postMapper.selectUserFavoriteRows(userId, cursorId, limit + 1, currentUserId);
+        List<PostQueryRow> rows = postMapper.selectUserFavoriteRows(userId, cursorId, limit + 1, currentUserId, folderId);
 
         return toCursorPage(rows, limit);
     }
@@ -485,10 +487,20 @@ public class PostService {
         return true;
     }
 
+    /**
+     * 切换收藏（G7）：已收藏则取消；未收藏时收藏到指定收藏夹（folderId 为空表示默认夹）。
+     *
+     * @param postId 帖子ID
+     * @param folderId 目标收藏夹ID（仅新增收藏时生效；null = 默认收藏夹）
+     * @return true 表示已收藏，false 表示已取消
+     */
     @Transactional
-    public boolean toggleFavorite(Long postId) {
+    public boolean toggleFavorite(Long postId, Long folderId) {
         Long userId = requireCurrentUserId();
         requireActivePost(postId);
+        if (folderId != null) {
+            favoriteFolderService.requireOwnFolder(userId, folderId);
+        }
 
         int deleted = favoriteMapper.deleteRelation(userId, postId);
         if (deleted > 0) {
@@ -496,7 +508,7 @@ public class PostService {
             return false;
         }
 
-        int inserted = favoriteMapper.insertIgnore(userId, postId);
+        int inserted = favoriteMapper.insertIgnore(userId, postId, folderId);
         if (inserted > 0) {
             postMapper.adjustFavoriteCount(postId, 1);
         }

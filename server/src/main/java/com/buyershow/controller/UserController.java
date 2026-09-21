@@ -42,13 +42,14 @@ public class UserController {
         return R.ok(postService.listUserPosts(userId, cursor, size));
     }
 
-    /** 获取指定用户收藏的公开帖子（游标分页）。 */
+    /** 获取指定用户收藏的公开帖子（游标分页；folderId 收藏夹筛选，G7）。 */
     @GetMapping("/{userId}/favorites")
     public R<CursorPage<PostDTO>> getUserFavorites(
             @PathVariable Long userId,
             @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) Long folderId,
             @RequestParam(defaultValue = "20") int size) {
-        return R.ok(postService.listUserFavorites(userId, cursor, size));
+        return R.ok(postService.listUserFavorites(userId, cursor, size, folderId));
     }
 
     /** 获取指定用户点赞过的公开帖子（游标分页）。 */

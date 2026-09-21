@@ -70,9 +70,11 @@ public class PostController {
         return R.ok(Map.of("liked", liked));
     }
 
+    /** 切换收藏（G7）：body 可选 folderId，收藏到指定夹；已收藏则取消。 */
     @PostMapping("/{id}/favorite")
-    public R<Map<String, Boolean>> toggleFavorite(@PathVariable Long id) {
-        boolean favorited = postService.toggleFavorite(id);
+    public R<Map<String, Boolean>> toggleFavorite(@PathVariable Long id,
+            @RequestBody(required = false) com.buyershow.dto.request.FavoriteRequest request) {
+        boolean favorited = postService.toggleFavorite(id, request == null ? null : request.getFolderId());
         return R.ok(Map.of("favorited", favorited));
     }
 

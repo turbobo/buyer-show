@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Ban, Heart, Home, Loader2, MessageSquare, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Ban, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -10,8 +10,9 @@ import { Textarea } from '@/components/ui/textarea'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import type { UserProfile } from '@/services/auth'
 import { fetchMe } from '@/hooks/use-me'
-import { blockUser, getBlockedUsers, getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow, unblockUser, type BlockedUser } from '@/services/users'
+import { blockUser, getBlockedUsers, getMyFolders, getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow, unblockUser, type BlockedUser, type FavoriteFolder } from '@/services/users'
 import { startConversation } from '@/services/messages'
+import { FavoriteFolderManager } from '@/flows/profile/favorite-folder-manager'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDialog } from '@/components/ui/app-dialog'
 import { ErrorState } from '@/components/ui/error-state'
@@ -139,6 +140,10 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [appealTarget, setAppealTarget] = useState<ApiPostSummary | null>(null)
   const [appealReason, setAppealReason] = useState('')
   const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
+  /** G7 收藏夹：夹列表 + 当前筛选（null=全部） + 管理弹窗 */
+  const [folders, setFolders] = useState<FavoriteFolder[]>([])
+  const [activeFolderId, setActiveFolderId] = useState<number | null>(null)
+  const [isFolderManagerOpen, setIsFolderManagerOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const profileRef = useRef<UserProfile | null>(null)
   const loadMoreRef = useRef<HTMLDivElement>(null)
@@ -190,7 +195,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         return
       }
       const page = activeTab === 'favorites'
-        ? await getUserFavorites(targetProfile.id, nextCursor)
+        ? await getUserFavorites(targetProfile.id, nextCursor, activeFolderId ?? undefined)
         : activeTab === 'likes'
           ? await getUserLikes(targetProfile.id, nextCursor)
           : self ? await getMyPosts(nextCursor) : await getUserPosts(targetProfile.id, nextCursor)
@@ -206,7 +211,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
       setIsListLoading(false)
       setIsLoadingMore(false)
     }
-  }, [self, params.userId, activeTab, queryClient])
+  }, [self, params.userId, activeTab, activeFolderId, queryClient])
 
   useEffect(() => { void loadPage() }, [loadPage])
 
@@ -225,6 +230,30 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     observer.observe(el)
     return () => observer.disconnect()
   }, [hasMore, isLoading, isLoadingMore, cursor, loadPage])
+
+  /** G7：本人主页收藏 tab 时加载收藏夹列表（失败静默，chips 仅显示「全部」）。 */
+  const loadFolders = useCallback(async () => {
+    if (!isOwn) return
+    try {
+      setFolders(await getMyFolders())
+    } catch {
+      setFolders([])
+    }
+  }, [isOwn])
+
+  useEffect(() => {
+    if (isOwn && activeTab === 'favorites') {
+      void loadFolders()
+    }
+  }, [isOwn, activeTab, loadFolders])
+
+  /** 切 tab：离开收藏 tab 时重置夹筛选。 */
+  const handleTabChange = (tab: ProfileTab) => {
+    if (tab !== 'favorites') {
+      setActiveFolderId(null)
+    }
+    setActiveTab(tab)
+  }
 
   const handleFollow = async () => {
     if (!profile) return
@@ -487,7 +516,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 className={`flex-1 border-b-2 px-3 pb-3 pt-2 text-sm font-medium transition-colors ${
                   activeTab === tab.key
                     ? 'border-coral text-coral'
@@ -498,6 +527,59 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
               </button>
             ))}
           </div>
+          {/* G7：本人主页收藏 tab 的收藏夹筛选与管理（activeFolderId：null=全部、0=默认夹、>0=指定夹） */}
+          {isOwn && activeTab === 'favorites' && (
+            <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
+              <button
+                type="button"
+                onClick={() => setActiveFolderId(null)}
+                className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeFolderId === null
+                    ? 'bg-coral text-white'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                全部
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveFolderId(0)}
+                className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeFolderId === 0
+                    ? 'bg-coral text-white'
+                    : 'bg-muted text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <FolderPlus className="size-3" />
+                默认收藏夹
+              </button>
+              {folders.map((folder) => (
+                <button
+                  key={folder.id}
+                  type="button"
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                    activeFolderId === folder.id
+                      ? 'bg-coral text-white'
+                      : 'bg-muted text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <FolderPlus className="size-3" />
+                  {folder.name}
+                  <span className="opacity-70">{folder.postCount}</span>
+                </button>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto shrink-0"
+                onClick={() => setIsFolderManagerOpen(true)}
+              >
+                <Settings2 className="mr-1 size-3.5" />
+                管理
+              </Button>
+            </div>
+          )}
           {activeTab === 'comments' ? (
             <MyCommentsPanel />
           ) : activeTab === 'blocks' ? (
@@ -629,6 +711,13 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           aria-label="申诉理由"
         />
       </AppDialog>
+
+      {/* ─── 收藏夹管理（G7） ─── */}
+      <FavoriteFolderManager
+        isOpen={isFolderManagerOpen}
+        onChanged={() => void loadFolders()}
+        onClose={() => setIsFolderManagerOpen(false)}
+      />
     </div>
   )
 }

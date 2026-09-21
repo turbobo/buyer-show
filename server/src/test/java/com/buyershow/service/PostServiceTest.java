@@ -56,11 +56,12 @@ class PostServiceTest {
     private final ContentModerationService contentModerationService = mock(ContentModerationService.class);
     private final UploadService uploadService = mock(UploadService.class);
     private final NotificationService notificationService = mock(NotificationService.class);
+    private final FavoriteFolderService favoriteFolderService = mock(FavoriteFolderService.class);
     private final PostSearchIndexService postSearchIndexService = mock(PostSearchIndexService.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final PostService postService = new PostService(postMapper, userMapper, likeMapper,
             favoriteMapper, postAssembler, contentModerationService, uploadService, notificationService,
-            postSearchIndexService, eventPublisher);
+            favoriteFolderService, postSearchIndexService, eventPublisher);
 
     @Test
     void testListUserPostsReturnsCursorPage() {
@@ -299,12 +300,12 @@ class PostServiceTest {
     void testListUserFavoritesUsesRelationCursor() {
         SecurityContextHolder.clearContext();
         when(userMapper.selectById(10L)).thenReturn(activeUser(10L));
-        when(postMapper.selectUserFavoriteRows(eq(10L), isNull(), eq(3), isNull()))
+        when(postMapper.selectUserFavoriteRows(eq(10L), isNull(), eq(3), isNull(), isNull()))
                 .thenReturn(List.of(cursorRow(100L, 501L), cursorRow(99L, 499L), cursorRow(98L, 497L)));
         when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
                 PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId()).build());
 
-        CursorPage<PostDTO> page = postService.listUserFavorites(10L, null, 2);
+        CursorPage<PostDTO> page = postService.listUserFavorites(10L, null, 2, null);
 
         assertEquals(2, page.getList().size());
         assertTrue(page.isHasMore());

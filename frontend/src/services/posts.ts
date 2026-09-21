@@ -95,6 +95,11 @@ export function toggleLike(postId: string): Promise<{ liked: boolean }> {
   return request<{ liked: boolean }>(`/posts/${postId}/like`, { method: 'POST' })
 }
 
-export function toggleFavorite(postId: string): Promise<{ favorited: boolean }> {
-  return request<{ favorited: boolean }>(`/posts/${postId}/favorite`, { method: 'POST' })
+/** 切换收藏（G7：folderId 收藏到指定夹，不传则默认收藏夹） */
+export function toggleFavorite(postId: string, folderId?: number): Promise<{ favorited: boolean }> {
+  const options: RequestInit = { method: 'POST' }
+  if (folderId != null) {
+    options.body = JSON.stringify({ folderId })
+  }
+  return request<{ favorited: boolean }>(`/posts/${postId}/favorite`, options)
 }

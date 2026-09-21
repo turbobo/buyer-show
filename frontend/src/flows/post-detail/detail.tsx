@@ -12,6 +12,7 @@ import { PostContent, buildPostJsonLd } from './post-content'
 import { DetailError, DetailSkeleton } from './detail-states'
 import { ActionBar } from './action-bar'
 import { AppealDialog } from './appeal-dialog'
+import { FavoriteFolderPicker } from './favorite-folder-picker'
 import { ApiError, getTokenUserId } from '@/services/http'
 import { blockUser } from '@/services/users'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -83,6 +84,8 @@ export default function PostDetailScreen() {
   const [isAppealOpen, setIsAppealOpen] = useState(false)
   const [appealReason, setAppealReason] = useState('')
   const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
+  /** G7 收藏夹选择器（未收藏时点击收藏先选夹） */
+  const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false)
 
   const handleSubmitAppeal = async () => {
     if (!post) return
@@ -183,11 +186,22 @@ export default function PostDetailScreen() {
     }
   }
 
-  const handleFavorite = async () => {
+  /** G7：已收藏直接取消；未收藏先弹收藏夹选择器。 */
+  const handleFavorite = () => {
+    if (!postId || isFavoriteSubmitting) return
+    if (post?.isFavorited) {
+      void doToggleFavorite()
+      return
+    }
+    setIsFolderPickerOpen(true)
+  }
+
+  /** 执行收藏/取消（folderId 为空 = 默认收藏夹）。 */
+  const doToggleFavorite = async (folderId?: number) => {
     if (!postId || isFavoriteSubmitting) return
     setIsFavoriteSubmitting(true)
     try {
-      const result = await toggleFavorite(postId)
+      const result = await toggleFavorite(postId, folderId)
       setPost((current) => current && ({
         ...current,
         isFavorited: result.favorited,
@@ -567,6 +581,18 @@ export default function PostDetailScreen() {
         onReasonChange={setAppealReason}
         onSubmit={() => void handleSubmitAppeal()}
         onClose={() => { setIsAppealOpen(false); setAppealReason('') }}
+      />
+
+      {/* 收藏夹选择器（G7：未收藏时点击收藏先选夹） */}
+      <FavoriteFolderPicker
+        postTitle={post?.title ?? null}
+        isOpen={isFolderPickerOpen}
+        isSubmitting={isFavoriteSubmitting}
+        onSelect={(folderId) => {
+          setIsFolderPickerOpen(false)
+          void doToggleFavorite(folderId ?? undefined)
+        }}
+        onClose={() => setIsFolderPickerOpen(false)}
       />
 
       {/* 拉黑评论作者（G6：破坏性操作统一 ConfirmDialog） */}

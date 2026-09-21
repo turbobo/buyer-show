@@ -14,6 +14,9 @@ public class Favorite {
     private Long userId;
     private Long postId;
 
+    /** 所属收藏夹（G7）：null 表示默认收藏夹。 */
+    private Long folderId;
+
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

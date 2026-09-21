@@ -200,6 +200,12 @@ public interface PostMapper extends BaseMapper<Post> {
             "WHERE fav.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
             "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
             "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
+            "<if test='folderId != null and folderId > 0'>",
+            "  AND fav.folder_id = #{folderId}",
+            "</if>",
+            "<if test='folderId != null and folderId == 0'>",
+            "  AND fav.folder_id IS NULL",
+            "</if>",
             "<if test='cursorId != null'>",
             "  AND fav.id &lt; #{cursorId}",
             "</if>",
@@ -211,7 +217,8 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("userId") Long userId,
             @Param("cursorId") Long cursorId,
             @Param("limit") int limit,
-            @Param("currentUserId") Long currentUserId);
+            @Param("currentUserId") Long currentUserId,
+            @Param("folderId") Long folderId);
 
     @Select({
             "<script>",

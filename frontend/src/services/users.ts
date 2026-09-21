@@ -19,9 +19,12 @@ export function getMyPosts(cursor?: string): Promise<CursorPage<ApiPostSummary>>
   return request<CursorPage<ApiPostSummary>>(`/users/me/posts${query}`)
 }
 
-/** 用户收藏的公开帖子（按收藏时间倒序） */
-export function getUserFavorites(userId: number | string, cursor?: string): Promise<CursorPage<ApiPostSummary>> {
-  const query = cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''
+/** 用户收藏的公开帖子（按收藏时间倒序；G7：folderId 收藏夹筛选） */
+export function getUserFavorites(userId: number | string, cursor?: string, folderId?: number): Promise<CursorPage<ApiPostSummary>> {
+  const params = new URLSearchParams()
+  if (cursor) params.set('cursor', cursor)
+  if (folderId != null) params.set('folderId', String(folderId))
+  const query = params.size > 0 ? `?${params.toString()}` : ''
   return request<CursorPage<ApiPostSummary>>(`/users/${userId}/favorites${query}`)
 }
 
@@ -86,4 +89,34 @@ export interface UpdateProfilePayload {
 
 export function updateProfile(payload: UpdateProfilePayload): Promise<UserProfile> {
   return request<UserProfile>('/users/me', { method: 'PUT', body: JSON.stringify(payload) })
+}
+
+/* ─── G7 收藏夹 ─── */
+
+export interface FavoriteFolder {
+  id: number
+  name: string
+  postCount: number
+}
+
+/** 我的收藏夹列表（含收藏数；默认夹由前端合成） */
+export function getMyFolders(): Promise<FavoriteFolder[]> {
+  return request<FavoriteFolder[]>('/users/me/folders')
+}
+
+export function createFolder(name: string): Promise<FavoriteFolder> {
+  return request<FavoriteFolder>('/users/me/folders', { method: 'POST', body: JSON.stringify({ name }) })
+}
+
+export function renameFolder(folderId: number, name: string): Promise<void> {
+  return request<void>(`/users/me/folders/${folderId}`, { method: 'PUT', body: JSON.stringify({ name }) })
+}
+
+export function deleteFolder(folderId: number): Promise<void> {
+  return request<void>(`/users/me/folders/${folderId}`, { method: 'DELETE' })
+}
+
+/** 移动收藏到指定夹（folderId 为 null 表示默认夹） */
+export function moveFavorite(postId: number | string, folderId: number | null): Promise<void> {
+  return request<void>(`/users/me/favorites/${postId}/move`, { method: 'POST', body: JSON.stringify({ folderId }) })
 }
