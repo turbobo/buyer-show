@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { login, register, getCaptcha, type CaptchaData } from '@/services/auth'
@@ -30,6 +30,7 @@ export default function LoginScreen() {
   const [captcha, setCaptcha] = useState<CaptchaData | null>(null)
   const [captchaCode, setCaptchaCode] = useState('')
   const [showLoginCaptcha, setShowLoginCaptcha] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   const reloadCaptcha = useCallback(async () => {
     try {
@@ -170,15 +171,25 @@ export default function LoginScreen() {
               className="h-11"
             />
           )}
-          <Input
-            aria-label="密码"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            placeholder="密码（至少6位）"
-            type="password"
-            autoComplete={isRegistering ? 'new-password' : 'current-password'}
-            className="h-11"
-          />
+          <div className="relative">
+            <Input
+              aria-label="密码"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="密码（至少6位）"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete={isRegistering ? 'new-password' : 'current-password'}
+              className="h-11 pr-11"
+            />
+            <button
+              type="button"
+              aria-label={showPassword ? '隐藏密码' : '显示密码'}
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-coral"
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
           {!isRegistering && showLoginCaptcha && (
             <div className="flex items-center gap-2">
               <Input

@@ -142,9 +142,14 @@ export function ImageFullscreenViewer({ images, initialIndex, onClose }: ImageFu
         <img
           src={images[currentIndex]}
           alt={`图片 ${currentIndex + 1}`}
-          className="max-w-full max-h-full object-contain transition-transform duration-200"
+          draggable={false}
+          className={`max-w-full max-h-full object-contain transition-transform duration-200 select-none ${scale > 1 ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}
           style={{ transform: `scale(${scale})` }}
           onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            setScale((prev) => (prev > 1 ? 1 : 2))
+          }}
         />
 
         {/* 左右切换按钮 */}

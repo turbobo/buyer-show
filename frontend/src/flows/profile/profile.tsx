@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Ban, BarChart3, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
+import { ArrowLeft, Ban, BarChart3, FolderPlus, Heart, Home, Loader2, MessageSquare, Monitor, Moon, Pencil, Settings2, Sun, Trash2, UserCheck, UserPlus, UserX } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -19,6 +19,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { MyCommentsPanel } from '@/flows/profile/my-comments'
 import { smartBack } from '@/lib/smart-back'
 import { useUiStore } from '@/stores/ui-store'
+import { useTheme } from '@/hooks/use-theme'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
 type ProfileTab = 'posts' | 'favorites' | 'likes' | 'comments' | 'blocks'
@@ -122,6 +123,7 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const params = useParams<{ userId: string }>()
   const { toast } = useToast()
   const queryClient = useQueryClient()
+  const { theme, setTheme } = useTheme()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [posts, setPosts] = useState<ApiPostSummary[]>([])
   const [cursor, setCursor] = useState<string | null>(null)
@@ -413,6 +415,16 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           </Button>
         </div>
         <h1 className="text-lg font-bold text-foreground">{self ? '我的主页' : '个人主页'}</h1>
+        <div className="ml-auto">
+          <Button
+            aria-label={`切换主题（当前：${theme === 'system' ? '跟随系统' : theme === 'light' ? '浅色' : '深色'}）`}
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'system' ? 'light' : theme === 'light' ? 'dark' : 'system')}
+          >
+            {theme === 'system' ? <Monitor className="h-5 w-5" /> : theme === 'light' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+          </Button>
+        </div>
       </div>
     </nav>
   )
