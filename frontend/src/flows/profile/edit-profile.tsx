@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
-import { ArrowLeft, Camera, Home, Loader2 } from 'lucide-react'
+import { ArrowLeft, Camera, Home, Loader2, UserX } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -9,12 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
-import { ApiError } from '@/services/http'
+import { ApiError, clearTokens } from '@/services/http'
 import { getCurrentUserProfile, type UserProfile } from '@/services/auth'
-import { updateProfile } from '@/services/users'
+import { deactivateAccount, updateProfile } from '@/services/users'
 import { uploadImage, validateImageFile } from '@/services/uploads'
 import { smartBack } from '@/lib/smart-back'
 import { useSessionCache } from '@/hooks/use-me'
+import { useUiStore } from '@/stores/ui-store'
 
 const NICKNAME_MAX = 20
 const BIO_MAX = 100
@@ -27,7 +28,7 @@ const NICKNAME_EXISTS_CODE = 2003
 export default function EditProfileScreen() {
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { setMe } = useSessionCache()
+  const { setMe, clearSessionCache } = useSessionCache()
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [nickname, setNickname] = useState('')
   const [bio, setBio] = useState('')
@@ -37,6 +38,9 @@ export default function EditProfileScreen() {
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  /** 账号注销（软注销，不可逆）：低频操作，从主页下沉至编辑资料页底部危险区。 */
+  const [pendingDeactivate, setPendingDeactivate] = useState(false)
+  const [isDeactivating, setIsDeactivating] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const initial = useMemo(() => ({
@@ -135,6 +139,24 @@ export default function EditProfileScreen() {
       }
     } finally {
       setIsSaving(false)
+    }
+  }
+
+  /** 注销账号：软删全部帖子并置注销状态，不可逆；成功后清会话缓存回首页。 */
+  const handleConfirmDeactivate = async () => {
+    setIsDeactivating(true)
+    try {
+      await deactivateAccount()
+      clearTokens()
+      clearSessionCache()
+      useUiStore.getState().setUnreadCount(0)
+      setPendingDeactivate(false)
+      toast('success', '账号已注销，感谢使用')
+      navigate('/')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '注销失败，请稍后重试')
+    } finally {
+      setIsDeactivating(false)
     }
   }
 
@@ -276,6 +298,21 @@ export default function EditProfileScreen() {
             {isSaving ? '保存中...' : '保存'}
           </Button>
         </div>
+
+        {/* ─── 账号注销（低频操作，深层入口：仅本页底部危险区展示） ─── */}
+        <section className="mx-auto max-w-3xl rounded-2xl border border-border/60 bg-card p-5">
+          <h2 className="text-base font-semibold text-foreground">账号注销</h2>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            注销后你的全部分享将不可见、账号无法登录，且不可恢复。请谨慎操作。
+          </p>
+          <Button
+            variant="outline"
+            className="mt-3 text-destructive hover:bg-destructive/10"
+            onClick={() => setPendingDeactivate(true)}
+          >
+            <UserX className="mr-1 h-4 w-4" />注销账号
+          </Button>
+        </section>
       </main>
 
       {/* 放弃修改确认（U34：统一 ConfirmDialog） */}
@@ -288,6 +325,18 @@ export default function EditProfileScreen() {
         destructive
         onConfirm={() => { setShowLeaveConfirm(false); smartBack() }}
         onCancel={() => setShowLeaveConfirm(false)}
+      />
+
+      {/* 账号注销确认（软注销，不可逆） */}
+      <ConfirmDialog
+        open={pendingDeactivate}
+        title="确定注销账号？"
+        description="注销后你的全部分享将不可见、账号无法登录，且不可恢复。"
+        confirmText="确认注销"
+        destructive
+        isSubmitting={isDeactivating}
+        onConfirm={() => void handleConfirmDeactivate()}
+        onCancel={() => setPendingDeactivate(false)}
       />
     </div>
   )

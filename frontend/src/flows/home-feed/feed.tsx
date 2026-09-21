@@ -506,6 +506,11 @@ export default function HomeFeedScreen() {
                 <Icon className={`h-5 w-5 ${isActive ? 'stroke-[2.5px]' : ''}`} />
               )}
               <span className={`text-[10px] ${isPublish ? 'text-coral font-medium' : ''}`}>{tab.label}</span>
+              {tab.key === 'messages' && unreadCount > 0 && (
+                <span className="absolute left-1/2 top-1.5 flex h-4 min-w-4 -translate-x-1 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-medium text-white">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
               {isActive && !isPublish && (
                 <span className="absolute bottom-1.5 h-0.5 w-5 rounded-full bg-coral" />
               )}

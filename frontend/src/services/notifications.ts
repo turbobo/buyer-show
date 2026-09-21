@@ -24,3 +24,7 @@ export function getUnreadCount(): Promise<{ count: number }> {
 export function markAllAsRead(): Promise<void> {
   return request<void>('/notifications/mark-all-read', { method: 'POST' })
 }
+
+export function markRead(id: number): Promise<void> {
+  return request<void>(`/notifications/${id}/read`, { method: 'POST' })
+}

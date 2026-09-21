@@ -5,8 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ban, CheckCheck, Home, Loader2, MessageCircle, Search, Send, Image, Mic, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { getNotifications, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
-import { useUnreadCount } from '@/hooks/use-unread-count'
+import { getNotifications, markAllAsRead, markRead, type Notification as AppNotification } from '@/services/notifications'
 import { useUiStore } from '@/stores/ui-store'
 import { getTokenUserId } from '@/services/http'
 import { blockUser } from '@/services/users'
@@ -44,7 +43,6 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const [isSending, setIsSending] = useState(false)
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
-  const unreadCount = useUnreadCount()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false)
   const [isBlockSubmitting, setIsBlockSubmitting] = useState(false)
@@ -101,24 +99,48 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     void useUiStore.getState().refreshUnreadCount()
   }, [])
 
-  // 切换到通知 Tab 时加载真实通知
+  // 拉取通知列表并自动已读：进入消息中心即视为已消费通知，红点即时清零（无论落在哪个 Tab）
+  const loadNotificationsWithAutoRead = useCallback(async () => {
+    setIsLoadingNotifications(true)
+    try {
+      const items = await getNotifications(50)
+      setNotifications(items)
+      void useUiStore.getState().refreshUnreadCount()
+      if (items.some((item) => item.isRead === 0)) {
+        try {
+          await markAllAsRead()
+          setNotifications((current) => current.map((item) => ({ ...item, isRead: 1 })))
+        } catch {
+          /* 静默失败，下轮轮询兑底 */
+        } finally {
+          void useUiStore.getState().refreshUnreadCount()
+        }
+      }
+    } catch {
+      /* 保持现有列表 */
+    } finally {
+      setIsLoadingNotifications(false)
+    }
+  }, [])
+
+  // 进入消息中心即拉取通知并自动已读（无需手动切到通知 Tab）
+  useEffect(() => { void loadNotificationsWithAutoRead() }, [loadNotificationsWithAutoRead])
+
+  // 切换到通知 Tab 时刷新：停留期间新到达的通知同步已读
   useEffect(() => {
     if (activeTab !== 'notifications') return
-    setIsLoadingNotifications(true)
-    getNotifications(50)
-      .then((items) => {
-        setNotifications(items)
-        void useUiStore.getState().refreshUnreadCount()
-      })
-      .catch(() => { /* 保持现有列表 */ })
-      .finally(() => setIsLoadingNotifications(false))
-  }, [activeTab])
+    void loadNotificationsWithAutoRead()
+  }, [activeTab, loadNotificationsWithAutoRead])
+
+  // 通知自身未读数（用于「互动通知」Tab 徽标与「全部已读」入口，区别于全局徽标含私信）
+  const notifUnreadCount = notifications.filter((item) => item.isRead === 0).length
 
   const handleMarkAllRead = async () => {
     try {
       await markAllAsRead()
       setNotifications((current) => current.map((item) => ({ ...item, isRead: 1 })))
-      useUiStore.getState().setUnreadCount(0)
+      // 通知清零后从服务端回读（未读数 = 通知 + 私信，私信未读仍需保留）
+      void useUiStore.getState().refreshUnreadCount()
     } catch {
       /* 静默失败，下次进入重试 */
     }
@@ -251,9 +273,9 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               </button>
               <button onClick={() => setActiveTab('notifications')} className={`flex-1 py-3 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-1 ${activeTab === 'notifications' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
                 互动通知
-                {unreadCount > 0 && (
+                {notifUnreadCount > 0 && (
                   <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-coral px-1 text-[10px] font-bold text-white">
-                    {unreadCount > 99 ? '99+' : unreadCount}
+                    {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
                   </span>
                 )}
               </button>
@@ -301,7 +323,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
               )
             ) : (
               <div className="space-y-1">
-                {unreadCount > 0 && (
+                {notifUnreadCount > 0 && (
                   <div className="mb-2 flex justify-end px-2">
                     <button
                       type="button"
@@ -323,6 +345,15 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
                       key={item.id}
                       notification={item}
                       onClick={() => {
+                        // 单条已读：点击跳转即标记，本地即时置已读 + 全局徽标回读
+                        if (item.isRead === 0) {
+                          setNotifications((current) => current.map((entry) => (
+                            entry.id === item.id ? { ...entry, isRead: 1 } : entry
+                          )))
+                          markRead(item.id)
+                            .catch(() => { /* 静默失败，下轮轮询兑底 */ })
+                            .finally(() => void useUiStore.getState().refreshUnreadCount())
+                        }
                         if (item.type === 'follow') {
                           if (item.actorId != null) navigate(`/user/${item.actorId}`)
                         } else if (item.targetType === 'post' && item.targetId != null) {

@@ -34,6 +34,11 @@ public class NotificationService {
         notificationMapper.markAllAsRead(userId);
     }
 
+    /** 单条已读：仅更新归属本人的未读通知（幂等，重复调用无副作用）。 */
+    public void markRead(Long userId, Long notificationId) {
+        notificationMapper.markRead(notificationId, userId);
+    }
+
     /**
      * 创建点赞通知（异步）。
      */
