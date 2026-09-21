@@ -30,6 +30,8 @@ export interface UserProfile {
   followerCount: number
   followingCount: number
   isFollowing: boolean
+  /** 当前登录用户是否已拉黑该用户（未登录/本人视角可能为 null） */
+  blockedByMe: boolean | null
 }
 
 export async function login(account: string, password: string, captcha?: { captchaId: string; captchaCode: string }): Promise<void> {

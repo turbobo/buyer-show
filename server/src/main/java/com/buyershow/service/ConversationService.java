@@ -15,6 +15,7 @@ import com.buyershow.entity.User;
 import com.buyershow.mapper.ConversationMapper;
 import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.MessageMapper;
+import com.buyershow.mapper.UserBlockMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,7 @@ public class ConversationService {
     private final MessageMapper messageMapper;
     private final UserMapper userMapper;
     private final FollowMapper followMapper;
+    private final UserBlockMapper userBlockMapper;
     private final ContentModerationService contentModerationService;
     private final ActivityService activityService;
 
@@ -84,6 +86,7 @@ public class ConversationService {
         if (followMapper.countFollow(targetUserId, userId) <= 0) {
             throw new BusinessException(ErrorCode.PARAM_INVALID, "对方关注你之后才能发起私信");
         }
+        requireNotBlocked(userId, targetUserId);
         long userA = Math.min(userId, targetUserId);
         long userB = Math.max(userId, targetUserId);
         Conversation existing = conversationMapper.selectOne(
@@ -144,6 +147,7 @@ public class ConversationService {
         Long receiverId = conversation.getUserAId().equals(userId)
                 ? conversation.getUserBId()
                 : conversation.getUserAId();
+        requireNotBlocked(userId, receiverId);
         Message message = new Message();
         message.setConversationId(conversationId);
         message.setSenderId(userId);
@@ -183,6 +187,13 @@ public class ConversationService {
             update.setBUnread(0);
         }
         conversationMapper.updateById(update);
+    }
+
+    /** 任意方向存在拉黑关系时禁止私信。 */
+    private void requireNotBlocked(Long userId, Long peerId) {
+        if (userBlockMapper.countBlockBetween(userId, peerId) > 0) {
+            throw new BusinessException(ErrorCode.PARAM_INVALID, "存在拉黑关系，无法发送私信");
+        }
     }
 
     private Conversation requireMember(Long conversationId, Long userId) {

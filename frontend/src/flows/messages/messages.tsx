@@ -2,13 +2,16 @@
 // SCREEN 1 of 2: Messages Center | PLATFORM: Web (responsive) | ENTRY: /messages | EXIT: Chat
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ArrowLeft, CheckCheck, Home, Loader2, MessageCircle, Search, Send, Image, Mic, MoreVertical, Phone, ShieldCheck, Video } from 'lucide-react'
+import { ArrowLeft, Ban, CheckCheck, Home, Loader2, MessageCircle, Search, Send, Image, Mic, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { getNotifications, markAllAsRead, type Notification as AppNotification } from '@/services/notifications'
 import { useUnreadCount } from '@/hooks/use-unread-count'
 import { useUiStore } from '@/stores/ui-store'
 import { getTokenUserId } from '@/services/http'
+import { blockUser } from '@/services/users'
+import { useToast } from '@/components/ui/toast'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import {
@@ -27,6 +30,7 @@ import { NotificationItem } from './notification-views'
 // ═══════════════════════════════════
 export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<'dm' | 'notifications'>('dm')
   const [conversations, setConversations] = useState<ConversationItem[]>([])
@@ -41,6 +45,8 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false)
   const unreadCount = useUnreadCount()
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [isBlockConfirmOpen, setIsBlockConfirmOpen] = useState(false)
+  const [isBlockSubmitting, setIsBlockSubmitting] = useState(false)
 
   // 会话列表加载
   const loadConversations = useCallback(async () => {
@@ -114,6 +120,21 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
       useUiStore.getState().setUnreadCount(0)
     } catch {
       /* 静默失败，下次进入重试 */
+    }
+  }
+
+  /** G6：拉黑当前会话对方（禁后续私信，历史保留）。 */
+  const handleBlockPeer = async () => {
+    if (!activeConv) return
+    setIsBlockSubmitting(true)
+    try {
+      await blockUser(activeConv.peerId)
+      toast('success', '已拉黑，对方将无法再给你发消息')
+      setIsBlockConfirmOpen(false)
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '拉黑失败')
+    } finally {
+      setIsBlockSubmitting(false)
     }
   }
 
@@ -197,9 +218,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           </h1>
           {showChat && (
             <div className="ml-auto flex items-center gap-1">
-              <Button variant="ghost" size="icon" aria-label="语音通话"><Phone className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" aria-label="视频通话"><Video className="w-4 h-4" /></Button>
-              <Button variant="ghost" size="icon" aria-label="更多操作"><MoreVertical className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" aria-label="拉黑该用户" onClick={() => setIsBlockConfirmOpen(true)}><Ban className="w-4 h-4" /></Button>
             </div>
           )}
         </div>
@@ -316,9 +335,7 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" aria-label="语音通话"><Phone className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" aria-label="视频通话"><Video className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" aria-label="更多操作"><MoreVertical className="w-4 h-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label="拉黑该用户" onClick={() => setIsBlockConfirmOpen(true)}><Ban className="w-4 h-4" /></Button>
                 </div>
               </div>
 
@@ -380,6 +397,17 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
           )}
         </div>
       </div>
+      {/* G6：拉黑会话对方确认 */}
+      <ConfirmDialog
+        open={isBlockConfirmOpen}
+        title={`拉黑 @${activeConv?.peerNickname ?? '对方'}？`}
+        description="拉黑后双方内容互不可见、不能互发私信，并自动取消双方关注。历史消息仍保留。"
+        confirmText="拉黑"
+        destructive
+        isSubmitting={isBlockSubmitting}
+        onConfirm={() => void handleBlockPeer()}
+        onCancel={() => setIsBlockConfirmOpen(false)}
+      />
     </div>
   )
 }

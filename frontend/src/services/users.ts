@@ -56,6 +56,28 @@ export function toggleFollow(userId: number): Promise<{ followed: boolean }> {
   return request<{ followed: boolean }>(`/users/${userId}/follow`, { method: 'POST' })
 }
 
+/** G6 拉黑用户：内容互不可见 + 禁私信 + 自动双向取关 */
+export function blockUser(userId: number): Promise<boolean> {
+  return request<boolean>(`/users/${userId}/block`, { method: 'POST' })
+}
+
+/** G6 解除拉黑 */
+export function unblockUser(userId: number): Promise<boolean> {
+  return request<boolean>(`/users/${userId}/block`, { method: 'DELETE' })
+}
+
+export interface BlockedUser {
+  id: number
+  nickname: string
+  avatarUrl: string | null
+  blockedAt: string
+}
+
+/** G6 我的拉黑列表（按拉黑时间倒序） */
+export function getBlockedUsers(): Promise<BlockedUser[]> {
+  return request<BlockedUser[]>('/users/me/blocks')
+}
+
 export interface UpdateProfilePayload {
   nickname?: string
   bio?: string

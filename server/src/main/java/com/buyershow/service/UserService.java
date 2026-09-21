@@ -9,7 +9,9 @@ import com.buyershow.dto.request.UpdateProfileRequest;
 import com.buyershow.dto.response.UserDTO;
 import com.buyershow.entity.Follow;
 import com.buyershow.entity.User;
+import com.buyershow.entity.UserBlock;
 import com.buyershow.mapper.FollowMapper;
+import com.buyershow.mapper.UserBlockMapper;
 import com.buyershow.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -24,12 +26,14 @@ public class UserService {
 
     private final UserMapper userMapper;
     private final FollowMapper followMapper;
+    private final UserBlockMapper userBlockMapper;
 
     public UserDTO getUserProfile(Long userId) {
         User user = findUserOrThrow(userId);
         Long currentUserId = SecurityUtils.getCurrentUserId();
         boolean isFollowing = currentUserId != null && isFollowing(currentUserId, userId);
-        return toUserDTO(user, isFollowing);
+        boolean blockedByMe = currentUserId != null && isBlockedByMe(currentUserId, userId);
+        return toUserDTO(user, isFollowing, blockedByMe);
     }
 
     public UserDTO getCurrentUserProfile() {
@@ -67,7 +71,7 @@ public class UserService {
             user.setAvatarUrl(request.getAvatarUrl().trim());
         }
         userMapper.updateById(user);
-        return toUserDTO(user, false);
+        return toUserDTO(user, false, null);
     }
 
     /**
@@ -106,7 +110,18 @@ public class UserService {
         return count != null && count > 0;
     }
 
-    private UserDTO toUserDTO(User user, boolean isFollowing) {
+    private boolean isBlockedByMe(Long blockerId, Long blockedId) {
+        if (blockerId.equals(blockedId)) {
+            return false;
+        }
+        Long count = userBlockMapper.selectCount(
+                Wrappers.<UserBlock>lambdaQuery()
+                        .eq(UserBlock::getBlockerId, blockerId)
+                        .eq(UserBlock::getBlockedId, blockedId));
+        return count != null && count > 0;
+    }
+
+    private UserDTO toUserDTO(User user, boolean isFollowing, Boolean blockedByMe) {
         return UserDTO.builder()
                 .id(user.getId())
                 .username(user.getUsername())
@@ -117,6 +132,7 @@ public class UserService {
                 .followerCount(user.getFollowerCount())
                 .followingCount(user.getFollowingCount())
                 .isFollowing(isFollowing)
+                .blockedByMe(blockedByMe)
                 .build();
     }
 

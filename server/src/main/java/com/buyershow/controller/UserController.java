@@ -2,16 +2,20 @@ package com.buyershow.controller;
 
 import com.buyershow.common.R;
 import com.buyershow.dto.request.UpdateProfileRequest;
+import com.buyershow.dto.response.BlockedUserDTO;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.dto.response.UserDTO;
 import com.buyershow.service.CommentService;
 import com.buyershow.service.PostService;
+import com.buyershow.service.UserBlockService;
 import com.buyershow.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -21,6 +25,7 @@ public class UserController {
     private final UserService userService;
     private final PostService postService;
     private final CommentService commentService;
+    private final UserBlockService userBlockService;
 
     /** 获取指定用户公开资料。 */
     @GetMapping("/{userId}")
@@ -89,5 +94,23 @@ public class UserController {
     @PutMapping("/me")
     public R<UserDTO> updateCurrentUserProfile(@Valid @RequestBody UpdateProfileRequest request) {
         return R.ok(userService.updateCurrentUserProfile(request));
+    }
+
+    /** 拉黑用户（G6）：内容互不可见 + 禁私信 + 自动双向取关。 */
+    @PostMapping("/{userId}/block")
+    public R<Boolean> blockUser(@PathVariable Long userId) {
+        return R.ok(userBlockService.block(userId));
+    }
+
+    /** 解除拉黑。 */
+    @DeleteMapping("/{userId}/block")
+    public R<Boolean> unblockUser(@PathVariable Long userId) {
+        return R.ok(userBlockService.unblock(userId));
+    }
+
+    /** 我的拉黑列表（按拉黑时间倒序）。 */
+    @GetMapping("/me/blocks")
+    public R<List<BlockedUserDTO>> getMyBlocks() {
+        return R.ok(userBlockService.listBlockedUsers());
     }
 }

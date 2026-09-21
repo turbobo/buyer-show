@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Heart, Home, Loader2, MessageSquare, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Ban, Heart, Home, Loader2, MessageSquare, Pencil, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { getAccessToken, getTokenUserId } from '@/services/http'
 import type { UserProfile } from '@/services/auth'
 import { fetchMe } from '@/hooks/use-me'
-import { getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow } from '@/services/users'
+import { blockUser, getBlockedUsers, getMyPosts, getUserFavorites, getUserLikes, getUserPosts, getUserProfile, toggleFollow, unblockUser, type BlockedUser } from '@/services/users'
 import { startConversation } from '@/services/messages'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDialog } from '@/components/ui/app-dialog'
@@ -19,13 +19,14 @@ import { MyCommentsPanel } from '@/flows/profile/my-comments'
 import { smartBack } from '@/lib/smart-back'
 import { deletePost, createPostAppeal, type ApiPostSummary } from '@/services/posts'
 
-type ProfileTab = 'posts' | 'favorites' | 'likes' | 'comments'
+type ProfileTab = 'posts' | 'favorites' | 'likes' | 'comments' | 'blocks'
 
 const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'posts', label: '分享' },
   { key: 'favorites', label: '收藏' },
   { key: 'likes', label: '赞过' },
   { key: 'comments', label: '评论' },
+  { key: 'blocks', label: '拉黑' },
 ]
 
 /** 帖子网格卡片（manageable 时显示编辑/删除操作与审核状态徽标；已封禁帖子提供申诉入口） */
@@ -131,6 +132,10 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const [isStartingChat, setIsStartingChat] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<ApiPostSummary | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
+  const [isBlockLoading, setIsBlockLoading] = useState(false)
+  const [isBlockSubmitting, setIsBlockSubmitting] = useState(false)
+  const [pendingBlock, setPendingBlock] = useState<boolean | null>(null)
   const [appealTarget, setAppealTarget] = useState<ApiPostSummary | null>(null)
   const [appealReason, setAppealReason] = useState('')
   const [isAppealSubmitting, setIsAppealSubmitting] = useState(false)
@@ -139,8 +144,10 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const isLoggedIn = getAccessToken() != null
   const isOwn = self || (profile != null && getTokenUserId() === profile.id)
-  // 「评论」仅在本人主页可见（隐私：评论互动上下文不对外）
-  const visibleTabs = isOwn ? PROFILE_TABS : PROFILE_TABS.filter((tab) => tab.key !== 'comments')
+  // 「评论」仅在本人主页可见（隐私：评论互动上下文不对外）；「拉黑」管理仅本人可见
+  const visibleTabs = isOwn
+    ? PROFILE_TABS
+    : PROFILE_TABS.filter((tab) => tab.key !== 'comments' && tab.key !== 'blocks')
 
   const loadPage = useCallback(async (nextCursor?: string, append = false) => {
     if (!self && !params.userId) return
@@ -165,6 +172,21 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
         setPosts([])
         setCursor(null)
         setHasMore(false)
+        return
+      }
+      // 「拉黑」Tab 加载黑名单列表（仅本人可见）
+      if (activeTab === 'blocks') {
+        profileRef.current = targetProfile
+        setProfile(targetProfile)
+        setPosts([])
+        setCursor(null)
+        setHasMore(false)
+        setIsBlockLoading(true)
+        try {
+          setBlockedUsers(await getBlockedUsers())
+        } finally {
+          setIsBlockLoading(false)
+        }
         return
       }
       const page = activeTab === 'favorites'
@@ -241,6 +263,45 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     }
   }
 
+  const handleBlock = async () => {
+    if (!profile) return
+    setIsBlockSubmitting(true)
+    try {
+      await blockUser(profile.id)
+      setProfile((current) => current ? { ...current, blockedByMe: true } : current)
+      if (profileRef.current) profileRef.current = { ...profileRef.current, blockedByMe: true }
+      setPosts([])
+      setHasMore(false)
+      toast('success', '已拉黑，对方的内容将不再对你可见')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '拉黑失败')
+    } finally {
+      setIsBlockSubmitting(false)
+      setPendingBlock(null)
+    }
+  }
+
+  const handleUnblock = async (targetId?: number) => {
+    const target = targetId ?? profile?.id
+    if (!target) return
+    setIsBlockSubmitting(true)
+    try {
+      await unblockUser(target)
+      if (!targetId) {
+        setProfile((current) => current ? { ...current, blockedByMe: false } : current)
+        if (profileRef.current) profileRef.current = { ...profileRef.current, blockedByMe: false }
+        void loadPage()
+      } else {
+        setBlockedUsers((current) => current.filter((item) => item.id !== target))
+      }
+      toast('success', '已解除拉黑')
+    } catch (requestError) {
+      toast('error', requestError instanceof Error ? requestError.message : '解除拉黑失败')
+    } finally {
+      setIsBlockSubmitting(false)
+    }
+  }
+
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return
     setIsDeleting(true)
@@ -284,7 +345,9 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
     ? '还没有收藏'
     : activeTab === 'likes'
       ? '还没有点赞'
-      : isOwn ? '还没有发布分享' : '还没有公开分享'
+      : profile?.blockedByMe
+        ? '你已拉黑该用户，TA 的内容不再可见'
+        : isOwn ? '还没有发布分享' : '还没有公开分享'
 
   const navBar = (
     <nav className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl md:hidden">
@@ -389,6 +452,27 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
                     <MessageSquare className="mr-1 h-4 w-4" />
                     私信
                   </Button>
+                  {profile.blockedByMe ? (
+                    <Button
+                      variant="outline"
+                      className="h-10 text-destructive hover:bg-destructive/10"
+                      disabled={isBlockSubmitting}
+                      onClick={() => void handleUnblock()}
+                    >
+                      <Ban className="mr-1 h-4 w-4" />
+                      解除拉黑
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      className="h-10"
+                      disabled={isBlockSubmitting}
+                      onClick={() => setPendingBlock(true)}
+                    >
+                      <Ban className="mr-1 h-4 w-4" />
+                      拉黑
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -416,6 +500,45 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           </div>
           {activeTab === 'comments' ? (
             <MyCommentsPanel />
+          ) : activeTab === 'blocks' ? (
+            <div className="rounded-xl border border-border/60 bg-card">
+              {isBlockLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : blockedUsers.length === 0 ? (
+                <p className="p-12 text-center text-sm text-muted-foreground">还没有拉黑任何人</p>
+              ) : (
+                <ul className="divide-y divide-border/60">
+                  {blockedUsers.map((item) => (
+                    <li key={item.id} className="flex items-center gap-3 px-4 py-3">
+                      <Avatar className="h-9 w-9 shrink-0">
+                        {item.avatarUrl && <AvatarImage src={item.avatarUrl} alt={item.nickname} />}
+                        <AvatarFallback className="bg-coral-light text-xs font-bold text-coral-contrast">
+                          {item.nickname[0] ?? '用'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <button
+                        type="button"
+                        className="min-w-0 flex-1 truncate text-left text-sm font-medium hover:text-coral"
+                        onClick={() => navigate(`/user/${item.id}`)}
+                      >
+                        {item.nickname}
+                      </button>
+                      <span className="hidden text-xs text-muted-foreground sm:block">{item.blockedAt}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={isBlockSubmitting}
+                        onClick={() => void handleUnblock(item.id)}
+                      >
+                        解除拉黑
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           ) : (
             <>
               {isListLoading ? (
@@ -451,6 +574,18 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
           )}
         </section>
       </main>
+
+      {/* ─── 拉黑确认（G6：破坏性操作统一 ConfirmDialog） ─── */}
+      <ConfirmDialog
+        open={pendingBlock === true}
+        title={`拉黑 @${profile.username}？`}
+        description="拉黑后双方内容互不可见、不能互发私信，并自动取消双方关注。"
+        confirmText="拉黑"
+        destructive
+        isSubmitting={isBlockSubmitting}
+        onConfirm={() => void handleBlock()}
+        onCancel={() => setPendingBlock(null)}
+      />
 
       {/* ─── 删除帖子确认（U34：统一 ConfirmDialog） ─── */}
       <ConfirmDialog

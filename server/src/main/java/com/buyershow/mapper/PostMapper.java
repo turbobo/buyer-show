@@ -33,6 +33,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "FROM posts p FORCE INDEX (idx_post_feed)",
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "<if test='tag != null and tag != \"\"'>",
             "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
             "</if>",
@@ -69,6 +71,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
             "  AND p.user_id IN (SELECT following_id FROM follows WHERE follower_id = #{viewerId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{viewerId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = p.user_id)",
             "<if test='tag != null and tag != \"\"'>",
             "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
             "</if>",
@@ -105,6 +109,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
             "  AND p.id &lt;&gt; #{postId}",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "  AND JSON_OVERLAPS(p.tags, CAST(#{tagsJson} AS JSON))",
             "ORDER BY p.id DESC",
             "LIMIT #{limit}",
@@ -131,6 +137,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "FROM posts p",
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "<if test='cursorId != null'>",
             "  AND p.id &lt; #{cursorId}",
             "</if>",
@@ -190,6 +198,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN posts p ON p.id = fav.post_id",
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE fav.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "<if test='cursorId != null'>",
             "  AND fav.id &lt; #{cursorId}",
             "</if>",
@@ -220,6 +230,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN posts p ON p.id = lk.post_id",
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE lk.user_id = #{userId} AND p.status = 0 AND p.moderation_status = 0",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "<if test='cursorId != null'>",
             "  AND lk.id &lt; #{cursorId}",
             "</if>",
@@ -251,6 +263,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "LEFT JOIN favorites f ON f.user_id = #{currentUserId} AND f.post_id = p.id",
             "WHERE p.id = #{postId} AND p.status = 0",
             "  AND (p.moderation_status = 0 OR p.user_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "LIMIT 1"
     })
     PostQueryRow selectPostDetailRow(
@@ -318,6 +332,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
             "  AND p.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "<if test=\"tag != null and tag != ''\">",
             "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
             "</if>",
@@ -376,6 +392,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "FROM posts p",
             "JOIN users u ON u.id = p.user_id AND u.status = 0",
             "WHERE p.status = 0 AND p.moderation_status = 0",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
             "  AND (p.title LIKE CONCAT('%', #{keyword}, '%')",
             "       OR p.content LIKE CONCAT('%', #{keyword}, '%')",
             "       OR CAST(p.tags AS CHAR) LIKE CONCAT('%', #{keyword}, '%'))",
@@ -444,6 +462,8 @@ public interface PostMapper extends BaseMapper<Post> {
             "FROM posts p JOIN users u ON u.id = p.user_id AND u.status = 0 " +
             "WHERE p.status = 0 AND p.moderation_status = 0 AND p.id IN " +
             "<foreach collection='ids' item='id' open='(' separator=',' close=')'>#{id}</foreach>" +
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId}) " +
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id) " +
             "</script>")
     List<PostQueryRow> selectPublicRowsByIds(
             @Param("ids") List<Long> ids,

@@ -12,6 +12,7 @@ import com.buyershow.entity.User;
 import com.buyershow.mapper.ConversationMapper;
 import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.MessageMapper;
+import com.buyershow.mapper.UserBlockMapper;
 import com.buyershow.mapper.UserMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,10 +44,12 @@ class ConversationServiceTest {
     private final MessageMapper messageMapper = mock(MessageMapper.class);
     private final UserMapper userMapper = mock(UserMapper.class);
     private final FollowMapper followMapper = mock(FollowMapper.class);
+    private final UserBlockMapper userBlockMapper = mock(UserBlockMapper.class);
     private final ContentModerationService moderationService = mock(ContentModerationService.class);
     private final ActivityService activityService = mock(ActivityService.class);
     private final ConversationService service = new ConversationService(
-            conversationMapper, messageMapper, userMapper, followMapper, moderationService, activityService);
+            conversationMapper, messageMapper, userMapper, followMapper, userBlockMapper,
+            moderationService, activityService);
 
     @AfterEach
     void tearDown() {
@@ -135,6 +138,41 @@ class ConversationServiceTest {
         assertEquals(100L, dto.getId());
         verify(conversationMapper).updateById(org.mockito.ArgumentMatchers.argThat(
                 (Conversation update) -> update.getId().equals(9L) && update.getBUnread() == 1));
+    }
+
+    @Test
+    void testStartConversationRejectsWhenBlocked() {
+        authenticate(1L);
+        User target = new User();
+        target.setId(5L);
+        target.setStatus(0);
+        target.setNickname("对方");
+        when(userMapper.selectById(5L)).thenReturn(target);
+        when(followMapper.countFollow(5L, 1L)).thenReturn(1);
+        when(userBlockMapper.countBlockBetween(1L, 5L)).thenReturn(1);
+
+        BusinessException exception = assertThrows(BusinessException.class, () -> service.startConversation(5L));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exception.getCode());
+        verify(conversationMapper, never()).insert(any(Conversation.class));
+    }
+
+    @Test
+    void testSendMessageRejectsWhenBlocked() {
+        authenticate(1L);
+        when(conversationMapper.selectById(9L)).thenReturn(conversation());
+        when(moderationService.evaluate(any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(userBlockMapper.countBlockBetween(1L, 5L)).thenReturn(1);
+
+        SendMessageRequest request = new SendMessageRequest();
+        request.setContent("你好");
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.sendMessage(9L, request));
+
+        assertEquals(ErrorCode.PARAM_INVALID.getCode(), exception.getCode());
+        verify(messageMapper, never()).insert(any(Message.class));
     }
 
     private Conversation conversation() {

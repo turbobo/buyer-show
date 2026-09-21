@@ -28,6 +28,8 @@ public interface CommentMapper extends BaseMapper<Comment> {
             + "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0 "
             + "WHERE c.post_id = #{postId} AND c.parent_id IS NULL "
             + "AND c.status = 0 AND c.moderation_status = 0 "
+            + "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = c.user_id AND ub.blocked_id = #{viewerId}) "
+            + "AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = c.user_id) "
             + "AND (#{cursorId} IS NULL OR c.id > #{cursorId}) "
             + "ORDER BY c.created_at, c.id LIMIT #{limit}")
     List<CommentDTO> selectVisibleRoots(@Param("postId") Long postId,
@@ -49,6 +51,8 @@ public interface CommentMapper extends BaseMapper<Comment> {
             + "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0 "
             + "WHERE c.post_id = #{postId} AND c.parent_id IS NULL "
             + "AND c.status = 0 AND c.moderation_status = 0 "
+            + "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = c.user_id AND ub.blocked_id = #{viewerId}) "
+            + "AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = c.user_id) "
             + "ORDER BY c.like_count DESC, c.created_at DESC, c.id DESC LIMIT #{limit}")
     List<CommentDTO> selectHotVisibleRoots(@Param("postId") Long postId,
             @Param("viewerId") Long viewerId,
@@ -72,6 +76,8 @@ public interface CommentMapper extends BaseMapper<Comment> {
             "  #{parentId}",
             "</foreach>",
             "AND c.status = 0 AND c.moderation_status = 0",
+            "AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = c.user_id AND ub.blocked_id = #{viewerId})",
+            "AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{viewerId} AND ub2.blocked_id = c.user_id)",
             "ORDER BY c.parent_id, c.created_at, c.id",
             "</script>"
     })

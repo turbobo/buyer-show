@@ -15,4 +15,6 @@ public class UserDTO {
     private Integer followerCount;
     private Integer followingCount;
     private Boolean isFollowing;
+    /** G6：当前登录用户是否已拉黑该用户（游客/非本人视角可能为 null）。 */
+    private Boolean blockedByMe;
 }

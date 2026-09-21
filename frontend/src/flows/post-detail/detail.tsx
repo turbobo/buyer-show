@@ -13,6 +13,8 @@ import { DetailError, DetailSkeleton } from './detail-states'
 import { ActionBar } from './action-bar'
 import { AppealDialog } from './appeal-dialog'
 import { ApiError, getTokenUserId } from '@/services/http'
+import { blockUser } from '@/services/users'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { getPost, getRelatedPosts, createPostAppeal, toggleFavorite, toggleLike, type ApiPost, type ApiPostSummary, type CursorPage } from '@/services/posts'
 import { createContentReport } from '@/services/reports'
 import { ImageFullscreenViewer } from '@/components/image-fullscreen-viewer'
@@ -25,6 +27,16 @@ const COMMENT_PAGE_SIZE = 20
 
 function isAuthError(error: unknown): boolean {
   return error instanceof ApiError && [1002, 1003, 1007].includes(error.code)
+}
+
+/** G6：递归过滤评论树中指定用户发布的评论（含嵌套回复）。 */
+function filterCommentsByUser(list: ApiComment[], userId: number): ApiComment[] {
+  return list
+    .filter((comment) => comment.userId !== userId)
+    .map((comment) => ({
+      ...comment,
+      replies: filterCommentsByUser(comment.replies, userId),
+    }))
 }
 
 /* ─── 详情页主组件 ─── */
@@ -52,6 +64,8 @@ export default function PostDetailScreen() {
   }, [queryClient, postId])
   const [post, setPost] = useState<ApiPost | null>(null)
   const [comments, setComments] = useState<ApiComment[]>([])
+  const [pendingBlockComment, setPendingBlockComment] = useState<ApiComment | null>(null)
+  const [isBlockSubmitting, setIsBlockSubmitting] = useState(false)
   /** G3 相关推荐（猜你喜欢）；加载失败静默降级为空列表 */
   const [relatedPosts, setRelatedPosts] = useState<ApiPostSummary[]>([])
   const [commentSort, setCommentSort] = useState<'latest' | 'hot'>('latest')
@@ -247,7 +261,7 @@ export default function PostDetailScreen() {
     }
   }
 
-  const handleCommentEdit = async (comment: ApiComment, content: string) => {
+    const handleCommentEdit = async (comment: ApiComment, content: string) => {
     try {
       await updateComment(comment.id, content)
       if (postId) {
@@ -258,6 +272,23 @@ export default function PostDetailScreen() {
     } catch (requestError) {
       handleActionError(requestError, '编辑失败')
       throw requestError
+    }
+  }
+
+  /** G6：拉黑评论作者，并从当前评论树移除其全部评论。 */
+  const handleBlockComment = async () => {
+    if (!pendingBlockComment) return
+    const targetUserId = pendingBlockComment.userId
+    setIsBlockSubmitting(true)
+    try {
+      await blockUser(targetUserId)
+      setComments((current) => filterCommentsByUser(current, targetUserId))
+      toast('success', '已拉黑该用户')
+      setPendingBlockComment(null)
+    } catch (requestError) {
+      handleActionError(requestError, '拉黑失败')
+    } finally {
+      setIsBlockSubmitting(false)
     }
   }
 
@@ -435,6 +466,7 @@ export default function PostDetailScreen() {
                     onLike={(item) => void handleCommentLike(item)}
                     onFavorite={(item) => void handleCommentFavorite(item)}
                     onEdit={handleCommentEdit}
+                    onBlock={setPendingBlockComment}
                     currentUserId={getTokenUserId()}
                   />
                 ))}
@@ -535,6 +567,18 @@ export default function PostDetailScreen() {
         onReasonChange={setAppealReason}
         onSubmit={() => void handleSubmitAppeal()}
         onClose={() => { setIsAppealOpen(false); setAppealReason('') }}
+      />
+
+      {/* 拉黑评论作者（G6：破坏性操作统一 ConfirmDialog） */}
+      <ConfirmDialog
+        open={pendingBlockComment !== null}
+        title={`拉黑 @${pendingBlockComment?.userNickname ?? '该用户'}？`}
+        description="拉黑后双方内容互不可见、不能互发私信，并自动取消双方关注。"
+        confirmText="拉黑"
+        destructive
+        isSubmitting={isBlockSubmitting}
+        onConfirm={() => void handleBlockComment()}
+        onCancel={() => setPendingBlockComment(null)}
       />
     </div>
     </div>

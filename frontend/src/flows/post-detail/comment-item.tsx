@@ -12,6 +12,8 @@ export interface CommentItemProps {
   onLike: (comment: ApiComment) => void
   onFavorite: (comment: ApiComment) => void
   onEdit: (comment: ApiComment, content: string) => Promise<void>
+  /** G6：拉黑评论作者 */
+  onBlock: (comment: ApiComment) => void
   currentUserId: number | null
 }
 
@@ -37,7 +39,7 @@ export function updateCommentTree(list: ApiComment[], commentId: number, updater
 }
 
 /* ─── 评论项组件（树形递归渲染嵌套回复） ─── */
-export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, onEdit, currentUserId }: CommentItemProps) {
+export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, onEdit, onBlock, currentUserId }: CommentItemProps) {
   const isRoot = comment.parentId == null
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(comment.content)
@@ -137,6 +139,11 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
           <button type="button" onClick={() => onReport(comment.id)} className="text-xs text-muted-foreground hover:text-coral">
             举报
           </button>
+          {!isOwn && (
+            <button type="button" onClick={() => onBlock(comment)} className="text-xs text-muted-foreground hover:text-destructive">
+              拉黑
+            </button>
+          )}
           {editable && !isEditing && (
             <button
               type="button"
@@ -158,6 +165,7 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
                 onLike={onLike}
                 onFavorite={onFavorite}
                 onEdit={onEdit}
+                onBlock={onBlock}
                 currentUserId={currentUserId}
               />
             ))}
