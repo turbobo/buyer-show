@@ -286,18 +286,18 @@ export default function EditProfileScreen() {
             <p className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">@{profile.username}</p>
             <p className="mt-1 text-xs text-muted-foreground">用户名用于登录，暂不支持修改</p>
           </div>
-        </section>
 
-        {/* PC：底部保存（移动端保存按钮在顶部导航栏） */}
-        <div className="mt-6 hidden justify-end md:flex">
-          <Button
-            disabled={isSaving || isLoading || isUploadingAvatar}
-            onClick={() => void handleSave()}
-            className="min-w-28 bg-coral text-white hover:bg-coral-dark"
-          >
-            {isSaving ? '保存中...' : '保存'}
-          </Button>
-        </div>
+          {/* ─── 保存（PC：表单底部右对齐；移动端在顶部导航栏） ─── */}
+          <div className="hidden justify-end border-t border-border/60 pt-4 md:flex">
+            <Button
+              disabled={isSaving || isLoading || isUploadingAvatar}
+              onClick={() => void handleSave()}
+              className="min-w-28 bg-coral text-white hover:bg-coral-dark"
+            >
+              {isSaving ? '保存中...' : '保存'}
+            </Button>
+          </div>
+        </section>
 
         {/* ─── 账号注销（低频操作，深层入口：仅本页底部危险区展示） ─── */}
         <section className="mx-auto max-w-3xl rounded-2xl border border-border/60 bg-card p-5">
