@@ -36,6 +36,9 @@ public class Post {
     /** 0=公开 1=隐藏 2=删除 */
     private Integer status;
 
+    /** 是否精选（G10）: 0=否 1=是。 */
+    private Integer isFeatured;
+
     /** 0=通过 1=待人工审核 2=驳回 */
     private Integer moderationStatus;
     private String moderationReason;

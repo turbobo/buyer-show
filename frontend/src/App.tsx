@@ -22,6 +22,8 @@ const ChangePasswordScreen = lazy(() => import('./flows/profile/change-password'
 const MyCommentsScreen = lazy(() => import('./flows/profile/my-comments'))
 const CreatorStatsScreen = lazy(() => import('./flows/profile/creator-stats'))
 const FollowListScreen = lazy(() => import('./flows/profile/follow-list'))
+const TopicsScreen = lazy(() => import('./flows/topics/topics'))
+const TopicDetailScreen = lazy(() => import('./flows/topics/topic-detail'))
 const AdminLayout = lazy(() => import('./components/admin/admin-layout'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
 const AdminReportsScreen = lazy(() => import('./flows/admin/reports'))
@@ -30,6 +32,7 @@ const AdminUsersScreen = lazy(() => import('./flows/admin/users'))
 const AdminAnalytics = lazy(() => import('./flows/admin/analytics'))
 const AdminAuditLogScreen = lazy(() => import('./flows/admin/audit-log'))
 const AdminTagsScreen = lazy(() => import('./flows/admin/tags'))
+const AdminOperationsScreen = lazy(() => import('./flows/admin/operations'))
 const NotFoundScreen = lazy(() => import('./flows/not-found/not-found'))
 
 function RouteFallback() {
@@ -173,6 +176,8 @@ function AnimatedRoutes() {
           <Route path="/profile/change-password" element={<ProtectedRoute><ChangePasswordScreen /></ProtectedRoute>} />
           <Route path="/profile/comments" element={<ProtectedRoute><MyCommentsScreen /></ProtectedRoute>} />
           <Route path="/profile/creator-stats" element={<ProtectedRoute><CreatorStatsScreen /></ProtectedRoute>} />
+          <Route path="/topics" element={<TopicsScreen />} />
+          <Route path="/topics/:topicId" element={<TopicDetailScreen />} />
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="audit-log" element={<AdminAuditLogScreen />} />
@@ -181,6 +186,7 @@ function AnimatedRoutes() {
             <Route path="reports" element={<AdminReportsScreen />} />
             <Route path="appeals" element={<AdminAppealsScreen />} />
             <Route path="users" element={<AdminUsersScreen />} />
+            <Route path="operations" element={<AdminOperationsScreen />} />
           </Route>
           <Route path="/messages" element={<ProtectedRoute><MessagesScreen onBack={() => window.history.back()} /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><NotificationsScreen /></ProtectedRoute>} />

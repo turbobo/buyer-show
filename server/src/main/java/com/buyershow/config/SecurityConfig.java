@@ -41,6 +41,8 @@ public class SecurityConfig {
                 // Browse endpoints (public read)
                 .requestMatchers(HttpMethod.GET, "/api/v1/posts/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/banners").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/topics/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/posts").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/favorites", "/api/v1/users/*/likes").permitAll()

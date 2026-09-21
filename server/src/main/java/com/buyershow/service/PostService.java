@@ -11,6 +11,7 @@ import com.buyershow.common.search.SearchHitResult;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.common.util.MentionExtractor;
 import com.buyershow.dto.request.CreatePostRequest;
+import com.buyershow.dto.response.AdminPostRow;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.MentionDTO;
 import com.buyershow.dto.response.PostDTO;
@@ -80,6 +81,7 @@ public class PostService {
         String normalizedTag = tag == null || tag.isBlank() ? null : tag.trim();
         boolean isHotSort = "hot".equalsIgnoreCase(sort);
         boolean isFollowingScope = "following".equalsIgnoreCase(scope);
+        boolean isFeaturedSort = "featured".equalsIgnoreCase(sort);
 
         List<PostQueryRow> rows;
         if (isFollowingScope) {
@@ -89,6 +91,9 @@ public class PostService {
         } else if (isHotSort && cursorId == null) {
             // Hot sort only works for first page (no cursor support for score-based sorting)
             rows = postMapper.selectHotFeedRows(normalizedTag, limit + 1, currentUserId);
+        } else if (isFeaturedSort) {
+            // 精选流（G10）：运营打标的优质内容，按发帖时间倒序游标分页
+            rows = postMapper.selectFeaturedRows(cursorId, normalizedTag, limit + 1, currentUserId);
         } else {
             rows = postMapper.selectFeedRows(cursorId, normalizedTag, limit + 1, currentUserId);
         }
@@ -521,6 +526,34 @@ public class PostService {
      */
     public Long getCurrentUserIdSafe() {
         return SecurityUtils.getCurrentUserId();
+    }
+
+    /**
+     * 精选打标（G10）：仅审核通过的未删除帖子可设为精选；取消精选无审核限制。
+     */
+    public void setFeatured(Long postId, boolean featured) {
+        Post post = postMapper.selectById(postId);
+        if (post == null || post.getStatus() != PostStatus.PUBLIC.getValue()) {
+            throw new BusinessException(ErrorCode.POST_NOT_FOUND);
+        }
+        if (featured && post.getModerationStatus() != ModerationStatus.APPROVED.getValue()) {
+            throw new BusinessException(ErrorCode.POST_FEATURE_INVALID);
+        }
+        postMapper.updateFeatured(postId, featured ? 1 : 0);
+    }
+
+    /** 管理端精选列表（G10）：全部未删除帖子，可选按精选状态过滤。 */
+    public CursorPage<AdminPostRow> listAdminPosts(String cursor, int requestedLimit, Integer featuredFilter) {
+        int limit = normalizePageSize(requestedLimit);
+        Long cursorId = CursorUtils.decode(cursor);
+        List<AdminPostRow> rows = postMapper.selectAdminPostRows(cursorId, limit + 1, featuredFilter);
+
+        boolean hasMore = rows.size() > limit;
+        if (hasMore) {
+            rows = rows.subList(0, limit);
+        }
+        String nextCursor = hasMore ? CursorUtils.encode(rows.get(rows.size() - 1).getId()) : null;
+        return new CursorPage<>(rows, nextCursor, hasMore);
     }
 
     private int normalizePageSize(int requestedLimit) {

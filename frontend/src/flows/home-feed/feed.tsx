@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { keepPreviousData, useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { Clock, Loader2, Moon, Plus, Search, Sun, TrendingUp, Users, X } from 'lucide-react'
+import { Clock, Hash, Loader2, Moon, Plus, Search, Star, Sun, TrendingUp, Users, X } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { getFeed, type ApiPostSummary, type CursorPage } from '@/services/posts'
+import { getBanners, type ApiBanner } from '@/services/operations'
 import { getHotTagStats, type TagStat } from '@/services/tags'
 import { CHANNELS, TABBAR_ORDER, PC_CHANNEL_ORDER, isChannelActive, type ChannelKey } from '@/lib/navigation'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -27,11 +28,12 @@ type TabKey = ChannelKey
 
 const PULL_THRESHOLD = 56
 
-/** Feed 排序三档（G1 新增「关注」：登录后看关注对象的动态时间线） */
+/** Feed 排序四档（G1 关注 / G10 精选：运营打标的优质内容流） */
 const SORT_OPTIONS = [
   { key: 'new', label: '最新', icon: Clock },
   { key: 'hot', label: '热门', icon: TrendingUp },
   { key: 'following', label: '关注', icon: Users },
+  { key: 'featured', label: '精选', icon: Star },
 ] as const
 type FeedSort = (typeof SORT_OPTIONS)[number]['key']
 
@@ -65,6 +67,9 @@ export default function HomeFeedScreen() {
   const feedError = feedQuery.error instanceof Error ? feedQuery.error.message : null
   const loadMoreRef = useRef<HTMLDivElement>(null)
   const [hotTagStats, setHotTagStats] = useState<TagStat[]>([])
+  // 首页运营 Banner（G10）：仅「最新 + 全部」档展示，避免干扰筛选/排序场景
+  const [banners, setBanners] = useState<ApiBanner[]>([])
+  const showBanners = feedSort === 'new' && activeTag === '全部' && banners.length > 0
   // 当前用户资料（P4.1：全站共享缓存，与 Header/UserMenu 同一事实源）
   const { currentUser } = useMe()
   const { clearSessionCache } = useSessionCache()
@@ -79,6 +84,7 @@ export default function HomeFeedScreen() {
   // 热门标签（真实聚合；接口为空时仅显示「全部」）
   useEffect(() => {
     getHotTagStats().then(setHotTagStats).catch(() => { /* 保持空列表 */ })
+    getBanners().then(setBanners).catch(() => { /* 保持空列表 */ })
   }, [])
 
   const refreshFeed = useCallback(async () => {
@@ -214,6 +220,17 @@ export default function HomeFeedScreen() {
     }
   }
 
+  // Banner 跳转（G10）：帖子/话题站内跳转，外链新窗口打开
+  const handleBannerClick = (banner: ApiBanner) => {
+    if (banner.linkType === 'post') {
+      navigate(`/posts/${banner.linkValue}`)
+    } else if (banner.linkType === 'topic') {
+      navigate(`/topics/${banner.linkValue}`)
+    } else if (/^https?:\/\//.test(banner.linkValue)) {
+      window.open(banner.linkValue, '_blank', 'noopener,noreferrer')
+    }
+  }
+
   // 排序档切换：关注流需登录（后端仅对登录用户返回关注内容），未登录时引导登录
   const handleFeedSortChange = (key: FeedSort) => {
     if (key === 'following' && !currentUser) {
@@ -344,6 +361,15 @@ export default function HomeFeedScreen() {
             ))}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => navigate('/topics')}
+              className="flex items-center gap-1 rounded-full px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted"
+            >
+              <Hash className="h-4 w-4" />
+              <span className="hidden sm:inline">话题</span>
+            </button>
+            <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
             {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
               <button
                 key={key}
@@ -377,6 +403,23 @@ export default function HomeFeedScreen() {
       {/* ─── 主内容区 ─── */}
       <main className="mx-auto max-w-5xl px-4 py-6">
         <h1 className="sr-only">买家说 · 好物分享首页</h1>
+        {showBanners && (
+          <div className="mb-4 flex gap-3 overflow-x-auto pb-1" role="region" aria-label="运营推荐位">
+            {banners.map((banner) => (
+              <button
+                key={banner.id}
+                type="button"
+                onClick={() => handleBannerClick(banner)}
+                className="relative h-32 w-64 shrink-0 overflow-hidden rounded-xl border border-border/60"
+              >
+                <img src={banner.imageUrl} alt={banner.title} className="h-full w-full object-cover" />
+                <span className="absolute bottom-2 left-2 rounded bg-black/50 px-2 py-0.5 text-xs text-white">
+                  {banner.title}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
         <div className="mb-4 flex items-center gap-2">
           <Badge variant="secondary" className="border-0 bg-coral-light text-coral-contrast">{posts.length} 篇分享</Badge>
           <span className="text-xs text-muted-foreground">{activeTag}</span>

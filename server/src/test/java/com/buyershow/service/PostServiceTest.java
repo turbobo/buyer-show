@@ -6,6 +6,7 @@ import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.search.SearchHitResult;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.dto.request.CreatePostRequest;
+import com.buyershow.dto.response.AdminPostRow;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.PostQueryRow;
@@ -452,6 +453,12 @@ class PostServiceTest {
         return row;
     }
 
+    private AdminPostRow adminRow(Long id) {
+        AdminPostRow row = new AdminPostRow();
+        row.setId(id);
+        return row;
+    }
+
     private PostQueryRow ownedRow(Long id) {
         PostQueryRow row = row(id);
         row.setUserId(10L);
@@ -514,5 +521,99 @@ class PostServiceTest {
         assertEquals(7L, result.get(0).getId());
         // 降级路径同样生成 <em> 高亮片段，保证前端体验一致
         assertEquals("今日好物分享：<em>关键词</em>盘点", result.get(0).getHighlights().get("title"));
+    }
+
+    // ─── G10 精选流 ───
+
+    @Test
+    void testSetFeaturedMarksApprovedPost() {
+        SecurityContextHolder.clearContext();
+        Post approved = ownedPost();
+        approved.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        when(postMapper.selectById(50L)).thenReturn(approved);
+
+        postService.setFeatured(50L, true);
+
+        verify(postMapper).updateFeatured(50L, 1);
+    }
+
+    @Test
+    void testSetFeaturedRejectsPendingModeration() {
+        SecurityContextHolder.clearContext();
+        Post pending = ownedPost();
+        pending.setModerationStatus(ModerationStatus.PENDING.getValue());
+        when(postMapper.selectById(50L)).thenReturn(pending);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.setFeatured(50L, true));
+
+        assertEquals(ErrorCode.POST_FEATURE_INVALID.getCode(), exception.getCode());
+        verify(postMapper, never()).updateFeatured(any(), anyInt());
+    }
+
+    @Test
+    void testUnfeatureSkipsModerationCheck() {
+        SecurityContextHolder.clearContext();
+        Post pending = ownedPost();
+        pending.setModerationStatus(ModerationStatus.PENDING.getValue());
+        when(postMapper.selectById(50L)).thenReturn(pending);
+
+        postService.setFeatured(50L, false);
+
+        verify(postMapper).updateFeatured(50L, 0);
+    }
+
+    @Test
+    void testSetFeaturedRejectsMissingPost() {
+        SecurityContextHolder.clearContext();
+        when(postMapper.selectById(99L)).thenReturn(null);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> postService.setFeatured(99L, true));
+
+        assertEquals(ErrorCode.POST_NOT_FOUND.getCode(), exception.getCode());
+        verify(postMapper, never()).updateFeatured(any(), anyInt());
+    }
+
+    @Test
+    void testListAdminPostsReturnsCursorPage() {
+        SecurityContextHolder.clearContext();
+        when(postMapper.selectAdminPostRows(isNull(), eq(4), isNull()))
+                .thenReturn(List.of(adminRow(100L), adminRow(99L)));
+
+        CursorPage<AdminPostRow> page = postService.listAdminPosts(null, 3, null);
+
+        assertEquals(2, page.getList().size());
+        assertFalse(page.isHasMore());
+        assertNull(page.getNextCursor());
+        verify(postMapper).selectAdminPostRows(isNull(), eq(4), isNull());
+    }
+
+    @Test
+    void testListAdminPostsPassesFeaturedFilter() {
+        SecurityContextHolder.clearContext();
+        when(postMapper.selectAdminPostRows(isNull(), eq(21), eq(1)))
+                .thenReturn(List.of(adminRow(7L)));
+
+        CursorPage<AdminPostRow> page = postService.listAdminPosts(null, 20, 1);
+
+        assertEquals(1, page.getList().size());
+        verify(postMapper).selectAdminPostRows(isNull(), eq(21), eq(1));
+    }
+
+    @Test
+    void testListAdminPostsHasMoreWhenRowsExceedLimit() {
+        SecurityContextHolder.clearContext();
+        List<AdminPostRow> rows = new java.util.ArrayList<>();
+        for (long id = 100; id >= 80; id--) {
+            rows.add(adminRow(id));
+        }
+        when(postMapper.selectAdminPostRows(isNull(), eq(21), isNull())).thenReturn(rows);
+
+        CursorPage<AdminPostRow> page = postService.listAdminPosts(null, 20, null);
+
+        assertEquals(20, page.getList().size());
+        assertTrue(page.isHasMore());
+        assertEquals(CursorUtils.encode(81L), page.getNextCursor());
     }
 }

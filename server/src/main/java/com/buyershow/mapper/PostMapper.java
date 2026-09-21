@@ -2,6 +2,7 @@ package com.buyershow.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.extension.handlers.JacksonTypeHandler;
+import com.buyershow.dto.response.AdminPostRow;
 import com.buyershow.dto.response.PostIndexRow;
 import com.buyershow.dto.response.PostQueryRow;
 import com.buyershow.dto.response.TagStatDTO;
@@ -322,6 +323,64 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("postId") Long postId,
             @Param("adminId") Long adminId,
             @Param("moderatedAt") java.time.LocalDateTime moderatedAt);
+
+    /** 精选标记（G10）：置 1/0，仅作用于未删除帖子。 */
+    @Update("UPDATE posts SET is_featured = #{featured} WHERE id = #{postId} AND status = 0")
+    int updateFeatured(@Param("postId") Long postId, @Param("featured") int featured);
+
+    /**
+     * 管理端精选列表（G10）：按发帖时间倒序游标分页；
+     * featuredFilter 非空时仅返回对应精选状态的帖子。
+     */
+    @Select({
+            "<script>",
+            "SELECT id, title, is_featured AS isFeatured, moderation_status AS moderationStatus, created_at AS createdAt",
+            "FROM posts WHERE status = 0",
+            "<if test='featuredFilter != null'> AND is_featured = #{featuredFilter} </if>",
+            "<if test='cursorId != null'> AND id &lt; #{cursorId} </if>",
+            "ORDER BY id DESC LIMIT #{limit}",
+            "</script>"
+    })
+    List<AdminPostRow> selectAdminPostRows(
+            @Param("cursorId") Long cursorId,
+            @Param("limit") int limit,
+            @Param("featuredFilter") Integer featuredFilter);
+
+    /**
+     * 精选流（G10）：公开且审核通过的精选帖，按发帖时间倒序游标分页。
+     */
+    @Select({
+            "<script>",
+            "SELECT STRAIGHT_JOIN p.id, p.user_id AS userId, p.title,",
+            "       CAST(p.images AS CHAR) AS imagesJson,",
+            "       CAST(p.tags AS CHAR) AS tagsJson,",
+            "       p.product_name AS productName, p.product_price AS productPrice,",
+            "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.like_count AS likeCount, p.comment_count AS commentCount,",
+            "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
+            "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
+            "       EXISTS(SELECT 1 FROM likes l WHERE l.user_id = #{currentUserId} AND l.post_id = p.id) AS liked,",
+            "       EXISTS(SELECT 1 FROM favorites f WHERE f.user_id = #{currentUserId} AND f.post_id = p.id) AS favorited",
+            "FROM posts p FORCE INDEX (idx_featured)",
+            "JOIN users u ON u.id = p.user_id AND u.status = 0",
+            "WHERE p.status = 0 AND p.moderation_status = 0 AND p.is_featured = 1",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub WHERE ub.blocker_id = p.user_id AND ub.blocked_id = #{currentUserId})",
+            "  AND NOT EXISTS (SELECT 1 FROM user_blocks ub2 WHERE ub2.blocker_id = #{currentUserId} AND ub2.blocked_id = p.user_id)",
+            "<if test='tag != null and tag != \"\"'>",
+            "  AND JSON_CONTAINS(p.tags, JSON_QUOTE(#{tag}))",
+            "</if>",
+            "<if test='cursorId != null'>",
+            "  AND p.id &lt; #{cursorId}",
+            "</if>",
+            "ORDER BY p.id DESC",
+            "LIMIT #{limit}",
+            "</script>"
+    })
+    List<PostQueryRow> selectFeaturedRows(
+            @Param("cursorId") Long cursorId,
+            @Param("tag") String tag,
+            @Param("limit") int limit,
+            @Param("currentUserId") Long currentUserId);
 
 
     @Select({

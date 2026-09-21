@@ -60,6 +60,13 @@ public enum ErrorCode {
     PARAM_INVALID(6001, "参数校验失败"),
     PARAM_MISSING(6002, "缺少必要参数"),
 
+    // 运营（G10） 8000-8999
+    BANNER_NOT_FOUND(8001, "Banner 不存在"),
+    BANNER_TITLE_EXISTS(8002, "Banner 标题已存在"),
+    TOPIC_NOT_FOUND(8003, "话题不存在"),
+    TOPIC_NAME_EXISTS(8004, "话题名称已存在"),
+    POST_FEATURE_INVALID(8005, "仅审核通过的帖子可设为精选"),
+
     // 系统 9000-9999
     SYSTEM_ERROR(9001, "服务暂时不可用，请稍后重试"),
     RATE_LIMITED(9002, "请求过于频繁，请稍后再试"),
