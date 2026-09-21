@@ -265,7 +265,9 @@ public class CommentService {
     public CommentDTO createComment(Long postId, CreateCommentRequest request) {
         Long userId = requireCurrentUserId();
         requireVisiblePost(postId);
-        Comment parent = validateParent(postId, request.getParentId());
+        ReplyContext context = resolveReplyTarget(postId, request.getParentId(), request.getReplyToId());
+        Comment parent = context.root();
+        Comment replyTarget = context.target();
         ModerationDecision decision = contentModerationService.evaluate(request.getContent());
         if (decision.getStatus() == ModerationStatus.REJECTED) {
             throw new BusinessException(ErrorCode.CONTENT_REJECTED, decision.getReason());
@@ -274,7 +276,8 @@ public class CommentService {
         Comment comment = new Comment();
         comment.setPostId(postId);
         comment.setUserId(userId);
-        comment.setParentId(request.getParentId());
+        comment.setParentId(parent == null ? null : parent.getId());
+        comment.setReplyToId(replyTarget == null ? null : replyTarget.getId());
         comment.setContent(request.getContent().trim());
         comment.setReplyCount(0);
         comment.setLikeCount(0);
@@ -292,6 +295,13 @@ public class CommentService {
             Post post = postMapper.selectById(postId);
             if (post != null) {
                 notificationService.notifyComment(post.getUserId(), userId, postId, request.getContent());
+                // G8：回复他人评论时额外通知被回复人（排除自己与帖子作者，避免重复打扰）；
+                // 老客户端仅传 parentId（回复楼根）时被回复人即楼根作者
+                Comment repliedUser = replyTarget != null ? replyTarget : parent;
+                if (repliedUser != null && !repliedUser.getUserId().equals(userId)
+                        && !repliedUser.getUserId().equals(post.getUserId())) {
+                    notificationService.notifyReply(repliedUser.getUserId(), userId, postId, request.getContent());
+                }
             }
         }
         return toCreatedComment(comment, userMapper.selectById(userId));
@@ -336,6 +346,7 @@ public class CommentService {
                 .postId(comment.getPostId())
                 .userId(comment.getUserId())
                 .parentId(comment.getParentId())
+                .replyToId(comment.getReplyToId())
                 .content(comment.getContent())
                 .replyCount(0)
                 .likeCount(0)
@@ -348,6 +359,37 @@ public class CommentService {
                 .build();
     }
 
+    /** 回复目标解析结果：root=楼根评论（顶级评论；顶级评论本身为 null）、target=被回复评论（null 表示直接回复楼主）。 */
+    private record ReplyContext(Comment root, Comment target) {
+    }
+
+    /**
+     * 解析回复目标（G8）：支持回复楼内回复（二级嵌套）。
+     * replyToId 为空时走既有路径（回复楼主，parentId 即楼根）；
+     * replyToId 非空时校验目标同帖有效，推导楼根并与 parentId 交叉校验（越楼拒绝）。
+     */
+    private ReplyContext resolveReplyTarget(Long postId, Long parentId, Long replyToId) {
+        if (replyToId == null) {
+            Comment parent = validateParent(postId, parentId);
+            // 兼容老客户端：父对象为楼内回复时归一到楼根，避免树结构断裂
+            if (parent != null && parent.getParentId() != null) {
+                return new ReplyContext(commentMapper.selectById(parent.getParentId()), null);
+            }
+            return new ReplyContext(parent, null);
+        }
+        Comment target = commentMapper.selectById(replyToId);
+        if (target == null || target.getStatus() != CommentStatus.ACTIVE.getValue()
+                || target.getModerationStatus() != ModerationStatus.APPROVED.getValue()
+                || !postId.equals(target.getPostId())) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+        Long rootId = target.getParentId() == null ? target.getId() : target.getParentId();
+        if (parentId != null && !parentId.equals(rootId)) {
+            throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
+        }
+        return new ReplyContext(commentMapper.selectById(rootId), target);
+    }
+
     private Comment validateParent(Long postId, Long parentId) {
         if (parentId == null) {
             return null;
@@ -357,9 +399,6 @@ public class CommentService {
                 || parent.getModerationStatus() != ModerationStatus.APPROVED.getValue()
                 || !postId.equals(parent.getPostId())) {
             throw new BusinessException(ErrorCode.COMMENT_NOT_FOUND);
-        }
-        if (parent.getParentId() != null) {
-            throw new BusinessException(ErrorCode.COMMENT_REPLY_DEPTH);
         }
         return parent;
     }

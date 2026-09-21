@@ -146,14 +146,21 @@ export default function PostDetailScreen() {
     if (!postId || !commentText.trim() || isCommentSubmitting) return
     setIsCommentSubmitting(true)
     try {
-      const comment = await createComment(postId, commentText.trim(), replyTarget?.id)
+      // G8：回复任何评论均传 replyToId（被回复评论）与 parentId（楼的根评论，顶级评论为 undefined）
+      const rootId = replyTarget == null ? null : (replyTarget.parentId ?? replyTarget.id)
+      const replyToId = replyTarget?.id
+      const created = await createComment(postId, commentText.trim(), rootId ?? undefined, replyToId)
+      // 新建响应不含被回复人昵称，前端本地补上以便即时展示「回复 @昵称」
+      const comment = replyToId != null && replyTarget != null
+        ? { ...created, replyToId, replyToNickname: replyTarget.userNickname ?? null }
+        : created
       setCommentText('')
       setReplyTarget(null)
-      setComments((current) => replyTarget
-        ? current.map((item) => item.id === replyTarget.id
+      setComments((current) => rootId == null
+        ? [...current, comment]
+        : current.map((item) => item.id === rootId
           ? { ...item, replies: [...item.replies, comment] }
-          : item)
-        : [...current, comment])
+          : item))
       patchFeedPost((item) => ({ commentCount: item.commentCount + 1 }))
       toast('success', comment.moderationStatus === 1 ? '评论已提交，审核通过后公开展示' : '评论发布成功')
     } catch (requestError) {

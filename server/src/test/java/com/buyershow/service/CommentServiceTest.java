@@ -143,6 +143,126 @@ class CommentServiceTest {
     }
 
     @Test
+    void replyToReplyWithinThreadDerivesRootAndNotifies() {
+        authenticate(1L);
+        Post post = approvedPost(10L);
+        post.setUserId(3L);
+        when(postMapper.selectById(10L)).thenReturn(post);
+        when(moderationService.evaluate(any())).thenReturn(
+                new ModerationDecision(ModerationStatus.APPROVED, null));
+        Comment target = new Comment();
+        target.setId(21L);
+        target.setUserId(2L);
+        target.setPostId(10L);
+        target.setParentId(20L);
+        target.setStatus(0);
+        target.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        Comment root = new Comment();
+        root.setId(20L);
+        root.setUserId(3L);
+        root.setPostId(10L);
+        root.setStatus(0);
+        root.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        when(commentMapper.selectById(21L)).thenReturn(target);
+        when(commentMapper.selectById(20L)).thenReturn(root);
+        when(commentMapper.insert(any(Comment.class))).thenAnswer(invocation -> {
+            Comment saved = invocation.getArgument(0);
+            saved.setId(22L);
+            return 1;
+        });
+        User user = new User();
+        user.setId(1L);
+        user.setNickname("回复者");
+        when(userMapper.selectById(1L)).thenReturn(user);
+
+        CreateCommentRequest request = new CreateCommentRequest();
+        request.setContent("回复的回复");
+        request.setReplyToId(21L);
+
+        CommentDTO result = service.createComment(10L, request);
+
+        assertEquals(20L, result.getParentId());
+        assertEquals(21L, result.getReplyToId());
+        verify(commentMapper).adjustReplyCount(20L, 1);
+        verify(notificationService).notifyComment(3L, 1L, 10L, "回复的回复");
+        verify(notificationService).notifyReply(2L, 1L, 10L, "回复的回复");
+    }
+
+    @Test
+    void replyToPostOwnerSkipsReplyNotification() {
+        authenticate(1L);
+        Post post = approvedPost(10L);
+        post.setUserId(2L);
+        when(postMapper.selectById(10L)).thenReturn(post);
+        when(moderationService.evaluate(any())).thenReturn(
+                new ModerationDecision(ModerationStatus.APPROVED, null));
+        Comment target = new Comment();
+        target.setId(20L);
+        target.setUserId(2L);
+        target.setPostId(10L);
+        target.setStatus(0);
+        target.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        when(commentMapper.selectById(20L)).thenReturn(target);
+        when(commentMapper.insert(any(Comment.class))).thenAnswer(invocation -> {
+            Comment saved = invocation.getArgument(0);
+            saved.setId(22L);
+            return 1;
+        });
+        User user = new User();
+        user.setId(1L);
+        user.setNickname("回复者");
+        when(userMapper.selectById(1L)).thenReturn(user);
+
+        CreateCommentRequest request = new CreateCommentRequest();
+        request.setContent("回复楼主");
+        request.setReplyToId(20L);
+
+        service.createComment(10L, request);
+
+        verify(notificationService).notifyComment(2L, 1L, 10L, "回复楼主");
+        verify(notificationService, never()).notifyReply(anyLong(), anyLong(), anyLong(), anyString());
+    }
+
+    @Test
+    void replyToReplyCrossThreadRejected() {
+        authenticate(1L);
+        when(postMapper.selectById(10L)).thenReturn(approvedPost(10L));
+        Comment target = new Comment();
+        target.setId(21L);
+        target.setPostId(10L);
+        target.setParentId(20L);
+        target.setStatus(0);
+        target.setModerationStatus(ModerationStatus.APPROVED.getValue());
+        when(commentMapper.selectById(21L)).thenReturn(target);
+
+        CreateCommentRequest request = new CreateCommentRequest();
+        request.setContent("越楼回复");
+        request.setParentId(99L);
+        request.setReplyToId(21L);
+
+        BusinessException exception = assertThrows(BusinessException.class,
+                () -> service.createComment(10L, request));
+        assertEquals(ErrorCode.COMMENT_NOT_FOUND.getCode(), exception.getCode());
+    }
+
+    @Test
+    void replyToDeletedTargetRejected() {
+        authenticate(1L);
+        when(postMapper.selectById(10L)).thenReturn(approvedPost(10L));
+        Comment target = new Comment();
+        target.setId(21L);
+        target.setPostId(10L);
+        target.setStatus(1);
+        when(commentMapper.selectById(21L)).thenReturn(target);
+
+        CreateCommentRequest request = new CreateCommentRequest();
+        request.setContent("回复已删除评论");
+        request.setReplyToId(21L);
+
+        assertThrows(BusinessException.class, () -> service.createComment(10L, request));
+    }
+
+    @Test
     void pendingCommentResponseContainsModerationAndAuthor() {
         authenticate(1L);
         when(postMapper.selectById(10L)).thenReturn(approvedPost(10L));

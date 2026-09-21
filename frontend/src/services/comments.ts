@@ -6,6 +6,10 @@ export interface ApiComment {
   postId: number
   userId: number
   parentId: number | null
+  /** G8：被回复评论ID（NULL=直接回复楼主） */
+  replyToId?: number | null
+  /** G8：被回复人昵称（回复对象已删除时为 null） */
+  replyToNickname?: string | null
   content: string
   replyCount: number
   likeCount: number
@@ -31,10 +35,11 @@ export function getComments(postId: string, sort: 'latest' | 'hot' = 'latest', c
   return request<ApiComment[]>(`/posts/${postId}/comments?${params.toString()}`)
 }
 
-export function createComment(postId: string, content: string, parentId?: number): Promise<ApiComment> {
+/** 创建评论（G8：replyToId 楼内回复对象，parentId 为楼的根评论） */
+export function createComment(postId: string, content: string, parentId?: number, replyToId?: number): Promise<ApiComment> {
   return request<ApiComment>(`/posts/${postId}/comments`, {
     method: 'POST',
-    body: JSON.stringify({ content, parentId }),
+    body: JSON.stringify({ content, parentId, replyToId }),
   })
 }
 

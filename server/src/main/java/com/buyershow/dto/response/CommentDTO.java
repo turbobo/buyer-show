@@ -17,6 +17,13 @@ public class CommentDTO {
     private Long postId;
     private Long userId;
     private Long parentId;
+
+    /** 被回复评论ID（G8）：NULL=直接回复楼主 */
+    private Long replyToId;
+
+    /** 被回复人昵称（G8）：由查询 LEFT JOIN 组装，供前端展示「回复 @昵称」 */
+    private String replyToNickname;
+
     private String content;
     private Integer replyCount;
     private Integer likeCount;

@@ -72,6 +72,26 @@ public class NotificationService {
     }
 
     /**
+     * 创建回复通知（G8：楼中楼回复，异步）。
+     */
+    @Async
+    public void notifyReply(Long repliedUserId, Long actorId, Long postId, String commentContent) {
+        if (repliedUserId.equals(actorId)) return;
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(repliedUserId);
+            notification.setType("reply");
+            notification.setActorId(actorId);
+            notification.setTargetType("post");
+            notification.setTargetId(postId);
+            notification.setContent(commentContent != null ? commentContent.substring(0, Math.min(100, commentContent.length())) : "");
+            notificationMapper.insert(notification);
+        } catch (Exception e) {
+            log.warn("Failed to create reply notification: {}", e.getMessage());
+        }
+    }
+
+    /**
      * 创建关注通知（异步）。
      */
     @Async

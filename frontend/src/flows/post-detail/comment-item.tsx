@@ -19,6 +19,9 @@ export interface CommentItemProps {
 
 const COMMENT_EDIT_WINDOW_MS = 5 * 60 * 1000
 
+/** G8：楼中楼默认展示条数，超出折叠，点击「展开」显示全部。 */
+const COLLAPSED_REPLY_COUNT = 3
+
 /** 发布后 5 分钟内可编辑。 */
 function isWithinEditWindow(createdAt: string): boolean {
   const time = new Date(createdAt.replace(' ', 'T')).getTime()
@@ -40,10 +43,13 @@ export function updateCommentTree(list: ApiComment[], commentId: number, updater
 
 /* ─── 评论项组件（树形递归渲染嵌套回复） ─── */
 export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, onEdit, onBlock, currentUserId }: CommentItemProps) {
-  const isRoot = comment.parentId == null
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(comment.content)
   const [isSavingEdit, setIsSavingEdit] = useState(false)
+  /** G8：楼中楼折叠（默认展示前 3 条回复） */
+  const [isRepliesExpanded, setIsRepliesExpanded] = useState(false)
+  const visibleReplies = isRepliesExpanded ? comment.replies : comment.replies.slice(0, COLLAPSED_REPLY_COUNT)
+  const collapsedReplyCount = comment.replies.length - visibleReplies.length
 
   const isOwn = currentUserId != null && comment.userId === currentUserId
   const editable = isOwn && isWithinEditWindow(comment.createdAt)
@@ -106,7 +112,13 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
             </div>
           </div>
         ) : (
-          <p className="mt-0.5 text-sm leading-relaxed text-foreground/80">{comment.content}</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-foreground/80">
+            {/* G8：楼内回复展示「回复 @昵称」前缀（被回复人已删除时降级为普通文案） */}
+            {comment.replyToNickname != null && (
+              <span className="font-medium text-coral">回复 @{comment.replyToNickname}：</span>
+            )}
+            {comment.content}
+          </p>
         )}
         <div className="mt-1.5 flex items-center gap-4">
           <button
@@ -131,11 +143,9 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
             <Bookmark className={`h-3.5 w-3.5 ${comment.isFavorited ? 'fill-coral' : ''}`} />
             {comment.isFavorited ? '已收藏' : '收藏'}
           </button>
-          {isRoot && (
-            <button type="button" onClick={() => onReply(comment)} className="text-xs text-muted-foreground hover:text-coral">
-              回复
-            </button>
-          )}
+          <button type="button" onClick={() => onReply(comment)} className="text-xs text-muted-foreground hover:text-coral">
+            回复
+          </button>
           <button type="button" onClick={() => onReport(comment.id)} className="text-xs text-muted-foreground hover:text-coral">
             举报
           </button>
@@ -154,9 +164,9 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
             </button>
           )}
         </div>
-        {comment.replies.length > 0 && (
+        {visibleReplies.length > 0 && (
           <div className="mt-3 space-y-3 border-l-2 border-border/60 pl-4">
-            {comment.replies.map((reply) => (
+            {visibleReplies.map((reply) => (
               <CommentItem
                 key={reply.id}
                 comment={reply}
@@ -169,6 +179,15 @@ export function CommentItem({ comment, onReply, onReport, onLike, onFavorite, on
                 currentUserId={currentUserId}
               />
             ))}
+            {collapsedReplyCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setIsRepliesExpanded(true)}
+                className="text-xs text-muted-foreground hover:text-coral"
+              >
+                展开 {collapsedReplyCount} 条回复
+              </button>
+            )}
           </div>
         )}
       </div>

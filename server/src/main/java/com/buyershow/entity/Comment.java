@@ -14,6 +14,10 @@ public class Comment {
     private Long postId;
     private Long userId;
     private Long parentId;
+
+    /** 被回复评论ID（G8）：NULL=直接回复楼主 */
+    private Long replyToId;
+
     private String content;
     private Integer replyCount;
     private Integer likeCount;

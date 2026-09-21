@@ -61,6 +61,7 @@ public interface CommentMapper extends BaseMapper<Comment> {
     @Select({
             "<script>",
             "SELECT c.id, c.post_id AS postId, c.user_id AS userId, c.parent_id AS parentId,",
+            "       c.reply_to_id AS replyToId, target_user.nickname AS replyToNickname,",
             "       c.content, c.reply_count AS replyCount, c.like_count AS likeCount,",
             "       c.moderation_status AS moderationStatus, c.edited_at AS editedAt, c.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -71,6 +72,8 @@ public interface CommentMapper extends BaseMapper<Comment> {
             "           SELECT 1 FROM favorite_comments fc WHERE fc.comment_id = c.id AND fc.user_id = #{viewerId}",
             "       ) THEN 1 ELSE 0 END AS isFavorited",
             "FROM comments c JOIN users u ON u.id = c.user_id AND u.status = 0",
+            "LEFT JOIN comments target ON target.id = c.reply_to_id",
+            "LEFT JOIN users target_user ON target_user.id = target.user_id",
             "WHERE c.parent_id IN",
             "<foreach collection='parentIds' item='parentId' open='(' separator=',' close=')'>",
             "  #{parentId}",
