@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, type ReactElement } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom'
 import { getAccessToken, getTokenRole } from './services/http'
+import { realtime } from './services/realtime'
 import { ErrorBoundary } from './components/error-boundary'
+import AnnouncementBanner from './components/announcement-banner'
 import { AppTabBar } from './components/layout/app-tabbar'
 import { DesktopHeader } from './components/layout/desktop-header'
 import { smartBack } from './lib/smart-back'
@@ -135,6 +137,23 @@ function UnreadCountPoller() {
   return null
 }
 
+// G11：STOMP 实时连接（登录时连接/登出断开）；通知事件推送后刷新未读徽标（轮询降级兜底保留）
+function RealtimeConnector() {
+  const { pathname } = useLocation()
+  useEffect(() => {
+    if (!getAccessToken()) {
+      realtime.disconnect()
+      return
+    }
+    realtime.connect()
+    const unsubscribe = realtime.onNotification(() => {
+      void useUiStore.getState().refreshUnreadCount()
+    })
+    return unsubscribe
+  }, [pathname])
+  return null
+}
+
 // PC 键盘导航：Esc 返回上一页（弹窗打开时交由弹窗自行处理）
 function EscapeBack() {
   const { pathname } = useLocation()
@@ -156,9 +175,11 @@ function AnimatedRoutes() {
     <>
       {/* 全局层（禁止放入 .page-transition：其 transform 动画会影响内部 fixed/sticky 定位） */}
       <UnreadCountPoller />
+      <RealtimeConnector />
       <ScrollRestoration />
       <EscapeBack />
       <DesktopHeader />
+      <AnnouncementBanner />
       <div key={location.pathname} className="page-transition">
         <Suspense fallback={<RouteFallback />}>
           <Routes location={location}>

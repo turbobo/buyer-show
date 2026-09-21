@@ -22,6 +22,7 @@ import {
   type ChatMessage,
   type ConversationItem,
 } from '@/services/messages'
+import { realtime } from '@/services/realtime'
 import { ConversationItemView, MessageBubble } from './chat-views'
 import { NotificationItem } from './notification-views'
 
@@ -189,6 +190,21 @@ export default function MessagesScreen({ onBack }: { onBack: () => void }) {
     }, 5000)
     return () => window.clearInterval(timer)
   }, [activeConv, messages])
+
+  // G11：私信实时推送——当前会话消息直接插入并同步已读；其他会话刷新列表
+  useEffect(() => {
+    const unsubscribe = realtime.onMessage((message) => {
+      if (activeConv && message.conversationId === activeConv.id) {
+        setMessages((current) => {
+          const known = new Set(current.map((item) => item.id))
+          return known.has(message.id) ? current : [...current, message]
+        })
+        void markConversationRead(activeConv.id)
+      }
+      void loadConversations()
+    })
+    return unsubscribe
+  }, [activeConv, loadConversations])
 
   // Desktop: split view. Mobile: full-screen switching.
   const showChat = activeConv !== null

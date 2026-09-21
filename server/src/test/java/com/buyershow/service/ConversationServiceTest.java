@@ -14,6 +14,7 @@ import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.MessageMapper;
 import com.buyershow.mapper.UserBlockMapper;
 import com.buyershow.mapper.UserMapper;
+import com.buyershow.realtime.RealtimeEventPublisher;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,10 @@ class ConversationServiceTest {
     private final UserBlockMapper userBlockMapper = mock(UserBlockMapper.class);
     private final ContentModerationService moderationService = mock(ContentModerationService.class);
     private final ActivityService activityService = mock(ActivityService.class);
+    private final RealtimeEventPublisher realtimeEventPublisher = mock(RealtimeEventPublisher.class);
     private final ConversationService service = new ConversationService(
             conversationMapper, messageMapper, userMapper, followMapper, userBlockMapper,
-            moderationService, activityService);
+            moderationService, activityService, realtimeEventPublisher);
 
     @AfterEach
     void tearDown() {

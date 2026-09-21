@@ -1,13 +1,16 @@
 package com.buyershow.controller;
 
 import com.buyershow.common.R;
+import com.buyershow.dto.request.AnnouncementRequest;
 import com.buyershow.dto.request.BannerRequest;
 import com.buyershow.dto.request.FeaturedRequest;
 import com.buyershow.dto.request.TopicRequest;
 import com.buyershow.dto.response.AdminPostRow;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.TopicDTO;
+import com.buyershow.entity.Announcement;
 import com.buyershow.entity.SiteBanner;
+import com.buyershow.service.AnnouncementService;
 import com.buyershow.service.BannerService;
 import com.buyershow.service.PostService;
 import com.buyershow.service.TopicService;
@@ -31,6 +34,7 @@ public class AdminOperationsController {
     private final BannerService bannerService;
     private final TopicService topicService;
     private final PostService postService;
+    private final AnnouncementService announcementService;
 
     // ─── Banner 运营位 ───
 
@@ -108,6 +112,42 @@ public class AdminOperationsController {
     @PutMapping("/posts/{postId}/featured")
     public R<Void> setFeatured(@PathVariable Long postId, @Valid @RequestBody FeaturedRequest request) {
         postService.setFeatured(postId, request.getFeatured());
+        return R.ok();
+    }
+
+    // ─── 系统公告（G11） ───
+
+    /** 全部公告列表。 */
+    @GetMapping("/announcements")
+    public R<List<Announcement>> listAnnouncements() {
+        return R.ok(announcementService.listAll());
+    }
+
+    /** 创建公告（草稿或直接发布；发布即实时广播）。 */
+    @PostMapping("/announcements")
+    public R<Announcement> createAnnouncement(@Valid @RequestBody AnnouncementRequest request) {
+        return R.ok(announcementService.create(
+                request.getTitle(), request.getContent(), request.getStatus()));
+    }
+
+    /** 更新公告（草稿→发布时实时广播）。 */
+    @PutMapping("/announcements/{id}")
+    public R<Announcement> updateAnnouncement(@PathVariable Long id, @Valid @RequestBody AnnouncementRequest request) {
+        return R.ok(announcementService.update(
+                id, request.getTitle(), request.getContent(), request.getStatus()));
+    }
+
+    /** 下线公告。 */
+    @PutMapping("/announcements/{id}/offline")
+    public R<Void> offlineAnnouncement(@PathVariable Long id) {
+        announcementService.offline(id);
+        return R.ok();
+    }
+
+    /** 删除公告。 */
+    @DeleteMapping("/announcements/{id}")
+    public R<Void> deleteAnnouncement(@PathVariable Long id) {
+        announcementService.delete(id);
         return R.ok();
     }
 }

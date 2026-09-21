@@ -17,6 +17,8 @@ import com.buyershow.mapper.FollowMapper;
 import com.buyershow.mapper.MessageMapper;
 import com.buyershow.mapper.UserBlockMapper;
 import com.buyershow.mapper.UserMapper;
+import com.buyershow.realtime.RealtimeEvent;
+import com.buyershow.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +52,7 @@ public class ConversationService {
     private final UserBlockMapper userBlockMapper;
     private final ContentModerationService contentModerationService;
     private final ActivityService activityService;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     /**
      * 当前用户的会话列表（按最后消息时间倒序）。
@@ -166,6 +169,12 @@ public class ConversationService {
             update.setAUnread(safeUnread(conversation.getAUnread()) + 1);
         }
         conversationMapper.updateById(update);
+        // G11：消息落库后发布实时事件推送对方（推送失败不影响业务，轮询兜底）
+        realtimeEventPublisher.publish(RealtimeEvent.builder()
+                .type(RealtimeEvent.TYPE_MESSAGE)
+                .userId(receiverId)
+                .message(toMessageDTO(message))
+                .build());
         return toMessageDTO(message);
     }
 

@@ -43,6 +43,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/tags/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/banners").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/topics/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/announcements/**").permitAll()
+                .requestMatchers("/ws/**").permitAll()  // STOMP 握手鉴权在 ChannelInterceptor
                 .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/posts").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/users/*/favorites", "/api/v1/users/*/likes").permitAll()

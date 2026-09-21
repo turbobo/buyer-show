@@ -1,0 +1,12 @@
+-- G11 实时推送与系统公告：公告表
+
+CREATE TABLE announcements (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(100) NOT NULL COMMENT '公告标题',
+    content TEXT NOT NULL COMMENT '公告正文',
+    status TINYINT NOT NULL DEFAULT 0 COMMENT '状态: 0=草稿 1=已发布 2=已下线',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status_id (status, id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+COMMENT='系统公告表';

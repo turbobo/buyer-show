@@ -66,6 +66,9 @@ public enum ErrorCode {
     TOPIC_NOT_FOUND(8003, "话题不存在"),
     TOPIC_NAME_EXISTS(8004, "话题名称已存在"),
     POST_FEATURE_INVALID(8005, "仅审核通过的帖子可设为精选"),
+    // 公告（G11）
+    ANNOUNCEMENT_NOT_FOUND(8006, "公告不存在"),
+    ANNOUNCEMENT_STATUS_INVALID(8007, "公告状态不合法"),
 
     // 系统 9000-9999
     SYSTEM_ERROR(9001, "服务暂时不可用，请稍后重试"),

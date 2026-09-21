@@ -3,6 +3,8 @@ package com.buyershow.service;
 import com.buyershow.dto.response.NotificationDTO;
 import com.buyershow.entity.Notification;
 import com.buyershow.mapper.NotificationMapper;
+import com.buyershow.realtime.RealtimeEvent;
+import com.buyershow.realtime.RealtimeEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -17,6 +19,7 @@ import java.util.List;
 public class NotificationService {
 
     private final NotificationMapper notificationMapper;
+    private final RealtimeEventPublisher realtimeEventPublisher;
 
     public List<NotificationDTO> getNotifications(Long userId, int limit) {
         return notificationMapper.selectNotifications(userId, Math.min(limit, 50));
@@ -46,6 +49,7 @@ public class NotificationService {
             notification.setTargetId(postId);
             notification.setContent(postTitle != null ? postTitle.substring(0, Math.min(50, postTitle.length())) : "");
             notificationMapper.insert(notification);
+            publishRealtime(postOwnerId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create like notification: {}", e.getMessage());
         }
@@ -66,6 +70,7 @@ public class NotificationService {
             notification.setTargetId(postId);
             notification.setContent(commentContent != null ? commentContent.substring(0, Math.min(100, commentContent.length())) : "");
             notificationMapper.insert(notification);
+            publishRealtime(postOwnerId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create comment notification: {}", e.getMessage());
         }
@@ -86,6 +91,7 @@ public class NotificationService {
             notification.setTargetId(postId);
             notification.setContent(commentContent != null ? commentContent.substring(0, Math.min(100, commentContent.length())) : "");
             notificationMapper.insert(notification);
+            publishRealtime(repliedUserId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create reply notification: {}", e.getMessage());
         }
@@ -103,6 +109,7 @@ public class NotificationService {
             notification.setType("follow");
             notification.setActorId(followerId);
             notificationMapper.insert(notification);
+            publishRealtime(followeeId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create follow notification: {}", e.getMessage());
         }
@@ -125,6 +132,7 @@ public class NotificationService {
             notification.setTargetId(postId);
             notification.setContent(postTitle != null ? postTitle.substring(0, Math.min(50, postTitle.length())) : "");
             notificationMapper.insert(notification);
+            publishRealtime(mentionedUserId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create mention notification: {}", e.getMessage());
         }
@@ -149,8 +157,18 @@ public class NotificationService {
             notification.setTargetId(targetId);
             notification.setContent(content != null ? content.substring(0, Math.min(500, content.length())) : "");
             notificationMapper.insert(notification);
+            publishRealtime(userId, notification.getId());
         } catch (Exception e) {
             log.warn("Failed to create system notification: {}", e.getMessage());
         }
+    }
+
+    /** 通知创建后发布实时事件（G11）：推送失败不影响业务，轮询兜底。 */
+    private void publishRealtime(Long userId, Long notificationId) {
+        realtimeEventPublisher.publish(RealtimeEvent.builder()
+                .type(RealtimeEvent.TYPE_NOTIFICATION)
+                .userId(userId)
+                .notificationId(notificationId)
+                .build());
     }
 }
