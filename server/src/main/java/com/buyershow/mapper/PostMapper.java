@@ -14,6 +14,7 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface PostMapper extends BaseMapper<Post> {
@@ -433,6 +434,14 @@ public interface PostMapper extends BaseMapper<Post> {
             @Param("userId") Long userId,
             @Param("title") String title,
             @Param("content") String content);
+
+    /** 创作者汇总（G9）：本人全部未删除帖子的数量与累计互动数。 */
+    @Select("SELECT COUNT(*) AS postCount, " +
+            "IFNULL(SUM(like_count), 0) AS totalLikes, " +
+            "IFNULL(SUM(favorite_count), 0) AS totalFavorites, " +
+            "IFNULL(SUM(comment_count), 0) AS totalComments " +
+            "FROM posts WHERE user_id = #{userId} AND status = 0")
+    Map<String, Object> selectCreatorSummary(@Param("userId") Long userId);
 
     // ─── G5 ES 搜索索引同步 ───
 

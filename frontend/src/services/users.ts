@@ -120,3 +120,38 @@ export function deleteFolder(folderId: number): Promise<void> {
 export function moveFavorite(postId: number | string, folderId: number | null): Promise<void> {
   return request<void>(`/users/me/favorites/${postId}/move`, { method: 'POST', body: JSON.stringify({ folderId }) })
 }
+
+/* ─── G9 创作数据 ─── */
+
+export interface CreatorTrendPoint {
+  date: string
+  views: number
+  likes: number
+  favorites: number
+  comments: number
+}
+
+export interface CreatorTopPost {
+  postId: number
+  title: string | null
+  views: number
+  likeCount: number
+  favoriteCount: number
+}
+
+export interface CreatorStats {
+  summary: {
+    postCount: number
+    totalViews: number
+    totalLikes: number
+    totalFavorites: number
+    totalComments: number
+  }
+  trend: CreatorTrendPoint[]
+  topPosts: CreatorTopPost[]
+}
+
+/** G9 创作数据总览：本人帖子近 N 天互动趋势 + Top 帖（仅本人可见） */
+export function getCreatorStats(days: number): Promise<CreatorStats> {
+  return request<CreatorStats>(`/users/me/creator-stats?days=${days}`)
+}

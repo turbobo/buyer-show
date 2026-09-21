@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Ban, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus } from 'lucide-react'
+import { ArrowLeft, Ban, BarChart3, FolderPlus, Heart, Home, Loader2, MessageSquare, Pencil, Settings2, Trash2, UserCheck, UserPlus } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -459,7 +459,16 @@ export default function ProfileScreen({ self = false }: { self?: boolean }) {
             </div>
             <div className="flex shrink-0 gap-2 max-md:w-full">
               {isOwn ? (
-                <Button variant="outline" onClick={() => navigate('/profile/edit')}>编辑资料</Button>
+                <>
+                  <Button variant="outline" onClick={() => navigate('/profile/edit')}>编辑资料</Button>
+                  <Button
+                    variant="outline"
+                    aria-label="创作数据"
+                    onClick={() => navigate('/profile/creator-stats')}
+                  >
+                    <BarChart3 className="mr-1 h-4 w-4" />创作数据
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button

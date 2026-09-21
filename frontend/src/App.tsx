@@ -20,6 +20,7 @@ const ProfileScreen = lazy(() => import('./flows/profile/profile'))
 const EditProfileScreen = lazy(() => import('./flows/profile/edit-profile'))
 const ChangePasswordScreen = lazy(() => import('./flows/profile/change-password'))
 const MyCommentsScreen = lazy(() => import('./flows/profile/my-comments'))
+const CreatorStatsScreen = lazy(() => import('./flows/profile/creator-stats'))
 const FollowListScreen = lazy(() => import('./flows/profile/follow-list'))
 const AdminLayout = lazy(() => import('./components/admin/admin-layout'))
 const AdminModerationScreen = lazy(() => import('./flows/admin/moderation'))
@@ -171,6 +172,7 @@ function AnimatedRoutes() {
           <Route path="/profile/edit" element={<ProtectedRoute><EditProfileScreen /></ProtectedRoute>} />
           <Route path="/profile/change-password" element={<ProtectedRoute><ChangePasswordScreen /></ProtectedRoute>} />
           <Route path="/profile/comments" element={<ProtectedRoute><MyCommentsScreen /></ProtectedRoute>} />
+          <Route path="/profile/creator-stats" element={<ProtectedRoute><CreatorStatsScreen /></ProtectedRoute>} />
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route path="analytics" element={<AdminAnalytics />} />
             <Route path="audit-log" element={<AdminAuditLogScreen />} />

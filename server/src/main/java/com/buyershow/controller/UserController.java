@@ -3,11 +3,13 @@ package com.buyershow.controller;
 import com.buyershow.common.R;
 import com.buyershow.dto.request.UpdateProfileRequest;
 import com.buyershow.dto.response.BlockedUserDTO;
+import com.buyershow.dto.response.CreatorStatsDTO;
 import com.buyershow.dto.response.CursorPage;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.UserCommentRow;
 import com.buyershow.dto.response.UserDTO;
 import com.buyershow.service.CommentService;
+import com.buyershow.service.CreatorStatsService;
 import com.buyershow.service.PostService;
 import com.buyershow.service.UserBlockService;
 import com.buyershow.service.UserService;
@@ -26,6 +28,7 @@ public class UserController {
     private final PostService postService;
     private final CommentService commentService;
     private final UserBlockService userBlockService;
+    private final CreatorStatsService creatorStatsService;
 
     /** 获取指定用户公开资料。 */
     @GetMapping("/{userId}")
@@ -83,6 +86,12 @@ public class UserController {
             @RequestParam(required = false) String cursor,
             @RequestParam(defaultValue = "20") int size) {
         return R.ok(commentService.listMyFavoriteComments(cursor, size));
+    }
+
+    /** 创作数据总览（G9）：本人帖子的阅读/点赞/收藏/评论反馈，仅本人可见。 */
+    @GetMapping("/me/creator-stats")
+    public R<CreatorStatsDTO> getCreatorStats(@RequestParam(defaultValue = "7") int days) {
+        return R.ok(creatorStatsService.getCreatorStats(days));
     }
 
     /** 获取当前登录用户资料。 */
