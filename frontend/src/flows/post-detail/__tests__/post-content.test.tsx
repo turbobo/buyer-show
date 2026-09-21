@@ -3,11 +3,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { PostContent, buildPostJsonLd } from '../post-content'
 import type { ApiPost } from '@/services/posts'
 
+const { toastMock, navigateMock } = vi.hoisted(() => ({ toastMock: vi.fn(), navigateMock: vi.fn() }))
+
 vi.mock('@/components/ui/toast', () => ({
   useToast: () => ({ toast: toastMock }),
 }))
 
-const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }))
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => navigateMock,
+}))
 
 function makePost(overrides: Partial<ApiPost> = {}): ApiPost {
   return {
@@ -41,6 +45,7 @@ function stubClipboard() {
 describe('PostContent', () => {
   beforeEach(() => {
     toastMock.mockClear()
+    navigateMock.mockClear()
   })
 
   it('should render title, content and tags', () => {
@@ -85,6 +90,59 @@ describe('PostContent', () => {
     await waitFor(() => {
       expect(toastMock).toHaveBeenCalledWith('success', '商品信息已复制，可在淘宝搜索')
     })
+  })
+
+  it('should highlight topics and mentions in content', () => {
+    render(
+      <PostContent
+        post={makePost({
+          content: '打卡了 #咖啡店# 感谢 @李四 推荐',
+          mentions: [{ nickname: '李四', userId: 20 }],
+        })}
+      />,
+    )
+
+    expect(screen.getByRole('button', { name: '#咖啡店#' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '@李四' })).toBeInTheDocument()
+  })
+
+  it('should navigate to tag feed on topic click', () => {
+    render(<PostContent post={makePost({ content: '打卡了 #咖啡店# 推荐' })} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '#咖啡店#' }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/?tag=%E5%92%96%E5%95%A1%E5%BA%97')
+  })
+
+  it('should render mention without resolved userId as non-clickable highlight', () => {
+    render(<PostContent post={makePost({ content: '感谢 @路人甲 支持' })} />)
+
+    expect(screen.getByText('@路人甲').tagName).toBe('SPAN')
+    expect(screen.queryByRole('button', { name: '@路人甲' })).toBeNull()
+  })
+
+  it('should navigate to user profile on mention click when userId resolved', () => {
+    render(
+      <PostContent post={makePost({ content: '感谢 @李四 支持', mentions: [{ nickname: '李四', userId: 20 }] })} />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: '@李四' }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/user/20')
+  })
+
+  it('should not treat email addresses as mentions', () => {
+    render(<PostContent post={makePost({ content: '联系我 a@b.com 谢谢' })} />)
+
+    expect(screen.queryByRole('button', { name: /@/ })).toBeNull()
+  })
+
+  it('should navigate to tag feed on tag chip click', () => {
+    render(<PostContent post={makePost()} />)
+
+    fireEvent.click(screen.getByRole('button', { name: '#美食' }))
+
+    expect(navigateMock).toHaveBeenCalledWith('/?tag=%E7%BE%8E%E9%A3%9F')
   })
 })
 

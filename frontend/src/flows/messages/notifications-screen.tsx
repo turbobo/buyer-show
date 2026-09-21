@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Heart, Home, MessageCircle, UserPlus, Bell, CheckCheck, ShieldCheck } from 'lucide-react'
+import { ArrowLeft, AtSign, Heart, Home, MessageCircle, UserPlus, Bell, CheckCheck, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { getNotifications, markAllAsRead, type Notification } from '@/services/notifications'
@@ -12,6 +12,7 @@ function getNotificationIcon(type: string) {
     case 'like': return <Heart className="w-4 h-4 text-red-500" />
     case 'comment': return <MessageCircle className="w-4 h-4 text-blue-500" />
     case 'follow': return <UserPlus className="w-4 h-4 text-green-500" />
+    case 'mention': return <AtSign className="w-4 h-4 text-purple-500" />
     case 'system': return <ShieldCheck className="w-4 h-4 text-coral" />
     default: return <Bell className="w-4 h-4 text-gray-500" />
   }
@@ -22,6 +23,7 @@ function getNotificationText(notification: Notification): string {
     case 'like': return `赞了你的帖子${notification.content ? `「${notification.content}」` : ''}`
     case 'comment': return `评论了你的帖子${notification.content ? `：${notification.content}` : ''}`
     case 'follow': return '关注了你'
+    case 'mention': return `在帖子${notification.content ? `「${notification.content}」` : ''}中提到了你`
     case 'system': return notification.content || '系统通知'
     default: return notification.content || '新通知'
   }
@@ -47,7 +49,7 @@ function NotificationItem({ notification }: { notification: Notification }) {
 
   const handleClick = () => {
     const canOpenPost = notification.targetType === 'post' && notification.targetId != null
-    if (notification.type === 'like' || notification.type === 'comment' || notification.type === 'system') {
+    if (notification.type === 'like' || notification.type === 'comment' || notification.type === 'mention' || notification.type === 'system') {
       if (canOpenPost) {
         navigate(`/posts/${notification.targetId}`)
       }

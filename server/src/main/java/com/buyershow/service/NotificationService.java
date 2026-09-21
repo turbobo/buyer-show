@@ -89,6 +89,28 @@ public class NotificationService {
     }
 
     /**
+     * 创建提及通知（G4：帖子正文 @提及，异步）。
+     */
+    @Async
+    public void notifyMention(Long mentionedUserId, Long actorId, Long postId, String postTitle) {
+        if (mentionedUserId.equals(actorId)) {
+            return; // 不通知自己
+        }
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(mentionedUserId);
+            notification.setType("mention");
+            notification.setActorId(actorId);
+            notification.setTargetType("post");
+            notification.setTargetId(postId);
+            notification.setContent(postTitle != null ? postTitle.substring(0, Math.min(50, postTitle.length())) : "");
+            notificationMapper.insert(notification);
+        } catch (Exception e) {
+            log.warn("Failed to create mention notification: {}", e.getMessage());
+        }
+    }
+
+    /**
      * 创建系统通知（异步）：审批结果、系统提示等。
      * 一般由管理员操作触发；content 直接展示给用户。
      *

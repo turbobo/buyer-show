@@ -2,7 +2,7 @@ import { request } from './http'
 
 export interface Notification {
   id: number
-  type: 'like' | 'comment' | 'follow' | 'system'
+  type: 'like' | 'comment' | 'follow' | 'system' | 'mention'
   content: string
   isRead: number
   createdAt: string

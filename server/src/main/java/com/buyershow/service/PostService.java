@@ -7,8 +7,10 @@ import com.buyershow.common.UserStatus;
 import com.buyershow.common.exception.BusinessException;
 import com.buyershow.common.security.SecurityUtils;
 import com.buyershow.common.util.CursorUtils;
+import com.buyershow.common.util.MentionExtractor;
 import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.CursorPage;
+import com.buyershow.dto.response.MentionDTO;
 import com.buyershow.dto.response.PostDTO;
 import com.buyershow.dto.response.PostQueryRow;
 import com.buyershow.entity.Post;
@@ -195,6 +197,8 @@ public class PostService {
                 && !row.getUserId().equals(currentUserId)) {
             dto.setImages(Collections.emptyList());
         }
+        // G4：解析正文 @提及（昵称→用户映射，供前端高亮跳转）
+        dto.setMentions(resolveMentions(dto.getContent()));
         return dto;
     }
 
@@ -240,6 +244,34 @@ public class PostService {
         return fill;
     }
 
+    /**
+     * 解析正文 @提及（G4）：昵称批量查活跃用户，返回昵称→用户映射；不存在的昵称静默忽略。
+     */
+    private List<MentionDTO> resolveMentions(String content) {
+        List<String> nicknames = MentionExtractor.extractMentions(content);
+        if (nicknames.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<User> users = userMapper.selectActiveUsersByNicknames(nicknames);
+        return users.stream()
+                .map(user -> MentionDTO.builder().nickname(user.getNickname()).userId(user.getId()).build())
+                .toList();
+    }
+
+    /**
+     * 发送 @提及通知（G4）：逐个异步通知被提及用户；@自己与不存在昵称由调用链过滤/忽略。
+     */
+    private void notifyMentions(Long actorId, Long postId, String content, String title) {
+        List<String> nicknames = MentionExtractor.extractMentions(content);
+        if (nicknames.isEmpty()) {
+            return;
+        }
+        List<User> mentioned = userMapper.selectActiveUsersByNicknames(nicknames);
+        for (User user : mentioned) {
+            notificationService.notifyMention(user.getId(), actorId, postId, title);
+        }
+    }
+
     @Transactional
     @Caching(evict = {
             @CacheEvict(cacheNames = "user:profile", key = "#root.target.getCurrentUserIdSafe()"),
@@ -256,7 +288,10 @@ public class PostService {
         }
 
         uploadService.validatePendingImages(userId, request.getImages());
-        String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
+        // G4：正文 #话题# 自动并入标签（手选在前，去重，上限 8）
+        List<String> mergedTags = MentionExtractor.mergeTags(request.getTags(),
+                MentionExtractor.extractTopics(request.getContent()));
+        String tagsText = mergedTags.isEmpty() ? null : String.join(" ", mergedTags);
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
                 request.getProductSource(), tagsText);
@@ -272,19 +307,22 @@ public class PostService {
             publishedImages = request.getImages();
         }
 
-        PostDTO result = createPostInTransaction(userId, request, decision, publishedImages);
+        PostDTO result = createPostInTransaction(userId, request, decision, publishedImages, mergedTags);
+        // G4：正文 @提及 通知（异步，失败仅告警）
+        notifyMentions(userId, result.getId(), request.getContent(), request.getTitle());
         return getPostDetail(result.getId());
     }
 
     @Transactional
     protected PostDTO createPostInTransaction(Long userId, CreatePostRequest request,
-                                               ModerationDecision decision, List<String> publishedImages) {
+                                               ModerationDecision decision, List<String> publishedImages,
+                                               List<String> mergedTags) {
         Post post = new Post();
         post.setUserId(userId);
         post.setTitle(request.getTitle().trim());
         post.setContent(request.getContent().trim());
         post.setImages(publishedImages);
-        post.setTags(request.getTags() == null ? Collections.emptyList() : request.getTags());
+        post.setTags(mergedTags);
         post.setProductName(request.getProductName());
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
@@ -349,7 +387,10 @@ public class PostService {
         }
         uploadService.validatePendingImages(userId, pendingImages);
 
-        String tagsText = request.getTags() == null ? null : String.join(" ", request.getTags());
+        // G4：正文 #话题# 自动并入标签（手选在前，去重，上限 8）
+        List<String> mergedTags = MentionExtractor.mergeTags(request.getTags(),
+                MentionExtractor.extractTopics(request.getContent()));
+        String tagsText = mergedTags.isEmpty() ? null : String.join(" ", mergedTags);
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
                 request.getProductSource(), tagsText);
@@ -366,7 +407,7 @@ public class PostService {
         post.setTitle(request.getTitle().trim());
         post.setContent(request.getContent().trim());
         post.setImages(finalImages);
-        post.setTags(request.getTags() == null ? Collections.emptyList() : request.getTags());
+        post.setTags(mergedTags);
         post.setProductName(request.getProductName());
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
@@ -376,6 +417,9 @@ public class PostService {
         postMapper.updateById(post);
         // updateById 忽略 null 字段，人工审核审计信息需显式清空
         postMapper.clearModerationAudit(postId);
+
+        // G4：正文 @提及 通知（异步，失败仅告警）
+        notifyMentions(userId, postId, request.getContent(), request.getTitle());
 
         return getPostDetail(postId);
     }

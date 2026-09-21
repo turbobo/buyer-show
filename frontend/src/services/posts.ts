@@ -18,6 +18,8 @@ export interface ApiPost {
   moderationStatus: number
   /** 最近一次申诉状态（仅"我的帖子"列表与作者查看详情时返回；0 待处理 / 1 已通过 / 2 已驳回） */
   appealStatus?: number | null
+  /** G4：正文中 @提及 的用户（昵称 + userId），详情页实时解析，供正文高亮跳转 */
+  mentions?: Array<{ nickname: string; userId: number }>
   isLiked: boolean
   isFavorited: boolean
   createdAt: string

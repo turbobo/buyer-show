@@ -38,4 +38,7 @@ public class PostDTO {
     // User info (flattened from JOIN)
     private String userNickname;
     private String userAvatarUrl;
+
+    /** 正文 @提及的昵称到用户映射（G4；仅详情接口实时解析返回，供前端高亮跳转）。 */
+    private List<MentionDTO> mentions;
 }

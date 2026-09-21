@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, ShieldCheck, UserPlus } from 'lucide-react'
+import { AtSign, Heart, MessageCircle, ShieldCheck, UserPlus } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import type { Notification as AppNotification } from '@/services/notifications'
 
@@ -7,6 +7,7 @@ function notificationIcon(type: AppNotification['type']) {
     case 'like': return <Heart className="h-3 w-3 text-red-500" />
     case 'comment': return <MessageCircle className="h-3 w-3 text-blue-500" />
     case 'follow': return <UserPlus className="h-3 w-3 text-green-500" />
+    case 'mention': return <AtSign className="h-3 w-3 text-purple-500" />
     case 'system': return <ShieldCheck className="h-3 w-3 text-coral" />
     default: return <MessageCircle className="h-3 w-3 text-muted-foreground" />
   }
@@ -17,6 +18,7 @@ function notificationText(notification: AppNotification): string {
     case 'like': return `赞了你的帖子${notification.content ? `「${notification.content}」` : ''}`
     case 'comment': return `评论了你的帖子${notification.content ? `：${notification.content}` : ''}`
     case 'follow': return '关注了你'
+    case 'mention': return `在帖子${notification.content ? `「${notification.content}」` : ''}中提到了你`
     case 'system': return notification.content || '系统通知'
     default: return notification.content || '新通知'
   }

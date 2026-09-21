@@ -142,6 +142,20 @@ export default function HomeFeedScreen() {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const location = useLocation()
 
+  // 话题页（G4）：从 URL ?tag= 初始化标签筛选，支持详情页话题/标签点击直达（可分享链接）
+  useEffect(() => {
+    const tagParam = new URLSearchParams(location.search).get('tag')
+    if (tagParam) setActiveTag(tagParam)
+    // 仅监听 URL 变化，避免与用户点击标签时主动 setActiveTag 形成循环
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search])
+
+  // 标签列表：热门标签 + URL 直达的冷门话题（不在热门列表时追加展示，保证可取消选中）
+  const tagList = useMemo(() => {
+    const hotTags = hotTagStats.map((item) => item.tag)
+    return activeTag !== '全部' && !hotTags.includes(activeTag) ? [...hotTags, activeTag] : hotTags
+  }, [hotTagStats, activeTag])
+
   // 登出确认弹窗：Esc 关闭
   useEffect(() => {
     if (!showLogoutConfirm) return
@@ -312,11 +326,15 @@ export default function HomeFeedScreen() {
       <div className="sticky top-14 z-40 border-b border-border bg-card/80 py-3 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4">
           <div className="flex flex-1 gap-2 overflow-x-auto">
-            {['全部', ...hotTagStats.map((item) => item.tag)].map((tagName) => (
+            {['全部', ...tagList].map((tagName) => (
               <button
                 type="button"
                 key={tagName}
-                onClick={() => setActiveTag(tagName)}
+                onClick={() => {
+                  setActiveTag(tagName)
+                  // G4：标签与 URL 同步，保持话题页可分享/可刷新
+                  navigate(tagName === '全部' ? '/' : `/?tag=${encodeURIComponent(tagName)}`, { replace: true })
+                }}
                 className={`whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   activeTag === tagName ? 'bg-coral text-white' : 'bg-muted text-muted-foreground hover:bg-muted/80'
                 }`}

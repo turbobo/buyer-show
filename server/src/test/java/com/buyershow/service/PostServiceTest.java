@@ -35,6 +35,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
 
 /**
  * 用户公开帖子列表（游标分页）测试。
@@ -151,6 +152,102 @@ class PostServiceTest {
         verify(postMapper).insert(captor.capture());
         assertNull(captor.getValue().getProductRating());
         verify(userMapper).adjustPostCount(10L, 1);
+    }
+
+    @Test
+    void testCreatePostMergesTopicsIntoTags() {
+        loginAs(10L);
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(uploadService.publishImages(eq(10L), anyList()))
+                .thenReturn(List.of("http://cdn/published/a.jpg"));
+        when(postMapper.selectPostDetailRow(any(), eq(10L))).thenReturn(ownedRow(60L));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())
+                        .moderationStatus(ModerationStatus.APPROVED.getValue()).build());
+
+        CreatePostRequest request = new CreatePostRequest();
+        request.setTitle("话题合并测试");
+        request.setContent("今天打卡了 #咖啡店# 和 #美食探店# 太棒了");
+        request.setImages(List.of("pending/10/a.jpg"));
+        request.setTags(List.of("探店", "美食探店"));
+
+        postService.createPost(request);
+
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postMapper).insert(captor.capture());
+        assertEquals(List.of("探店", "美食探店", "咖啡店"), captor.getValue().getTags());
+    }
+
+    @Test
+    void testCreatePostSendsMentionNotifications() {
+        loginAs(10L);
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(uploadService.publishImages(eq(10L), anyList()))
+                .thenReturn(List.of("http://cdn/published/a.jpg"));
+        when(postMapper.selectPostDetailRow(any(), eq(10L))).thenReturn(ownedRow(60L));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())
+                        .moderationStatus(ModerationStatus.APPROVED.getValue()).build());
+        when(userMapper.selectActiveUsersByNicknames(List.of("李四")))
+                .thenReturn(List.of(namedUser(20L, "李四")));
+        doAnswer(invocation -> {
+            ((Post) invocation.getArgument(0)).setId(60L);
+            return 1;
+        }).when(postMapper).insert(any(Post.class));
+
+        CreatePostRequest request = new CreatePostRequest();
+        request.setTitle("提及测试标题");
+        request.setContent("推荐 @李四 也来看看这个好物分享");
+        request.setImages(List.of("pending/10/a.jpg"));
+
+        postService.createPost(request);
+
+        verify(notificationService).notifyMention(20L, 10L, 60L, "提及测试标题");
+    }
+
+    @Test
+    void testGetPostDetailResolvesMentions() {
+        SecurityContextHolder.clearContext();
+        PostQueryRow row = ownedRow(60L);
+        when(postMapper.selectPostDetailRow(60L, null)).thenReturn(row);
+        when(postAssembler.toPostDTO(any())).thenReturn(
+                PostDTO.builder().id(60L).content("试试 @李四 的推荐")
+                        .moderationStatus(ModerationStatus.APPROVED.getValue()).build());
+        when(userMapper.selectActiveUsersByNicknames(List.of("李四")))
+                .thenReturn(List.of(namedUser(20L, "李四")));
+
+        PostDTO dto = postService.getPostDetail(60L);
+
+        assertEquals(1, dto.getMentions().size());
+        assertEquals("李四", dto.getMentions().get(0).getNickname());
+        assertEquals(20L, dto.getMentions().get(0).getUserId());
+    }
+
+    @Test
+    void testUpdatePostMergesTopicsAndNotifiesMentions() {
+        loginAs(10L);
+        when(postMapper.selectById(50L)).thenReturn(ownedPost());
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+                .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
+        when(postMapper.selectPostDetailRow(50L, 10L)).thenReturn(row(50L));
+        when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
+                PostDTO.builder().id(((PostQueryRow) invocation.getArgument(0)).getId())
+                        .moderationStatus(ModerationStatus.APPROVED.getValue()).build());
+        when(userMapper.selectActiveUsersByNicknames(List.of("李四")))
+                .thenReturn(List.of(namedUser(20L, "李四")));
+
+        CreatePostRequest request = editRequest(List.of("http://cdn/published/a.jpg"));
+        request.setContent("编辑正文 @李四 看看 #新话题# 吧");
+        request.setTags(List.of("美食"));
+
+        postService.updatePost(50L, request);
+
+        ArgumentCaptor<Post> captor = ArgumentCaptor.forClass(Post.class);
+        verify(postMapper).updateById(captor.capture());
+        assertEquals(List.of("美食", "新话题"), captor.getValue().getTags());
+        verify(notificationService).notifyMention(20L, 10L, 50L, "编辑后的标题");
     }
 
     @Test
@@ -333,6 +430,12 @@ class PostServiceTest {
         User user = new User();
         user.setId(id);
         user.setStatus(0);
+        return user;
+    }
+
+    private User namedUser(Long id, String nickname) {
+        User user = activeUser(id);
+        user.setNickname(nickname);
         return user;
     }
 
