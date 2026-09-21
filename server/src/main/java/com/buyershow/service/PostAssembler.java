@@ -35,6 +35,7 @@ public class PostAssembler {
                 .productPrice(row.getProductPrice())
                 .productSource(row.getProductSource())
                 .productRating(row.getProductRating())
+                .productLink(row.getProductLink())
                 .likeCount(row.getLikeCount())
                 .commentCount(row.getCommentCount())
                 .favoriteCount(row.getFavoriteCount())

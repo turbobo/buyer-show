@@ -31,4 +31,7 @@ public class CreatePostRequest {
     private BigDecimal productPrice;
     private String productSource;
     private Integer productRating;
+    /** 商品购买链接（G12，可选；仅白名单域名 http/https 链接） */
+    @Size(max = 500, message = "购买链接最多500字符")
+    private String productLink;
 }

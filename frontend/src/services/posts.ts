@@ -12,6 +12,8 @@ export interface ApiPost {
   productPrice?: number
   productSource?: string
   productRating?: number
+  /** G12：商品购买链接（仅白名单域名，详情页「去购买」跳转） */
+  productLink?: string
   likeCount: number
   commentCount: number
   favoriteCount: number
@@ -47,6 +49,8 @@ export interface CreatePostPayload {
   productPrice?: number
   productSource?: string
   productRating?: number
+  /** G12：商品购买链接（可选；仅淘宝/天猫/京东/拼多多域名） */
+  productLink?: string
 }
 
 export function getFeed(

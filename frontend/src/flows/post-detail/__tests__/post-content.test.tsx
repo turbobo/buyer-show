@@ -79,6 +79,31 @@ describe('PostContent', () => {
     expect(screen.getByRole('button', { name: '复制商品信息' })).toBeInTheDocument()
   })
 
+  it('should render 去购买 link with productLink and open in new tab', () => {
+    render(
+      <PostContent post={makePost({
+        productName: '保温杯',
+        productPrice: 99,
+        productSource: '淘宝',
+        productLink: 'https://detail.tmall.com/item.htm?id=1',
+      })} />,
+    )
+
+    const link = screen.getByRole('link', { name: '去购买 ↗' })
+    expect(link).toHaveAttribute('href', 'https://detail.tmall.com/item.htm?id=1')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+  })
+
+  it('should not render 去购买 link without productLink', () => {
+    render(
+      <PostContent post={makePost({ productName: '保温杯', productPrice: 99, productSource: '淘宝' })} />,
+    )
+
+    expect(screen.queryByRole('link', { name: '去购买 ↗' })).toBeNull()
+    expect(screen.getByRole('button', { name: '复制商品信息' })).toBeInTheDocument()
+  })
+
   it('should copy product info and toast success', async () => {
     stubClipboard()
     render(

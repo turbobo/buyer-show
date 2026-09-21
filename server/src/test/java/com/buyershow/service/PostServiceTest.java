@@ -113,7 +113,7 @@ class PostServiceTest {
     void testUpdatePostPublishesNewImagesAndResetsModeration() {
         loginAs(10L);
         when(postMapper.selectById(50L)).thenReturn(ownedPost());
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
         when(uploadService.publishPendingImages(eq(10L), anyList()))
                 .thenReturn(List.of("http://cdn/published/a.jpg", "http://cdn/published/b.jpg"));
@@ -139,7 +139,7 @@ class PostServiceTest {
     @Test
     void testCreatePostNormalizesUnratedToNull() {
         loginAs(10L);
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
         when(uploadService.publishImages(eq(10L), anyList()))
                 .thenReturn(List.of("http://cdn/published/a.jpg"));
@@ -165,7 +165,7 @@ class PostServiceTest {
     @Test
     void testCreatePostMergesTopicsIntoTags() {
         loginAs(10L);
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
         when(uploadService.publishImages(eq(10L), anyList()))
                 .thenReturn(List.of("http://cdn/published/a.jpg"));
@@ -190,7 +190,7 @@ class PostServiceTest {
     @Test
     void testCreatePostSendsMentionNotifications() {
         loginAs(10L);
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
         when(uploadService.publishImages(eq(10L), anyList()))
                 .thenReturn(List.of("http://cdn/published/a.jpg"));
@@ -237,7 +237,7 @@ class PostServiceTest {
     void testUpdatePostMergesTopicsAndNotifiesMentions() {
         loginAs(10L);
         when(postMapper.selectById(50L)).thenReturn(ownedPost());
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.APPROVED, null));
         when(postMapper.selectPostDetailRow(50L, 10L)).thenReturn(row(50L));
         when(postAssembler.toPostDTO(any())).thenAnswer(invocation ->
@@ -274,7 +274,7 @@ class PostServiceTest {
     void testUpdatePostRejectedCleansPendingImages() {
         loginAs(10L);
         when(postMapper.selectById(50L)).thenReturn(ownedPost());
-        when(contentModerationService.evaluate(any(), any(), any(), any(), any()))
+        when(contentModerationService.evaluate(any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModerationDecision(ModerationStatus.REJECTED, "含违规信息"));
 
         BusinessException exception = assertThrows(BusinessException.class, () -> postService.updatePost(50L,

@@ -10,6 +10,7 @@ import com.buyershow.common.search.PostIndexEvents;
 import com.buyershow.common.search.SearchHitResult;
 import com.buyershow.common.util.CursorUtils;
 import com.buyershow.common.util.MentionExtractor;
+import com.buyershow.common.util.ProductLinkValidator;
 import com.buyershow.dto.request.CreatePostRequest;
 import com.buyershow.dto.response.AdminPostRow;
 import com.buyershow.dto.response.CursorPage;
@@ -308,13 +309,15 @@ public class PostService {
         }
 
         uploadService.validatePendingImages(userId, request.getImages());
+        // G12：购买链接白名单域名校验（防钓鱼）
+        validateProductLink(request.getProductLink());
         // G4：正文 #话题# 自动并入标签（手选在前，去重，上限 8）
         List<String> mergedTags = MentionExtractor.mergeTags(request.getTags(),
                 MentionExtractor.extractTopics(request.getContent()));
         String tagsText = mergedTags.isEmpty() ? null : String.join(" ", mergedTags);
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
-                request.getProductSource(), tagsText);
+                request.getProductSource(), request.getProductLink(), tagsText);
 
         List<String> publishedImages;
         if (decision.getStatus() == ModerationStatus.REJECTED) {
@@ -349,6 +352,7 @@ public class PostService {
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
         post.setProductRating(normalizeRating(request.getProductRating()));
+        post.setProductLink(trimToNull(request.getProductLink()));
         post.setLikeCount(0);
         post.setCommentCount(0);
         post.setFavoriteCount(0);
@@ -372,6 +376,22 @@ public class PostService {
      */
     private Integer normalizeRating(Integer rating) {
         return rating != null && rating >= 1 && rating <= 5 ? rating : null;
+    }
+
+    /**
+     * G12：购买链接校验——仅允许淘宝/天猫/京东/拼多多域名（含子域）的 http/https 链接。
+     *
+     * @param productLink 前端提交的购买链接（可选）
+     */
+    private void validateProductLink(String productLink) {
+        if (!ProductLinkValidator.isValid(productLink)) {
+            throw new BusinessException(ErrorCode.PRODUCT_LINK_INVALID);
+        }
+    }
+
+    /** 空白转 null（可选字段统一落库口径）。 */
+    private String trimToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**
@@ -409,13 +429,16 @@ public class PostService {
         }
         uploadService.validatePendingImages(userId, pendingImages);
 
+        // G12：购买链接白名单域名校验（防钓鱼）
+        validateProductLink(request.getProductLink());
+
         // G4：正文 #话题# 自动并入标签（手选在前，去重，上限 8）
         List<String> mergedTags = MentionExtractor.mergeTags(request.getTags(),
                 MentionExtractor.extractTopics(request.getContent()));
         String tagsText = mergedTags.isEmpty() ? null : String.join(" ", mergedTags);
         ModerationDecision decision = contentModerationService.evaluate(
                 request.getTitle(), request.getContent(), request.getProductName(),
-                request.getProductSource(), tagsText);
+                request.getProductSource(), request.getProductLink(), tagsText);
         if (decision.getStatus() == ModerationStatus.REJECTED) {
             uploadService.deletePendingImages(userId, pendingImages);
             throw new BusinessException(ErrorCode.CONTENT_REJECTED, decision.getReason());
@@ -434,6 +457,7 @@ public class PostService {
         post.setProductPrice(request.getProductPrice());
         post.setProductSource(request.getProductSource());
         post.setProductRating(normalizeRating(request.getProductRating()));
+        post.setProductLink(trimToNull(request.getProductLink()));
         post.setModerationStatus(decision.getStatus().getValue());
         post.setModerationReason(decision.getReason());
         postMapper.updateById(post);

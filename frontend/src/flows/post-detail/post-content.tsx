@@ -106,6 +106,16 @@ export function PostContent({ post }: { post: ApiPost }) {
           <p className="font-semibold">{post.productName}</p>
           <p className="mt-1 text-coral">¥{post.productPrice ?? '—'} · {post.productSource ?? '未知来源'}</p>
           <div className="mt-3 flex gap-2">
+            {post.productLink && (
+              <a
+                href={post.productLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex h-8 items-center rounded-lg bg-coral px-3 text-xs font-medium text-white transition-colors hover:bg-coral/90"
+              >
+                去购买 ↗
+              </a>
+            )}
             <Button
               size="sm"
               variant="outline"

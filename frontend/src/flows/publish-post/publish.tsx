@@ -24,6 +24,7 @@ interface PostDraft {
   source: string
   price: string
   rating: number
+  productLink: string
   tags: string[]
   savedAt: number
 }
@@ -42,6 +43,7 @@ export default function PublishScreen() {
   const [source, setSource] = useState(SOURCES[0])
   const [price, setPrice] = useState('')
   const [rating, setRating] = useState(0)
+  const [productLink, setProductLink] = useState('')
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
@@ -95,6 +97,7 @@ export default function PublishScreen() {
         setPrice(post.productPrice != null ? String(post.productPrice) : '')
         setSource(post.productSource ?? SOURCES[0])
         setRating(post.productRating ?? 5)
+        setProductLink(post.productLink ?? '')
         setImages((post.images ?? []).map((url) => ({ key: url, preview: url, url })))
       } catch (requestError) {
         if (!cancelled) {
@@ -168,11 +171,12 @@ export default function PublishScreen() {
   // 草稿自动保存（防抖 600ms；提示未处理时不覆盖）
   useEffect(() => {
     if (isEdit || draftPrompt) return
-    const hasContent = title.trim() || content.trim() || productName.trim() || price.trim() || selectedTags.length > 0
+    const hasContent = title.trim() || content.trim() || productName.trim() || price.trim()
+      || productLink.trim() || selectedTags.length > 0
     if (!hasContent) return
     const timer = window.setTimeout(() => {
       const draft: PostDraft = {
-        title, content, productName, source, price, rating, tags: selectedTags, savedAt: Date.now(),
+        title, content, productName, source, price, rating, productLink, tags: selectedTags, savedAt: Date.now(),
       }
       localStorage.setItem(DRAFT_KEY, JSON.stringify(draft))
     }, 600)
@@ -187,6 +191,7 @@ export default function PublishScreen() {
     setSource(draftPrompt.source)
     setPrice(draftPrompt.price)
     setRating(draftPrompt.rating)
+    setProductLink(draftPrompt.productLink ?? '')
     setSelectedTags(draftPrompt.tags)
     setDraftPrompt(null)
     toast('info', '草稿已恢复（图片需重新上传）')
@@ -245,6 +250,7 @@ export default function PublishScreen() {
         productPrice: price ? Number(price) : undefined,
         productSource: source,
         productRating: rating,
+        productLink: productLink.trim() || undefined,
       }
       const post = isEdit && postId ? await updatePost(postId, payload) : await createPost(payload)
 
@@ -410,6 +416,13 @@ export default function PublishScreen() {
               </button>
             ))}
           </div>
+          <Input
+            aria-label="购买链接"
+            value={productLink}
+            type="url"
+            onChange={(event) => setProductLink(event.target.value)}
+            placeholder="购买链接（可选，仅支持淘宝/天猫/京东/拼多多）"
+          />
         </section>
 
         {/* ─── 标签 ─── */}

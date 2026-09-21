@@ -26,6 +26,8 @@ public class PostDTO {
     private BigDecimal productPrice;
     private String productSource;
     private Integer productRating;
+    /** 商品购买链接（G12；仅白名单域名，详情页「去购买」跳转） */
+    private String productLink;
     private Integer likeCount;
     private Integer commentCount;
     private Integer favoriteCount;

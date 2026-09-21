@@ -24,6 +24,7 @@ public class ModerationPostDTO {
     private BigDecimal productPrice;
     private String productSource;
     private Integer productRating;
+    private String productLink;
     private Integer likeCount;
     private Integer commentCount;
     private Integer favoriteCount;

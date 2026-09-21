@@ -28,6 +28,8 @@ public class Post {
     private BigDecimal productPrice;
     private String productSource;
     private Integer productRating;
+    /** 商品购买链接（G12；白名单域名） */
+    private String productLink;
 
     private Integer likeCount;
     private Integer commentCount;

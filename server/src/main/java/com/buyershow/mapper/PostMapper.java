@@ -27,6 +27,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -64,6 +65,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -102,6 +104,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -131,6 +134,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -161,6 +165,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -190,6 +195,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -229,6 +235,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -260,6 +267,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -356,6 +364,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -390,6 +399,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -451,6 +461,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson,",
             "       p.product_name AS productName, p.product_price AS productPrice,",
             "       p.product_source AS productSource, p.product_rating AS productRating,",
+            "       p.product_link AS productLink,",
             "       p.like_count AS likeCount, p.comment_count AS commentCount,",
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt,",
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl,",
@@ -529,6 +540,7 @@ public interface PostMapper extends BaseMapper<Post> {
             "       CAST(p.tags AS CHAR) AS tagsJson," +
             "       p.product_name AS productName, p.product_price AS productPrice," +
             "       p.product_source AS productSource, p.product_rating AS productRating," +
+            "       p.product_link AS productLink," +
             "       p.like_count AS likeCount, p.comment_count AS commentCount," +
             "       p.favorite_count AS favoriteCount, p.moderation_status AS moderationStatus, p.created_at AS createdAt," +
             "       u.nickname AS userNickname, u.avatar_url AS userAvatarUrl," +

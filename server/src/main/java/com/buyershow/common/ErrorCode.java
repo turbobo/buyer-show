@@ -69,6 +69,7 @@ public enum ErrorCode {
     // 公告（G11）
     ANNOUNCEMENT_NOT_FOUND(8006, "公告不存在"),
     ANNOUNCEMENT_STATUS_INVALID(8007, "公告状态不合法"),
+    PRODUCT_LINK_INVALID(8008, "购买链接仅支持淘宝/天猫/京东/拼多多域名"),
 
     // 系统 9000-9999
     SYSTEM_ERROR(9001, "服务暂时不可用，请稍后重试"),

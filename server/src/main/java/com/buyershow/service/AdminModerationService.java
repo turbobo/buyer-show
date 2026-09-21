@@ -271,6 +271,7 @@ public class AdminModerationService {
                 .productPrice(post.getProductPrice())
                 .productSource(post.getProductSource())
                 .productRating(post.getProductRating())
+                .productLink(post.getProductLink())
                 .likeCount(post.getLikeCount())
                 .commentCount(post.getCommentCount())
                 .favoriteCount(post.getFavoriteCount())
